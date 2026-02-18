@@ -10,7 +10,7 @@
 #include <QStringList>
 #include <algorithm>
 
-static constexpr const char* kPluginVersion = "0.3.2";
+static constexpr const char* kPluginVersion = "0.4.0";
 
 const std::vector<QColor>& SignalViewWidget::signalColors()
 {

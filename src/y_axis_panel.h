@@ -5,17 +5,31 @@
 #include <vector>
 #include "plot_canvas.h"
 
-// Left column: signal name + cursor readout value, vertically aligned with canvas bands.
-class YAxisLabelColumn : public QWidget
+// Shared band-position helpers used by all column widgets.
+namespace AxisLayout
+{
+inline double bandTopY(const SignalEntry& sig, int widget_height)
+{
+  double plot_h = widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
+}
+inline double bandBottomY(const SignalEntry& sig, int widget_height)
+{
+  double plot_h = widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+}
+}  // namespace AxisLayout
+
+// Signal name column: colored dot + signal name, draggable to reposition.
+class SignalNameColumn : public QWidget
 {
   Q_OBJECT
 
 public:
-  explicit YAxisLabelColumn(QWidget* parent = nullptr);
-
+  explicit SignalNameColumn(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
-  void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
-  void setCanvasHeight(int h);
+
+  static constexpr int kDefaultWidth = 70;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
@@ -27,33 +41,68 @@ protected:
   void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
-  double bandTopY(const SignalEntry& sig) const;
-  double bandBottomY(const SignalEntry& sig) const;
   int hitTestSignal(const QPoint& pos) const;
-
   std::vector<SignalEntry> _signals;
-  std::vector<double> _cursor_values;
-  std::vector<bool> _cursor_valid;
-
-  // Drag state
   int _drag_index = -1;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
-
-public:
-  static constexpr int kDefaultWidth = 110;
 };
 
-// Right column: Y-axis bars with tick marks, edge grab handles, drag interaction.
+// Signal value column: cursor readout values, vertically aligned with names.
+class SignalValueColumn : public QWidget
+{
+  Q_OBJECT
+
+public:
+  explicit SignalValueColumn(QWidget* parent = nullptr);
+  void setSignalEntries(const std::vector<SignalEntry>& entries);
+  void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
+
+  static constexpr int kDefaultWidth = 70;
+
+protected:
+  void paintEvent(QPaintEvent* event) override;
+
+private:
+  std::vector<SignalEntry> _signals;
+  std::vector<double> _cursor_values;
+  std::vector<bool> _cursor_valid;
+};
+
+// Container: name column | value column in a splitter.
+class YAxisLabelColumn : public QWidget
+{
+  Q_OBJECT
+
+public:
+  explicit YAxisLabelColumn(QWidget* parent = nullptr);
+  void setSignalEntries(const std::vector<SignalEntry>& entries);
+  void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
+  void setCanvasHeight(int h);
+
+  static constexpr int kDefaultWidth = SignalNameColumn::kDefaultWidth +
+                                       SignalValueColumn::kDefaultWidth + 3;
+
+signals:
+  void bandOffsetChanged(int index, double new_center);
+
+private:
+  QSplitter* _splitter;
+  SignalNameColumn* _name_col;
+  SignalValueColumn* _value_col;
+};
+
+// Y-axis bars with tick marks, edge grab handles, drag interaction.
 class YAxisBarColumn : public QWidget
 {
   Q_OBJECT
 
 public:
   explicit YAxisBarColumn(QWidget* parent = nullptr);
-
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCanvasHeight(int h);
+
+  static constexpr int kDefaultWidth = 60;
 
 signals:
   void yRangeChanged(int index, double y_min, double y_max);
@@ -70,36 +119,26 @@ protected:
   void wheelEvent(QWheelEvent* event) override;
 
 private:
-  double bandTopY(const SignalEntry& sig) const;
-  double bandBottomY(const SignalEntry& sig) const;
-
   enum HitZone { NONE, BODY, TOP_EDGE, BOTTOM_EDGE };
   struct HitResult { int index = -1; HitZone zone = NONE; };
   HitResult hitTest(const QPoint& pos) const;
 
   std::vector<SignalEntry> _signals;
-
-  // Drag state
   HitResult _drag_hit;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
   double _drag_start_band_height = 0.0;
 
-public:
-  static constexpr int kDefaultWidth = 60;
-
-private:
   static constexpr int kEdgeGrabPixels = 8;
 };
 
-// Container that places label column and axis bar column side by side.
+// Top-level container: label column | bar column in a splitter.
 class YAxisPanel : public QWidget
 {
   Q_OBJECT
 
 public:
   explicit YAxisPanel(QWidget* parent = nullptr);
-
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time);
   void setCanvasHeight(int h);
