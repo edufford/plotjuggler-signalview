@@ -55,7 +55,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   _canvas = new PlotCanvas(this);
   _canvas->setDataSource(_data);
 
-  content_layout->addWidget(_y_axis_panel);
+  content_layout->addWidget(_y_axis_panel, 0, Qt::AlignTop);
   content_layout->addWidget(_canvas, 1);  // canvas gets stretch
 
   main_layout->addLayout(content_layout);
@@ -67,7 +67,9 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_canvas, &PlotCanvas::cursorMoved, this, &SignalViewWidget::onCursorMoved);
   connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this, &SignalViewWidget::onYRangeChanged);
   connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this, &SignalViewWidget::onBandOffsetChanged);
+  connect(_y_axis_panel, &YAxisPanel::bandResized, this, &SignalViewWidget::onBandResized);
   connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this, &SignalViewWidget::onRemoveSignalByIndex);
+  connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
 }
 
 void SignalViewWidget::onAddSignal()
@@ -185,6 +187,22 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
     return;
   _signals[index].band_center = new_center;
   _canvas->setSignalEntries(_signals);
+  _y_axis_panel->setSignalEntries(_signals);
+}
+
+void SignalViewWidget::onBandResized(int index, double new_center, double new_height)
+{
+  if (index < 0 || index >= (int)_signals.size())
+    return;
+  _signals[index].band_center = new_center;
+  _signals[index].band_height = new_height;
+  _canvas->setSignalEntries(_signals);
+  _y_axis_panel->setSignalEntries(_signals);
+}
+
+void SignalViewWidget::onCanvasResized()
+{
+  _y_axis_panel->setCanvasHeight(_canvas->height());
 }
 
 void SignalViewWidget::onRemoveSignalByIndex(int index)

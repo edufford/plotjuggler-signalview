@@ -39,6 +39,7 @@ public:
 signals:
   void cursorMoved(double time);
   void viewRangeChanged(double t_min, double t_max);
+  void canvasResized(int new_height);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -80,7 +81,8 @@ private:
   double _pan_t_min_start = 0.0;
   double _pan_t_max_start = 0.0;
 
-  // Layout constants
+public:
+  // Layout constants — public so YAxisPanel can align with the plot area
   static constexpr int kMarginLeft = 10;
   static constexpr int kMarginRight = 20;
   static constexpr int kMarginTop = 10;

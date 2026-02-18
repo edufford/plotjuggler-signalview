@@ -429,5 +429,6 @@ void PlotCanvas::wheelEvent(QWheelEvent* event)
 void PlotCanvas::resizeEvent(QResizeEvent* event)
 {
   QWidget::resizeEvent(event);
+  emit canvasResized(height());
   update();
 }

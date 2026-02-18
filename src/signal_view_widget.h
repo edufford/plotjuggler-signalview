@@ -29,7 +29,9 @@ private slots:
   void onCursorMoved(double time);
   void onYRangeChanged(int index, double y_min, double y_max);
   void onBandOffsetChanged(int index, double new_center);
+  void onBandResized(int index, double new_center, double new_height);
   void onRemoveSignalByIndex(int index);
+  void onCanvasResized();
 
 private:
   void refreshViews();
