@@ -3,10 +3,14 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPushButton>
+#include <QLabel>
+#include <QSplitter>
 #include <QToolBar>
 #include <QInputDialog>
 #include <QStringList>
 #include <algorithm>
+
+static constexpr const char* kPluginVersion = "0.3.2";
 
 const std::vector<QColor>& SignalViewWidget::signalColors()
 {
@@ -40,6 +44,11 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_remove = new QPushButton("Remove Signal", this);
   auto* btn_reset = new QPushButton("Reset Zoom", this);
 
+  auto* version_label = new QLabel(QString("Signal View v%1").arg(kPluginVersion), this);
+  version_label->setStyleSheet("color: #888; font-size: 9px; padding: 0 6px;");
+
+  toolbar->addWidget(version_label);
+  toolbar->addSeparator();
   toolbar->addWidget(btn_add);
   toolbar->addWidget(btn_remove);
   toolbar->addSeparator();
@@ -47,18 +56,21 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   main_layout->addWidget(toolbar);
 
-  // Main content: Y-axis panel | Plot canvas
-  auto* content_layout = new QHBoxLayout();
-  content_layout->setContentsMargins(0, 0, 0, 0);
-
-  _y_axis_panel = new YAxisPanel(this);
-  _canvas = new PlotCanvas(this);
+  // Main content: Y-axis panel | Plot canvas in a splitter
+  _y_axis_panel = new YAxisPanel(nullptr);
+  _canvas = new PlotCanvas(nullptr);
   _canvas->setDataSource(_data);
 
-  content_layout->addWidget(_y_axis_panel, 0, Qt::AlignTop);
-  content_layout->addWidget(_canvas, 1);  // canvas gets stretch
+  auto* splitter = new QSplitter(Qt::Horizontal, this);
+  splitter->setChildrenCollapsible(false);
+  splitter->addWidget(_y_axis_panel);
+  splitter->addWidget(_canvas);
+  splitter->setStretchFactor(0, 0);  // panel: don't stretch
+  splitter->setStretchFactor(1, 1);  // canvas: stretch
+  splitter->setSizes({ 173, 700 });
+  splitter->setHandleWidth(4);
 
-  main_layout->addLayout(content_layout);
+  main_layout->addWidget(splitter, 1);
 
   // Connections
   connect(btn_add, &QPushButton::clicked, this, &SignalViewWidget::onAddSignal);

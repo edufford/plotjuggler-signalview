@@ -3,23 +3,23 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QHBoxLayout>
 #include <QInputDialog>
 #include <cmath>
 #include <algorithm>
 
-YAxisPanel::YAxisPanel(QWidget* parent)
+// ============================================================================
+// YAxisLabelColumn
+// ============================================================================
+
+YAxisLabelColumn::YAxisLabelColumn(QWidget* parent)
     : QWidget(parent)
 {
-  setFixedWidth(kPanelWidth);
+  setMinimumWidth(60);
   setMouseTracking(true);
-  setAutoFillBackground(true);
-
-  QPalette pal = palette();
-  pal.setColor(QPalette::Window, QColor(35, 35, 35));
-  setPalette(pal);
 }
 
-void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)
+void YAxisLabelColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
 {
   _signals = entries;
   _cursor_values.resize(entries.size(), 0.0);
@@ -27,61 +27,168 @@ void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)
   update();
 }
 
-void YAxisPanel::updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time)
+void YAxisLabelColumn::setCursorValues(const std::vector<double>& values,
+                                       const std::vector<bool>& valid)
 {
-  if (!data)
-    return;
-
-  _cursor_values.resize(_signals.size(), 0.0);
-  _cursor_valid.resize(_signals.size(), false);
-
-  for (size_t i = 0; i < _signals.size(); i++)
-  {
-    auto it = data->numeric.find(_signals[i].name);
-    if (it == data->numeric.end() || it->second.size() == 0)
-    {
-      _cursor_valid[i] = false;
-      continue;
-    }
-
-    auto val = it->second.getYfromX(cursor_time);
-    if (val.has_value())
-    {
-      _cursor_values[i] = val.value();
-      _cursor_valid[i] = true;
-    }
-    else
-    {
-      _cursor_valid[i] = false;
-    }
-  }
+  _cursor_values = values;
+  _cursor_valid = valid;
   update();
 }
 
-void YAxisPanel::setCanvasHeight(int h)
+void YAxisLabelColumn::setCanvasHeight(int /*h*/)
 {
-  _canvas_height = h;
-  setFixedHeight(h);
   update();
 }
 
-// --- Coordinate helpers (must match PlotCanvas::valueToPixelY layout) ---
-
-double YAxisPanel::bandTopY(const SignalEntry& sig) const
+double YAxisLabelColumn::bandTopY(const SignalEntry& sig) const
 {
-  double plot_h = _canvas_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   return PlotCanvas::kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
 }
 
-double YAxisPanel::bandBottomY(const SignalEntry& sig) const
+double YAxisLabelColumn::bandBottomY(const SignalEntry& sig) const
 {
-  double plot_h = _canvas_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
 }
 
-// --- Hit testing ---
+void YAxisLabelColumn::paintEvent(QPaintEvent* /*event*/)
+{
+  QPainter painter(this);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.fillRect(rect(), QColor(32, 32, 38));
 
-YAxisPanel::HitResult YAxisPanel::hitTest(const QPoint& pos) const
+  for (int i = 0; i < (int)_signals.size(); i++)
+  {
+    const auto& sig = _signals[i];
+    double top = bandTopY(sig);
+    double bottom = bandBottomY(sig);
+    double band_h = bottom - top;
+
+    if (band_h < 4)
+      continue;
+
+    // Band background — label column uses slightly warm tint
+    painter.fillRect(QRectF(0, top, width(), band_h), QColor(38, 36, 34));
+
+    // Color dot
+    painter.setBrush(sig.color);
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(QPointF(10, top + 10), 4, 4);
+
+    // Signal name
+    painter.setPen(sig.color);
+    QFont name_font("sans-serif", 8, QFont::Bold);
+    painter.setFont(name_font);
+    QString name = QString::fromStdString(sig.name);
+    QFontMetrics fm(name_font);
+    QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 22);
+    painter.drawText(QRectF(20, top + 2, width() - 24, 16),
+                     Qt::AlignLeft | Qt::AlignVCenter, elided);
+
+    // Cursor readout value
+    if (i < (int)_cursor_valid.size())
+    {
+      painter.setPen(QColor(255, 255, 100));
+      QFont readout_font("monospace", 9, QFont::Bold);
+      painter.setFont(readout_font);
+
+      QString value_str = _cursor_valid[i]
+                              ? QString::number(_cursor_values[i], 'g', 6)
+                              : QStringLiteral("---");
+
+      painter.drawText(QRectF(6, top + 18, width() - 10, 16),
+                       Qt::AlignLeft | Qt::AlignVCenter, value_str);
+    }
+  }
+}
+
+int YAxisLabelColumn::hitTestSignal(const QPoint& pos) const
+{
+  for (int i = 0; i < (int)_signals.size(); i++)
+  {
+    double top = bandTopY(_signals[i]);
+    double bottom = bandBottomY(_signals[i]);
+    if (pos.y() >= top && pos.y() <= bottom)
+      return i;
+  }
+  return -1;
+}
+
+void YAxisLabelColumn::mousePressEvent(QMouseEvent* event)
+{
+  if (event->button() == Qt::LeftButton)
+  {
+    _drag_index = hitTestSignal(event->pos());
+    if (_drag_index >= 0)
+    {
+      _drag_start_global_y = event->globalPos().y();
+      _drag_start_band_center = _signals[_drag_index].band_center;
+      setCursor(Qt::ClosedHandCursor);
+    }
+  }
+}
+
+void YAxisLabelColumn::mouseMoveEvent(QMouseEvent* event)
+{
+  if (_drag_index < 0)
+  {
+    int hit = hitTestSignal(event->pos());
+    setCursor(hit >= 0 ? Qt::OpenHandCursor : Qt::ArrowCursor);
+    return;
+  }
+
+  int dy = event->globalPos().y() - _drag_start_global_y;
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  if (plot_h <= 0)
+    return;
+
+  double delta = dy / plot_h;
+  double new_center = std::clamp(_drag_start_band_center + delta, 0.0, 1.0);
+  emit bandOffsetChanged(_drag_index, new_center);
+}
+
+void YAxisLabelColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
+{
+  _drag_index = -1;
+  setCursor(Qt::ArrowCursor);
+}
+
+// ============================================================================
+// YAxisBarColumn
+// ============================================================================
+
+YAxisBarColumn::YAxisBarColumn(QWidget* parent)
+    : QWidget(parent)
+{
+  setMinimumWidth(40);
+  setMouseTracking(true);
+}
+
+void YAxisBarColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
+{
+  _signals = entries;
+  update();
+}
+
+void YAxisBarColumn::setCanvasHeight(int /*h*/)
+{
+  update();
+}
+
+double YAxisBarColumn::bandTopY(const SignalEntry& sig) const
+{
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
+}
+
+double YAxisBarColumn::bandBottomY(const SignalEntry& sig) const
+{
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+}
+
+YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const
 {
   for (int i = 0; i < (int)_signals.size(); i++)
   {
@@ -101,13 +208,11 @@ YAxisPanel::HitResult YAxisPanel::hitTest(const QPoint& pos) const
   return { -1, NONE };
 }
 
-// --- Paint ---
-
-void YAxisPanel::paintEvent(QPaintEvent* /*event*/)
+void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
 {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), QColor(35, 35, 35));
+  painter.fillRect(rect(), QColor(30, 30, 30));
 
   for (int i = 0; i < (int)_signals.size(); i++)
   {
@@ -119,24 +224,25 @@ void YAxisPanel::paintEvent(QPaintEvent* /*event*/)
     if (band_h < 4)
       continue;
 
-    // Subtle background for the band
-    painter.fillRect(QRectF(0, top, kPanelWidth - 1, band_h), QColor(42, 42, 42));
+    // Background
+    // Band background — bar column uses slightly cool tint
+    painter.fillRect(QRectF(0, top, width(), band_h), QColor(34, 36, 40));
 
-    // Color stripe on the right edge (adjacent to canvas)
-    painter.fillRect(QRectF(kPanelWidth - 5, top, 5, band_h), sig.color);
+    // Color stripe on right edge (adjacent to canvas)
+    painter.fillRect(QRectF(width() - 4, top, 4, band_h), sig.color);
 
     // Axis line
-    int axis_x = kPanelWidth - 12;
+    int axis_x = width() - 10;
     painter.setPen(QPen(sig.color.lighter(130), 1.5));
     painter.drawLine(QPointF(axis_x, top), QPointF(axis_x, bottom));
 
-    // Edge grab handles — small horizontal bars
+    // Edge grab handles
     painter.setPen(QPen(sig.color, 2));
-    painter.drawLine(QPointF(axis_x - 8, top), QPointF(axis_x + 4, top));
-    painter.drawLine(QPointF(axis_x - 8, bottom), QPointF(axis_x + 4, bottom));
+    painter.drawLine(QPointF(axis_x - 10, top), QPointF(axis_x + 4, top));
+    painter.drawLine(QPointF(axis_x - 10, bottom), QPointF(axis_x + 4, bottom));
 
     // Tick marks and value labels
-    int n_ticks = std::max(2, (int)(band_h / 30));
+    int n_ticks = std::max(2, (int)(band_h / 35));
     painter.setFont(QFont("monospace", 7));
     painter.setPen(QColor(170, 170, 170));
 
@@ -146,46 +252,18 @@ void YAxisPanel::paintEvent(QPaintEvent* /*event*/)
       double y = bottom - frac * band_h;
       double val = sig.y_min + frac * (sig.y_max - sig.y_min);
 
-      // Tick mark
       painter.drawLine(QPointF(axis_x - 3, y), QPointF(axis_x + 3, y));
 
-      // Label
       QString label = QString::number(val, 'g', 4);
-      QRectF text_rect(2, y - 8, axis_x - 8, 16);
+      QRectF text_rect(1, y - 8, axis_x - 8, 16);
       painter.drawText(text_rect, Qt::AlignRight | Qt::AlignVCenter, label);
-    }
-
-    // Signal name (at top of band)
-    painter.setPen(sig.color);
-    QFont name_font("sans-serif", 8, QFont::Bold);
-    painter.setFont(name_font);
-    QString name = QString::fromStdString(sig.name);
-    QFontMetrics fm(name_font);
-    QString elided = fm.elidedText(name, Qt::ElideMiddle, axis_x - 10);
-    painter.drawText(QRectF(4, top + 2, axis_x - 10, 14),
-                     Qt::AlignLeft | Qt::AlignTop, elided);
-
-    // Cursor readout (centered in band)
-    if (i < (int)_cursor_valid.size())
-    {
-      painter.setPen(QColor(255, 255, 100));
-      QFont readout_font("monospace", 9, QFont::Bold);
-      painter.setFont(readout_font);
-
-      QString value_str = _cursor_valid[i]
-                              ? QString::number(_cursor_values[i], 'g', 6)
-                              : QStringLiteral("---");
-
-      double center_y = (top + bottom) * 0.5;
-      painter.drawText(QRectF(4, center_y - 8, axis_x - 10, 16),
-                       Qt::AlignLeft | Qt::AlignVCenter, value_str);
     }
   }
 }
 
 // --- Mouse interaction ---
 
-void YAxisPanel::mousePressEvent(QMouseEvent* event)
+void YAxisBarColumn::mousePressEvent(QMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
@@ -196,8 +274,6 @@ void YAxisPanel::mousePressEvent(QMouseEvent* event)
     _drag_start_global_y = event->globalPos().y();
     _drag_start_band_center = _signals[_drag_hit.index].band_center;
     _drag_start_band_height = _signals[_drag_hit.index].band_height;
-    _drag_start_y_min = _signals[_drag_hit.index].y_min;
-    _drag_start_y_max = _signals[_drag_hit.index].y_max;
 
     if (_drag_hit.zone == BODY)
       setCursor(Qt::ClosedHandCursor);
@@ -212,11 +288,10 @@ void YAxisPanel::mousePressEvent(QMouseEvent* event)
   }
 }
 
-void YAxisPanel::mouseMoveEvent(QMouseEvent* event)
+void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
 {
   if (_drag_hit.index < 0)
   {
-    // Update cursor shape on hover
     auto hit = hitTest(event->pos());
     if (hit.zone == TOP_EDGE || hit.zone == BOTTOM_EDGE)
       setCursor(Qt::SizeVerCursor);
@@ -228,7 +303,7 @@ void YAxisPanel::mouseMoveEvent(QMouseEvent* event)
   }
 
   int dy = event->globalPos().y() - _drag_start_global_y;
-  double plot_h = _canvas_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   if (plot_h <= 0)
     return;
 
@@ -236,19 +311,13 @@ void YAxisPanel::mouseMoveEvent(QMouseEvent* event)
 
   if (_drag_hit.zone == BODY)
   {
-    // Drag the whole band up/down — change band_center in normalized space
     double delta = dy / plot_h;
     double new_center = std::clamp(_drag_start_band_center + delta, 0.0, 1.0);
     emit bandOffsetChanged(idx, new_center);
   }
   else if (_drag_hit.zone == TOP_EDGE)
   {
-    // Dragging the top edge resizes the bar upward/downward.
-    // dy > 0 means mouse moved down → top edge moves down → bar shrinks.
-    // Convert pixel delta to normalized-space delta.
     double delta_norm = dy / plot_h;
-    // The top edge in normalized space is (center - height/2).
-    // New top = old_top + delta_norm, bottom stays fixed.
     double old_top = _drag_start_band_center - _drag_start_band_height * 0.5;
     double old_bottom = _drag_start_band_center + _drag_start_band_height * 0.5;
     double new_top = std::clamp(old_top + delta_norm, 0.0, old_bottom - 0.02);
@@ -258,8 +327,6 @@ void YAxisPanel::mouseMoveEvent(QMouseEvent* event)
   }
   else if (_drag_hit.zone == BOTTOM_EDGE)
   {
-    // Dragging the bottom edge resizes the bar downward/upward.
-    // dy > 0 means mouse moved down → bottom edge moves down → bar grows.
     double delta_norm = dy / plot_h;
     double old_top = _drag_start_band_center - _drag_start_band_height * 0.5;
     double old_bottom = _drag_start_band_center + _drag_start_band_height * 0.5;
@@ -270,13 +337,13 @@ void YAxisPanel::mouseMoveEvent(QMouseEvent* event)
   }
 }
 
-void YAxisPanel::mouseReleaseEvent(QMouseEvent* /*event*/)
+void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 {
   _drag_hit = { -1, NONE };
   setCursor(Qt::ArrowCursor);
 }
 
-void YAxisPanel::mouseDoubleClickEvent(QMouseEvent* event)
+void YAxisBarColumn::mouseDoubleClickEvent(QMouseEvent* event)
 {
   auto hit = hitTest(event->pos());
   if (hit.index < 0)
@@ -302,7 +369,7 @@ void YAxisPanel::mouseDoubleClickEvent(QMouseEvent* event)
     emit yRangeChanged(hit.index, new_min, new_max);
 }
 
-void YAxisPanel::wheelEvent(QWheelEvent* event)
+void YAxisBarColumn::wheelEvent(QWheelEvent* event)
 {
   auto hit = hitTest(event->position().toPoint());
   if (hit.index < 0)
@@ -314,4 +381,79 @@ void YAxisPanel::wheelEvent(QWheelEvent* event)
   double half_range = (sig.y_max - sig.y_min) * 0.5 * factor;
   if (half_range > 1e-12)
     emit yRangeChanged(hit.index, center - half_range, center + half_range);
+}
+
+// ============================================================================
+// YAxisPanel (container)
+// ============================================================================
+
+YAxisPanel::YAxisPanel(QWidget* parent)
+    : QWidget(parent)
+{
+  _label_col = new YAxisLabelColumn(nullptr);
+  _bar_col = new YAxisBarColumn(nullptr);
+
+  _splitter = new QSplitter(Qt::Horizontal, this);
+  _splitter->setChildrenCollapsible(false);
+  _splitter->addWidget(_label_col);
+  _splitter->addWidget(_bar_col);
+  _splitter->setSizes({ YAxisLabelColumn::kDefaultWidth, YAxisBarColumn::kDefaultWidth });
+  _splitter->setHandleWidth(3);
+  _splitter->setStyleSheet(
+      "QSplitter::handle { background: #555; }"
+  );
+
+  auto* layout = new QHBoxLayout(this);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
+  layout->addWidget(_splitter);
+
+  setMinimumWidth(120);
+  setMaximumWidth(400);
+  resize(YAxisLabelColumn::kDefaultWidth + YAxisBarColumn::kDefaultWidth + 3, height());
+
+  // Forward signals from both columns
+  connect(_label_col, &YAxisLabelColumn::bandOffsetChanged, this, &YAxisPanel::bandOffsetChanged);
+  connect(_bar_col, &YAxisBarColumn::yRangeChanged, this, &YAxisPanel::yRangeChanged);
+  connect(_bar_col, &YAxisBarColumn::bandOffsetChanged, this, &YAxisPanel::bandOffsetChanged);
+  connect(_bar_col, &YAxisBarColumn::bandResized, this, &YAxisPanel::bandResized);
+  connect(_bar_col, &YAxisBarColumn::removeSignalRequested, this, &YAxisPanel::removeSignalRequested);
+}
+
+void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)
+{
+  _signals = entries;
+  _label_col->setSignalEntries(entries);
+  _bar_col->setSignalEntries(entries);
+}
+
+void YAxisPanel::updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time)
+{
+  if (!data)
+    return;
+
+  std::vector<double> values(_signals.size(), 0.0);
+  std::vector<bool> valid(_signals.size(), false);
+
+  for (size_t i = 0; i < _signals.size(); i++)
+  {
+    auto it = data->numeric.find(_signals[i].name);
+    if (it == data->numeric.end() || it->second.size() == 0)
+      continue;
+
+    auto val = it->second.getYfromX(cursor_time);
+    if (val.has_value())
+    {
+      values[i] = val.value();
+      valid[i] = true;
+    }
+  }
+
+  _label_col->setCursorValues(values, valid);
+}
+
+void YAxisPanel::setCanvasHeight(int h)
+{
+  _label_col->setCanvasHeight(h);
+  _bar_col->setCanvasHeight(h);
 }
