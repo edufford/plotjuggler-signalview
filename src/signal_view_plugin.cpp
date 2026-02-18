@@ -1,0 +1,113 @@
+#include "signal_view_plugin.h"
+#include "signal_view_widget.h"
+
+SignalViewPlugin::SignalViewPlugin() = default;
+
+SignalViewPlugin::~SignalViewPlugin()
+{
+  if (_widget)
+  {
+    delete _widget;
+    _widget = nullptr;
+  }
+}
+
+void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data, PJ::TransformsMap& transform_map)
+{
+  _plot_data = &src_data;
+  _transforms = &transform_map;
+
+  _widget = new SignalViewWidget(_plot_data);
+  connect(_widget, &QWidget::destroyed, this, [this]() { _widget = nullptr; });
+}
+
+std::pair<QWidget*, PJ::ToolboxPlugin::WidgetType> SignalViewPlugin::providedWidget() const
+{
+  return { _widget, PJ::ToolboxPlugin::FLOATING };
+}
+
+bool SignalViewPlugin::onShowWidget()
+{
+  if (_widget)
+  {
+    _widget->show();
+    _widget->raise();
+    _widget->activateWindow();
+    return true;
+  }
+  return false;
+}
+
+bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_element) const
+{
+  if (!_widget)
+    return false;
+
+  const auto& sig_entries = _widget->signalEntries();
+  for (const auto& sig : sig_entries)
+  {
+    QDomElement sig_elem = doc.createElement("signal");
+    sig_elem.setAttribute("name", QString::fromStdString(sig.name));
+    sig_elem.setAttribute("color", sig.color.name());
+    sig_elem.setAttribute("y_min", sig.y_min);
+    sig_elem.setAttribute("y_max", sig.y_max);
+    sig_elem.setAttribute("band_center", sig.band_center);
+    sig_elem.setAttribute("band_height", sig.band_height);
+    parent_element.appendChild(sig_elem);
+  }
+
+  QDomElement cursor_elem = doc.createElement("cursor");
+  cursor_elem.setAttribute("time", _widget->cursorTime());
+  parent_element.appendChild(cursor_elem);
+
+  QDomElement view_elem = doc.createElement("view");
+  view_elem.setAttribute("t_min", _widget->canvas()->viewMinTime());
+  view_elem.setAttribute("t_max", _widget->canvas()->viewMaxTime());
+  parent_element.appendChild(view_elem);
+
+  return true;
+}
+
+bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
+{
+  if (!_widget || !_plot_data)
+    return false;
+
+  auto& sig_entries = _widget->signalEntriesMutable();
+  sig_entries.clear();
+
+  QDomElement sig_elem = parent_element.firstChildElement("signal");
+  while (!sig_elem.isNull())
+  {
+    SignalEntry entry;
+    entry.name = sig_elem.attribute("name").toStdString();
+    entry.color = QColor(sig_elem.attribute("color", "#00b4ff"));
+    entry.y_min = sig_elem.attribute("y_min", "0").toDouble();
+    entry.y_max = sig_elem.attribute("y_max", "1").toDouble();
+    entry.band_center = sig_elem.attribute("band_center", "0.5").toDouble();
+    entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
+
+    // Only add if the signal actually exists in the data
+    if (_plot_data->numeric.count(entry.name) > 0)
+    {
+      sig_entries.push_back(entry);
+    }
+
+    sig_elem = sig_elem.nextSiblingElement("signal");
+  }
+
+  // Refresh the views with the loaded signals
+  _widget->canvas()->setSignalEntries(sig_entries);
+  _widget->yAxisPanel()->setSignalEntries(sig_entries);
+
+  QDomElement cursor_elem = parent_element.firstChildElement("cursor");
+  if (!cursor_elem.isNull())
+  {
+    double cursor_time = cursor_elem.attribute("time", "0").toDouble();
+    _widget->canvas()->setCursorTime(cursor_time);
+  }
+
+  _widget->yAxisPanel()->updateCursorValues(_plot_data, _widget->cursorTime());
+
+  return true;
+}
