@@ -42,6 +42,7 @@ protected:
 
 private:
   int hitTestSignal(const QPoint& pos) const;
+  static constexpr int kTextRowHeight = 20;
   std::vector<SignalEntry> _signals;
   int _drag_index = -1;
   int _drag_start_global_y = 0;
@@ -60,13 +61,24 @@ public:
 
   static constexpr int kDefaultWidth = 70;
 
+signals:
+  void bandOffsetChanged(int index, double new_center);
+
 protected:
   void paintEvent(QPaintEvent* event) override;
+  void mousePressEvent(QMouseEvent* event) override;
+  void mouseMoveEvent(QMouseEvent* event) override;
+  void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
+  int hitTestSignal(const QPoint& pos) const;
+  static constexpr int kTextRowHeight = 20;
   std::vector<SignalEntry> _signals;
   std::vector<double> _cursor_values;
   std::vector<bool> _cursor_valid;
+  int _drag_index = -1;
+  int _drag_start_global_y = 0;
+  double _drag_start_band_center = 0.0;
 };
 
 // Container: name column | value column in a splitter.
