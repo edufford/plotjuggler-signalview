@@ -16,6 +16,7 @@ struct SignalEntry
   // 0 = top of canvas, 1 = bottom. Each signal is assigned a band.
   double band_center = 0.5;
   double band_height = 1.0;  // fraction of canvas height
+  double bar_x = 1.0;        // horizontal position of Y-axis bar [0=left, 1=right]
 };
 
 class PlotCanvas : public QWidget

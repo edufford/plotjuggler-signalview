@@ -292,10 +292,21 @@ void YAxisBarColumn::setCanvasHeight(int /*h*/)
   update();
 }
 
+double YAxisBarColumn::axisX(double bar_x) const
+{
+  return kAxisPadLeft + bar_x * (width() - kAxisPadLeft - kAxisPadRight);
+}
+
 YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const
 {
   for (int i = 0; i < (int)_signals.size(); i++)
   {
+    double ax = axisX(_signals[i].bar_x);
+
+    // Check horizontal proximity to this bar's axis
+    if (pos.x() < ax - 30 || pos.x() > ax + 10)
+      continue;
+
     double top = AxisLayout::bandTopY(_signals[i], height());
     double bottom = AxisLayout::bandBottomY(_signals[i], height());
 
@@ -328,21 +339,19 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
     if (band_h < 4)
       continue;
 
-    // Band background
-    painter.fillRect(QRectF(0, top, width(), band_h), QColor(34, 36, 40));
+    double ax = axisX(sig.bar_x);
 
-    // Color stripe on right edge (adjacent to canvas)
-    painter.fillRect(QRectF(width() - 4, top, 4, band_h), sig.color);
+    // Color stripe (right of axis)
+    painter.fillRect(QRectF(ax + 2, top, 4, band_h), sig.color);
 
     // Axis line
-    int axis_x = width() - 10;
     painter.setPen(QPen(sig.color.lighter(130), 1.5));
-    painter.drawLine(QPointF(axis_x, top), QPointF(axis_x, bottom));
+    painter.drawLine(QPointF(ax, top), QPointF(ax, bottom));
 
     // Edge grab handles
     painter.setPen(QPen(sig.color, 2));
-    painter.drawLine(QPointF(axis_x - 10, top), QPointF(axis_x + 4, top));
-    painter.drawLine(QPointF(axis_x - 10, bottom), QPointF(axis_x + 4, bottom));
+    painter.drawLine(QPointF(ax - 10, top), QPointF(ax + 6, top));
+    painter.drawLine(QPointF(ax - 10, bottom), QPointF(ax + 6, bottom));
 
     // Tick marks and value labels
     int n_ticks = std::max(2, (int)(band_h / 35));
@@ -355,10 +364,10 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
       double y = bottom - frac * band_h;
       double val = sig.y_min + frac * (sig.y_max - sig.y_min);
 
-      painter.drawLine(QPointF(axis_x - 3, y), QPointF(axis_x + 3, y));
+      painter.drawLine(QPointF(ax - 3, y), QPointF(ax + 3, y));
 
       QString label = QString::number(val, 'g', 4);
-      QRectF text_rect(1, y - 8, axis_x - 8, 16);
+      QRectF text_rect(ax - 48, y - 8, 40, 16);
       painter.drawText(text_rect, Qt::AlignRight | Qt::AlignVCenter, label);
     }
   }
@@ -374,12 +383,14 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event)
     if (_drag_hit.index < 0)
       return;
 
+    _drag_start_global_x = event->globalPos().x();
     _drag_start_global_y = event->globalPos().y();
+    _drag_start_bar_x = _signals[_drag_hit.index].bar_x;
     _drag_start_band_center = _signals[_drag_hit.index].band_center;
     _drag_start_band_height = _signals[_drag_hit.index].band_height;
 
     if (_drag_hit.zone == BODY)
-      setCursor(Qt::ClosedHandCursor);
+      setCursor(Qt::SizeAllCursor);
     else
       setCursor(Qt::SizeVerCursor);
   }
@@ -399,7 +410,7 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
     if (hit.zone == TOP_EDGE || hit.zone == BOTTOM_EDGE)
       setCursor(Qt::SizeVerCursor);
     else if (hit.zone == BODY)
-      setCursor(Qt::OpenHandCursor);
+      setCursor(Qt::SizeAllCursor);
     else
       setCursor(Qt::ArrowCursor);
     return;
@@ -414,9 +425,19 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
 
   if (_drag_hit.zone == BODY)
   {
-    double delta = dy / plot_h;
-    double new_center = std::clamp(_drag_start_band_center + delta, 0.0, 1.0);
+    // Vertical movement
+    double delta_y = dy / plot_h;
+    double new_center = std::clamp(_drag_start_band_center + delta_y, 0.0, 1.0);
     emit bandOffsetChanged(idx, new_center);
+
+    // Horizontal movement
+    int dx = event->globalPos().x() - _drag_start_global_x;
+    double bar_range = width() - kAxisPadLeft - kAxisPadRight;
+    if (bar_range > 0)
+    {
+      double new_bar_x = std::clamp(_drag_start_bar_x + dx / bar_range, 0.0, 1.0);
+      emit barXChanged(idx, new_bar_x);
+    }
   }
   else if (_drag_hit.zone == TOP_EDGE)
   {
@@ -520,6 +541,7 @@ YAxisPanel::YAxisPanel(QWidget* parent)
   connect(_bar_col, &YAxisBarColumn::yRangeChanged, this, &YAxisPanel::yRangeChanged);
   connect(_bar_col, &YAxisBarColumn::bandOffsetChanged, this, &YAxisPanel::bandOffsetChanged);
   connect(_bar_col, &YAxisBarColumn::bandResized, this, &YAxisPanel::bandResized);
+  connect(_bar_col, &YAxisBarColumn::barXChanged, this, &YAxisPanel::barXChanged);
   connect(_bar_col, &YAxisBarColumn::removeSignalRequested, this, &YAxisPanel::removeSignalRequested);
 }
 

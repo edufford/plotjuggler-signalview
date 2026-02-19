@@ -120,6 +120,7 @@ signals:
   void yRangeChanged(int index, double y_min, double y_max);
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
+  void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
 
 protected:
@@ -134,14 +135,19 @@ private:
   enum HitZone { NONE, BODY, TOP_EDGE, BOTTOM_EDGE };
   struct HitResult { int index = -1; HitZone zone = NONE; };
   HitResult hitTest(const QPoint& pos) const;
+  double axisX(double bar_x) const;
 
   std::vector<SignalEntry> _signals;
   HitResult _drag_hit;
+  int _drag_start_global_x = 0;
   int _drag_start_global_y = 0;
+  double _drag_start_bar_x = 1.0;
   double _drag_start_band_center = 0.0;
   double _drag_start_band_height = 0.0;
 
   static constexpr int kEdgeGrabPixels = 8;
+  static constexpr int kAxisPadLeft = 4;
+  static constexpr int kAxisPadRight = 10;
 };
 
 // Top-level container: label column | bar column in a splitter.
@@ -159,6 +165,7 @@ signals:
   void yRangeChanged(int index, double y_min, double y_max);
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
+  void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
 
 private:

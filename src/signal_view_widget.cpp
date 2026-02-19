@@ -84,6 +84,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this, &SignalViewWidget::onYRangeChanged);
   connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this, &SignalViewWidget::onBandOffsetChanged);
   connect(_y_axis_panel, &YAxisPanel::bandResized, this, &SignalViewWidget::onBandResized);
+  connect(_y_axis_panel, &YAxisPanel::barXChanged, this, &SignalViewWidget::onBarXChanged);
   connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this, &SignalViewWidget::onRemoveSignalByIndex);
   connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
 }
@@ -213,6 +214,14 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
   _signals[index].band_center = new_center;
   _signals[index].band_height = new_height;
   _canvas->setSignalEntries(_signals);
+  _y_axis_panel->setSignalEntries(_signals);
+}
+
+void SignalViewWidget::onBarXChanged(int index, double new_bar_x)
+{
+  if (index < 0 || index >= (int)_signals.size())
+    return;
+  _signals[index].bar_x = new_bar_x;
   _y_axis_panel->setSignalEntries(_signals);
 }
 
