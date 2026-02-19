@@ -35,16 +35,21 @@ joined by a QSplitter so the boundary is horizontally resizable.
 The Y-axis panel itself contains three columns joined by nested QSplitters:
 
   1. Signal Name Column (leftmost)
-     - Displays a colored dot and the signal name for each signal.
+     - Displays the signal name in the signal's color (10pt bold sans-serif).
      - Text is elided with middle ellipsis if the column is too narrow.
-     - Background is transparent (no per-band fill), so overlapping
-       signals do not obscure each other.
+     - Background is transparent (no per-band fill).
+     - When multiple signals overlap vertically, names stack downward
+       with no gap (15px row height). The highest signal claims the top
+       slot; the signal currently being dragged always stacks last among
+       signals at the same position.
 
   2. Signal Value Column (middle)
      - Displays the cursor readout value for each signal in the signal's color.
-     - Uses monospace bold font, 6 significant digits.
+     - Uses monospace bold 10pt font, 6 significant digits.
      - Shows "---" when no valid data exists at the cursor position.
      - Background is transparent (no per-band fill).
+     - Values stack vertically in the same way as signal names when
+       signals overlap, with matching row offsets.
 
   3. Y-Axis Bar Column (rightmost)
      - Displays a vertical axis bar for each signal with:
@@ -110,20 +115,23 @@ Auto-fit:
 
 MOUSE INTERACTION: SIGNAL NAME COLUMN
 --------------------------------------
-- Click area: only the 20px text row at the top of each band (not the
+- Click area: only the 15px text row at the top of each band (not the
   full band height).
 - Left click + drag: repositions the signal's band vertically.
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Clamped to [0, 1] normalized range.
+  - Drag index is propagated to the value column so stacking stays
+    consistent across all columns during the drag.
 
 
 MOUSE INTERACTION: SIGNAL VALUE COLUMN
 ---------------------------------------
-- Click area: only the 20px text row at the top of each band (not the
+- Click area: only the 15px text row at the top of each band (not the
   full band height).
 - Left click + drag: repositions the signal's band vertically (same
   behavior as the name column).
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
+  - Drag index is propagated to the name column.
 
 
 MOUSE INTERACTION: Y-AXIS BAR COLUMN
@@ -135,6 +143,8 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
   and the bar horizontally (2D movement).
   - Shows SizeAllCursor on hover and while dragging.
   - Horizontal movement is clamped to [0, 1] normalized bar_x range.
+  - Drag index is propagated to name and value columns so stacking
+    stays consistent across all columns during the drag.
 
 - Left click + drag on TOP EDGE: resizes the band by moving the top edge.
   - Y min/max values remain the same; only band_center and band_height change.

@@ -25,46 +25,51 @@ void SignalNameColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
   update();
 }
 
+void SignalNameColumn::setDragIndex(int idx)
+{
+  _external_drag_index = idx;
+  update();
+}
+
+int SignalNameColumn::effectiveDragIndex() const
+{
+  return _drag_index >= 0 ? _drag_index : _external_drag_index;
+}
+
 void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
 {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     const auto& sig = _signals[i];
     double top = AxisLayout::bandTopY(sig, height());
-    double bottom = AxisLayout::bandBottomY(sig, height());
-    double band_h = bottom - top;
-
-    if (band_h < 4)
-      continue;
-
-    // Color dot
-    painter.setBrush(sig.color);
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(QPointF(10, top + 10), 4, 4);
+    double row_y = top + offsets[i];
 
     // Signal name
     painter.setPen(sig.color);
-    QFont name_font("sans-serif", 8, QFont::Bold);
+    QFont name_font("sans-serif", 10, QFont::Bold);
     painter.setFont(name_font);
     QString name = QString::fromStdString(sig.name);
     QFontMetrics fm(name_font);
-    QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 22);
-    painter.drawText(QRectF(20, top + 2, width() - 24, 16),
+    QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 8);
+    painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
                      Qt::AlignLeft | Qt::AlignVCenter, elided);
   }
 }
 
 int SignalNameColumn::hitTestSignal(const QPoint& pos) const
 {
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     double top = AxisLayout::bandTopY(_signals[i], height());
-    // Only hit the text row area (dot + name), not the full band height
-    if (pos.y() >= top && pos.y() <= top + kTextRowHeight)
+    double row_y = top + offsets[i];
+    if (pos.y() >= row_y && pos.y() <= row_y + kTextRowHeight)
       return i;
   }
   return -1;
@@ -79,6 +84,7 @@ void SignalNameColumn::mousePressEvent(QMouseEvent* event)
     {
       _drag_start_global_y = event->globalPos().y();
       _drag_start_band_center = _signals[_drag_index].band_center;
+      _drag_moved = false;
       setCursor(Qt::ClosedHandCursor);
     }
   }
@@ -93,6 +99,12 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
     return;
   }
 
+  if (!_drag_moved)
+  {
+    _drag_moved = true;
+    emit dragIndexChanged(_drag_index);
+  }
+
   int dy = event->globalPos().y() - _drag_start_global_y;
   double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   if (plot_h <= 0)
@@ -105,6 +117,9 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
 
 void SignalNameColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 {
+  // Only preserve drag index if an actual drag occurred (not just a click)
+  if (_drag_index >= 0 && _drag_moved)
+    _external_drag_index = _drag_index;
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
 }
@@ -136,34 +151,43 @@ void SignalValueColumn::setCursorValues(const std::vector<double>& values,
   update();
 }
 
+void SignalValueColumn::setDragIndex(int idx)
+{
+  _external_drag_index = idx;
+  update();
+}
+
+int SignalValueColumn::effectiveDragIndex() const
+{
+  return _drag_index >= 0 ? _drag_index : _external_drag_index;
+}
+
 void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
 {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     const auto& sig = _signals[i];
     double top = AxisLayout::bandTopY(sig, height());
-    double bottom = AxisLayout::bandBottomY(sig, height());
-    double band_h = bottom - top;
-
-    if (band_h < 4)
-      continue;
+    double row_y = top + offsets[i];
 
     // Cursor readout value
     if (i < (int)_cursor_valid.size())
     {
       painter.setPen(sig.color);
-      QFont readout_font("monospace", 9, QFont::Bold);
+      QFont readout_font("monospace", 10, QFont::Bold);
       painter.setFont(readout_font);
 
       QString value_str = _cursor_valid[i]
                               ? QString::number(_cursor_values[i], 'g', 6)
                               : QStringLiteral("---");
 
-      painter.drawText(QRectF(4, top + 2, width() - 8, 16),
+      painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
                        Qt::AlignLeft | Qt::AlignVCenter, value_str);
     }
   }
@@ -171,10 +195,12 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
 
 int SignalValueColumn::hitTestSignal(const QPoint& pos) const
 {
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     double top = AxisLayout::bandTopY(_signals[i], height());
-    if (pos.y() >= top && pos.y() <= top + kTextRowHeight)
+    double row_y = top + offsets[i];
+    if (pos.y() >= row_y && pos.y() <= row_y + kTextRowHeight)
       return i;
   }
   return -1;
@@ -189,6 +215,7 @@ void SignalValueColumn::mousePressEvent(QMouseEvent* event)
     {
       _drag_start_global_y = event->globalPos().y();
       _drag_start_band_center = _signals[_drag_index].band_center;
+      _drag_moved = false;
       setCursor(Qt::ClosedHandCursor);
     }
   }
@@ -203,6 +230,12 @@ void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
     return;
   }
 
+  if (!_drag_moved)
+  {
+    _drag_moved = true;
+    emit dragIndexChanged(_drag_index);
+  }
+
   int dy = event->globalPos().y() - _drag_start_global_y;
   double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   if (plot_h <= 0)
@@ -215,6 +248,9 @@ void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
 
 void SignalValueColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 {
+  // Only preserve drag index if an actual drag occurred (not just a click)
+  if (_drag_index >= 0 && _drag_moved)
+    _external_drag_index = _drag_index;
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
 }
@@ -250,6 +286,12 @@ YAxisLabelColumn::YAxisLabelColumn(QWidget* parent)
           this, &YAxisLabelColumn::bandOffsetChanged);
   connect(_value_col, &SignalValueColumn::bandOffsetChanged,
           this, &YAxisLabelColumn::bandOffsetChanged);
+
+  // Cross-column drag index: when one column starts dragging, tell the other
+  connect(_name_col, &SignalNameColumn::dragIndexChanged,
+          _value_col, &SignalValueColumn::setDragIndex);
+  connect(_value_col, &SignalValueColumn::dragIndexChanged,
+          _name_col, &SignalNameColumn::setDragIndex);
 }
 
 void YAxisLabelColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
@@ -262,6 +304,12 @@ void YAxisLabelColumn::setCursorValues(const std::vector<double>& values,
                                        const std::vector<bool>& valid)
 {
   _value_col->setCursorValues(values, valid);
+}
+
+void YAxisLabelColumn::setDragIndex(int idx)
+{
+  _name_col->setDragIndex(idx);
+  _value_col->setDragIndex(idx);
 }
 
 void YAxisLabelColumn::setCanvasHeight(int /*h*/)
@@ -389,6 +437,8 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event)
     _drag_start_band_center = _signals[_drag_hit.index].band_center;
     _drag_start_band_height = _signals[_drag_hit.index].band_height;
 
+    _drag_moved = false;
+
     if (_drag_hit.zone == BODY)
       setCursor(Qt::SizeAllCursor);
     else
@@ -417,6 +467,14 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
   }
 
   int dy = event->globalPos().y() - _drag_start_global_y;
+
+  // Only update stacking priority on vertical movement, not horizontal-only drags
+  if (!_drag_moved && dy != 0)
+  {
+    _drag_moved = true;
+    emit dragIndexChanged(_drag_hit.index);
+  }
+
   double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   if (plot_h <= 0)
     return;
@@ -464,6 +522,7 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
 void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 {
   _drag_hit = { -1, NONE };
+  // Don't emit dragIndexChanged(-1) — preserve "last moved" for stacking
   setCursor(Qt::ArrowCursor);
 }
 
@@ -543,6 +602,10 @@ YAxisPanel::YAxisPanel(QWidget* parent)
   connect(_bar_col, &YAxisBarColumn::bandResized, this, &YAxisPanel::bandResized);
   connect(_bar_col, &YAxisBarColumn::barXChanged, this, &YAxisPanel::barXChanged);
   connect(_bar_col, &YAxisBarColumn::removeSignalRequested, this, &YAxisPanel::removeSignalRequested);
+
+  // Propagate bar column drag index to label columns (name + value)
+  connect(_bar_col, &YAxisBarColumn::dragIndexChanged,
+          _label_col, &YAxisLabelColumn::setDragIndex);
 }
 
 void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)

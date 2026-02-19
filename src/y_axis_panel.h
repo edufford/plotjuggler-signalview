@@ -3,6 +3,8 @@
 #include <QWidget>
 #include <QSplitter>
 #include <vector>
+#include <algorithm>
+#include <cmath>
 #include "plot_canvas.h"
 
 // Shared band-position helpers used by all column widgets.
@@ -18,6 +20,57 @@ inline double bandBottomY(const SignalEntry& sig, int widget_height)
   double plot_h = widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
   return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
 }
+// Returns the pixel Y offset for each signal's text row, ensuring no
+// overlap. Signals are processed top-to-bottom so the highest signal
+// claims the top slot. The dragged signal (if any) sorts last among
+// signals at the same position so it stacks below stationary ones.
+inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entries,
+                                           int widget_height, int row_height,
+                                           int drag_index = -1)
+{
+  std::vector<double> y_offsets(entries.size(), 0.0);
+  if (entries.empty())
+    return y_offsets;
+
+  // Process signals from top to bottom; dragged signal sorts last at same Y
+  std::vector<size_t> order(entries.size());
+  for (size_t i = 0; i < entries.size(); i++) order[i] = i;
+  std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+    double ya = bandTopY(entries[a], widget_height);
+    double yb = bandTopY(entries[b], widget_height);
+    if (std::abs(ya - yb) < 1.0)  // truly same position, not just overlapping
+    {
+      if ((int)a == drag_index) return false;
+      if ((int)b == drag_index) return true;
+    }
+    return ya < yb;
+  });
+
+  std::vector<double> placed;  // absolute Y of each placed row
+  for (size_t idx : order)
+  {
+    double base_y = bandTopY(entries[idx], widget_height);
+    double row_y = base_y;
+    // Push down until no overlap with any previously placed row
+    bool collision = true;
+    while (collision)
+    {
+      collision = false;
+      for (double py : placed)
+      {
+        if (std::abs(row_y - py) < row_height)
+        {
+          row_y = py + row_height;
+          collision = true;
+          break;
+        }
+      }
+    }
+    y_offsets[idx] = row_y - base_y;
+    placed.push_back(row_y);
+  }
+  return y_offsets;
+}
 }  // namespace AxisLayout
 
 // Signal name column: colored dot + signal name, draggable to reposition.
@@ -28,11 +81,13 @@ class SignalNameColumn : public QWidget
 public:
   explicit SignalNameColumn(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
+  void setDragIndex(int idx);
 
   static constexpr int kDefaultWidth = 70;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
+  void dragIndexChanged(int index);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -41,10 +96,13 @@ protected:
   void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
+  int effectiveDragIndex() const;
   int hitTestSignal(const QPoint& pos) const;
-  static constexpr int kTextRowHeight = 20;
+  static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
   int _drag_index = -1;
+  int _external_drag_index = -1;
+  bool _drag_moved = false;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
 };
@@ -58,11 +116,13 @@ public:
   explicit SignalValueColumn(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
+  void setDragIndex(int idx);
 
   static constexpr int kDefaultWidth = 70;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
+  void dragIndexChanged(int index);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -71,12 +131,15 @@ protected:
   void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
+  int effectiveDragIndex() const;
   int hitTestSignal(const QPoint& pos) const;
-  static constexpr int kTextRowHeight = 20;
+  static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
   std::vector<double> _cursor_values;
   std::vector<bool> _cursor_valid;
   int _drag_index = -1;
+  int _external_drag_index = -1;
+  bool _drag_moved = false;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
 };
@@ -91,6 +154,7 @@ public:
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
   void setCanvasHeight(int h);
+  void setDragIndex(int idx);
 
   static constexpr int kDefaultWidth = SignalNameColumn::kDefaultWidth +
                                        SignalValueColumn::kDefaultWidth + 3;
@@ -122,6 +186,7 @@ signals:
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
+  void dragIndexChanged(int index);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -139,6 +204,7 @@ private:
 
   std::vector<SignalEntry> _signals;
   HitResult _drag_hit;
+  bool _drag_moved = false;
   int _drag_start_global_x = 0;
   int _drag_start_global_y = 0;
   double _drag_start_bar_x = 1.0;
