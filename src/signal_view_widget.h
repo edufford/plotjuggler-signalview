@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QComboBox>
 #include <vector>
 #include "plot_canvas.h"
 #include "y_axis_panel.h"
@@ -21,6 +22,9 @@ public:
   // Serialization helpers
   std::vector<SignalEntry>& signalEntriesMutable() { return _signals; }
   double cursorTime() const { return _canvas->cursorTime(); }
+  double snapAmount() const { return _snap_amount; }
+  void setSnapAmount(double amount);
+  void setSnapIndex(int index);
 
 signals:
   void closeRequested();
@@ -36,16 +40,20 @@ private slots:
   void onBarXChanged(int index, double new_bar_x);
   void onRemoveSignalByIndex(int index);
   void onCanvasResized();
+  void onSnapComboChanged(int combo_index);
 
 private:
+  double snapValue(double val) const;
   void refreshViews();
   void autoAssignBands();
 
   PJ::PlotDataMapRef* _data;
   std::vector<SignalEntry> _signals;
+  double _snap_amount = 0.01;
 
   PlotCanvas* _canvas;
   YAxisPanel* _y_axis_panel;
+  QComboBox* _snap_combo;
 
   // Predefined signal colors
   static const std::vector<QColor>& signalColors();

@@ -72,6 +72,10 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   view_elem.setAttribute("t_max", _widget->canvas()->viewMaxTime());
   parent_element.appendChild(view_elem);
 
+  QDomElement settings_elem = doc.createElement("settings");
+  settings_elem.setAttribute("snap", _widget->snapAmount());
+  parent_element.appendChild(settings_elem);
+
   return true;
 }
 
@@ -117,6 +121,13 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     double t_min = view_elem.attribute("t_min", "0").toDouble();
     double t_max = view_elem.attribute("t_max", "10").toDouble();
     _widget->canvas()->setViewRange(t_min, t_max);
+  }
+
+  QDomElement settings_elem = parent_element.firstChildElement("settings");
+  if (!settings_elem.isNull())
+  {
+    double snap = settings_elem.attribute("snap", "0.01").toDouble();
+    _widget->setSnapAmount(snap);
   }
 
   if (_plot_data)

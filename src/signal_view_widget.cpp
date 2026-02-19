@@ -9,8 +9,9 @@
 #include <QInputDialog>
 #include <QStringList>
 #include <algorithm>
+#include <cmath>
 
-static constexpr const char* kPluginVersion = "0.4.0";
+static constexpr const char* kPluginVersion = "0.5.0";
 
 const std::vector<QColor>& SignalViewWidget::signalColors()
 {
@@ -45,6 +46,19 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_reset = new QPushButton("Reset Zoom", this);
   auto* btn_close = new QPushButton("Close", this);
 
+  auto* snap_label = new QLabel("Snap:", this);
+  snap_label->setStyleSheet("color: #ccc; font-size: 9px; padding: 0 2px;");
+  _snap_combo = new QComboBox(this);
+  _snap_combo->addItem("Off",    0.0);
+  _snap_combo->addItem("0.002",  0.002);
+  _snap_combo->addItem("0.005",  0.005);
+  _snap_combo->addItem("0.01",   0.01);
+  _snap_combo->addItem("0.02",   0.02);
+  _snap_combo->addItem("0.05",   0.05);
+  _snap_combo->addItem("0.10",   0.10);
+  _snap_combo->addItem("0.20",   0.20);
+  _snap_combo->setCurrentIndex(3);  // default 0.01
+
   auto* version_label = new QLabel(QString("Signal View v%1").arg(kPluginVersion), this);
   version_label->setStyleSheet("color: #888; font-size: 9px; padding: 0 6px;");
 
@@ -54,6 +68,9 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_remove);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
+  toolbar->addSeparator();
+  toolbar->addWidget(snap_label);
+  toolbar->addWidget(_snap_combo);
   toolbar->addSeparator();
   toolbar->addWidget(btn_close);
 
@@ -80,6 +97,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
   connect(btn_close, &QPushButton::clicked, this, &SignalViewWidget::closeRequested);
+  connect(_snap_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &SignalViewWidget::onSnapComboChanged);
   connect(_canvas, &PlotCanvas::cursorMoved, this, &SignalViewWidget::onCursorMoved);
   connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this, &SignalViewWidget::onYRangeChanged);
   connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this, &SignalViewWidget::onBandOffsetChanged);
@@ -202,7 +221,9 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
 {
   if (index < 0 || index >= (int)_signals.size())
     return;
-  _signals[index].band_center = new_center;
+  double half_h = _signals[index].band_height * 0.5;
+  double new_top = snapValue(new_center - half_h);
+  _signals[index].band_center = new_top + half_h;
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
 }
@@ -211,8 +232,24 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
 {
   if (index < 0 || index >= (int)_signals.size())
     return;
-  _signals[index].band_center = new_center;
-  _signals[index].band_height = new_height;
+
+  double new_top = new_center - new_height * 0.5;
+  double new_bottom = new_center + new_height * 0.5;
+
+  // Only snap the edge that's actually moving, leave the fixed edge alone
+  double cur_top = _signals[index].band_center - _signals[index].band_height * 0.5;
+  double cur_bottom = _signals[index].band_center + _signals[index].band_height * 0.5;
+
+  if (std::abs(new_top - cur_top) > 1e-6)
+    new_top = snapValue(new_top);
+  if (std::abs(new_bottom - cur_bottom) > 1e-6)
+    new_bottom = snapValue(new_bottom);
+
+  if (new_bottom - new_top < 0.02)
+    return;
+  _signals[index].band_center = (new_top + new_bottom) * 0.5;
+  _signals[index].band_height = new_bottom - new_top;
+
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
 }
@@ -221,13 +258,46 @@ void SignalViewWidget::onBarXChanged(int index, double new_bar_x)
 {
   if (index < 0 || index >= (int)_signals.size())
     return;
-  _signals[index].bar_x = new_bar_x;
+  _signals[index].bar_x = snapValue(new_bar_x);
   _y_axis_panel->setSignalEntries(_signals);
 }
 
 void SignalViewWidget::onCanvasResized()
 {
   _y_axis_panel->setCanvasHeight(_canvas->height());
+}
+
+void SignalViewWidget::onSnapComboChanged(int combo_index)
+{
+  _snap_amount = _snap_combo->itemData(combo_index).toDouble();
+}
+
+double SignalViewWidget::snapValue(double val) const
+{
+  if (_snap_amount <= 0.0)
+    return val;
+  return std::round(val / _snap_amount) * _snap_amount;
+}
+
+void SignalViewWidget::setSnapAmount(double amount)
+{
+  _snap_amount = amount;
+  // Find matching combo index
+  for (int i = 0; i < _snap_combo->count(); i++)
+  {
+    if (std::abs(_snap_combo->itemData(i).toDouble() - amount) < 1e-9)
+    {
+      _snap_combo->setCurrentIndex(i);
+      return;
+    }
+  }
+  _snap_combo->setCurrentIndex(0);  // fallback to Off
+}
+
+void SignalViewWidget::setSnapIndex(int index)
+{
+  if (index >= 0 && index < _snap_combo->count())
+    _snap_combo->setCurrentIndex(index);
 }
 
 void SignalViewWidget::onRemoveSignalByIndex(int index)
@@ -254,16 +324,30 @@ void SignalViewWidget::autoAssignBands()
 
   if (n == 1)
   {
-    _signals[0].band_center = 0.5;
-    _signals[0].band_height = 0.9;
+    double top = snapValue(0.0);
+    double bottom = snapValue(1.0);
+    if (bottom - top < 0.02)
+    {
+      top = 0.0;
+      bottom = 1.0;
+    }
+    _signals[0].band_center = (top + bottom) * 0.5;
+    _signals[0].band_height = bottom - top;
   }
   else
   {
     double band_h = 1.0 / n;
     for (int i = 0; i < n; i++)
     {
-      _signals[i].band_center = (i + 0.5) * band_h;
-      _signals[i].band_height = band_h * 0.9;
+      double top = snapValue(i * band_h);
+      double bottom = snapValue((i + 1) * band_h);
+      if (bottom - top < 0.02)
+      {
+        top = i * band_h;
+        bottom = (i + 1) * band_h;
+      }
+      _signals[i].band_center = (top + bottom) * 0.5;
+      _signals[i].band_height = bottom - top;
     }
   }
 }

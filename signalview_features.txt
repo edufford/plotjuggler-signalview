@@ -3,7 +3,7 @@ Signal View Plugin - Feature Behavior Reference
 
 Plugin type: PJ::ToolboxPlugin (FLOATING)
 Accessed via: PlotJuggler > Tools > Signal View
-Version: 0.4.0
+Version: 0.5.0
 
 
 TOOLBAR
@@ -15,6 +15,12 @@ TOOLBAR
   Selecting one removes it and re-assigns band positions for remaining signals.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data with
   a 2% margin on each side.
+- "Snap" dropdown: selects the position snapping grid size for bar and band
+  dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.
+  Default: 0.01. Snapping is based on the top edge of the band (vertical)
+  and bar_x (horizontal) when dragging bars or signal names/values. Edge
+  resize drags snap the moving edge to the grid while leaving the fixed
+  edge unchanged.
 - "Close" button: closes the Signal View and returns to PlotJuggler's default
   view. Emits the plugin's closed() signal which tells PlotJuggler to switch
   the stacked widget back to index 0. Can be reopened via Tools > Signal View.
@@ -65,8 +71,9 @@ Bands are defined by:
   - bar_x: horizontal position of the Y-axis bar [0=left, 1=right], default 1.0.
 
 When signals are added or removed, bands are auto-assigned:
-  - 1 signal: centered at 0.5 with 90% height.
-  - N signals: evenly spaced, each occupying (1/N)*90% of the height.
+  - 1 signal: centered at 0.5 with full height.
+  - N signals: evenly spaced, each occupying 1/N of the height with no gap.
+  Auto-assigned positions are snapped to the current snap grid.
 
 Band positions are shared between the canvas and all Y-axis panel columns
 using the AxisLayout::bandTopY / bandBottomY helpers, which account for
@@ -191,6 +198,7 @@ Saved state includes:
   - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x.
   - Cursor time position.
   - View time range (t_min, t_max).
+  - Settings: snap amount.
 
 On layout load:
   - Signals are restored without checking data existence (data is loaded
