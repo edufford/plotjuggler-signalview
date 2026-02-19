@@ -1,5 +1,6 @@
 #include "signal_view_plugin.h"
 #include "signal_view_widget.h"
+#include <QStackedWidget>
 
 SignalViewPlugin::SignalViewPlugin() = default;
 
@@ -43,6 +44,10 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   if (!_widget)
     return false;
 
+  QDomElement widget_elem = doc.createElement("widget");
+  widget_elem.setAttribute("visible", _widget->isVisible() ? "1" : "0");
+  parent_element.appendChild(widget_elem);
+
   const auto& sig_entries = _widget->signalEntries();
   for (const auto& sig : sig_entries)
   {
@@ -70,7 +75,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
 
 bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
 {
-  if (!_widget || !_plot_data)
+  if (!_widget)
     return false;
 
   auto& sig_entries = _widget->signalEntriesMutable();
@@ -87,16 +92,12 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     entry.band_center = sig_elem.attribute("band_center", "0.5").toDouble();
     entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
 
-    // Only add if the signal actually exists in the data
-    if (_plot_data->numeric.count(entry.name) > 0)
-    {
-      sig_entries.push_back(entry);
-    }
+    // Don't check data existence here — data is loaded after plugins
+    sig_entries.push_back(entry);
 
     sig_elem = sig_elem.nextSiblingElement("signal");
   }
 
-  // Refresh the views with the loaded signals
   _widget->canvas()->setSignalEntries(sig_entries);
   _widget->yAxisPanel()->setSignalEntries(sig_entries);
 
@@ -107,7 +108,33 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     _widget->canvas()->setCursorTime(cursor_time);
   }
 
-  _widget->yAxisPanel()->updateCursorValues(_plot_data, _widget->cursorTime());
+  QDomElement view_elem = parent_element.firstChildElement("view");
+  if (!view_elem.isNull())
+  {
+    double t_min = view_elem.attribute("t_min", "0").toDouble();
+    double t_max = view_elem.attribute("t_max", "10").toDouble();
+    _widget->canvas()->setViewRange(t_min, t_max);
+  }
+
+  if (_plot_data)
+  {
+    _widget->yAxisPanel()->updateCursorValues(_plot_data, _widget->cursorTime());
+  }
+
+  // Show the widget if it was visible when the layout was saved.
+  // PlotJuggler places toolbox widgets inside a QStackedWidget,
+  // so we need to switch the stack to our widget's index.
+  QDomElement widget_elem = parent_element.firstChildElement("widget");
+  if (!widget_elem.isNull() && widget_elem.attribute("visible", "0") == "1")
+  {
+    if (auto* stack = qobject_cast<QStackedWidget*>(_widget->parentWidget()))
+    {
+      int idx = stack->indexOf(_widget);
+      if (idx >= 0)
+        stack->setCurrentIndex(idx);
+    }
+    onShowWidget();
+  }
 
   return true;
 }

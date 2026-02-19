@@ -42,6 +42,14 @@ void PlotCanvas::setCursorTime(double t)
   update();
 }
 
+void PlotCanvas::setViewRange(double t_min, double t_max)
+{
+  _view_t_min = t_min;
+  _view_t_max = t_max;
+  _auto_fit = false;
+  update();
+}
+
 void PlotCanvas::resetZoom()
 {
   _auto_fit = true;

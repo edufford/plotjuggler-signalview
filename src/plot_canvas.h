@@ -35,6 +35,7 @@ public:
 
   double viewMinTime() const { return _view_t_min; }
   double viewMaxTime() const { return _view_t_max; }
+  void setViewRange(double t_min, double t_max);
 
 signals:
   void cursorMoved(double time);
