@@ -177,6 +177,7 @@ public:
   explicit YAxisBarColumn(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCanvasHeight(int h);
+  void setSnapAmount(double snap);
 
   static constexpr int kDefaultWidth = 60;
 
@@ -205,6 +206,7 @@ private:
   std::vector<SignalEntry> _signals;
   HitResult _drag_hit;
   bool _drag_moved = false;
+  double _snap_amount = 0.01;
   int _drag_start_global_x = 0;
   int _drag_start_global_y = 0;
   double _drag_start_bar_x = 1.0;
@@ -226,6 +228,7 @@ public:
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time);
   void setCanvasHeight(int h);
+  void setSnapAmount(double snap);
 
 signals:
   void yRangeChanged(int index, double y_min, double y_max);

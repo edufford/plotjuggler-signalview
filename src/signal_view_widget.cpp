@@ -270,6 +270,7 @@ void SignalViewWidget::onCanvasResized()
 void SignalViewWidget::onSnapComboChanged(int combo_index)
 {
   _snap_amount = _snap_combo->itemData(combo_index).toDouble();
+  _y_axis_panel->setSnapAmount(_snap_amount);
 }
 
 double SignalViewWidget::snapValue(double val) const
@@ -282,6 +283,7 @@ double SignalViewWidget::snapValue(double val) const
 void SignalViewWidget::setSnapAmount(double amount)
 {
   _snap_amount = amount;
+  _y_axis_panel->setSnapAmount(amount);
   // Find matching combo index
   for (int i = 0; i < _snap_combo->count(); i++)
   {

@@ -340,6 +340,11 @@ void YAxisBarColumn::setCanvasHeight(int /*h*/)
   update();
 }
 
+void YAxisBarColumn::setSnapAmount(double snap)
+{
+  _snap_amount = snap;
+}
+
 double YAxisBarColumn::axisX(double bar_x) const
 {
   return kAxisPadLeft + bar_x * (width() - kAxisPadLeft - kAxisPadRight);
@@ -467,15 +472,18 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
   }
 
   int dy = event->globalPos().y() - _drag_start_global_y;
-
-  // Only update stacking priority on vertical movement, not horizontal-only drags
-  if (!_drag_moved && dy != 0)
-  {
-    _drag_moved = true;
-    emit dragIndexChanged(_drag_hit.index);
-  }
-
   double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+
+  // Only update stacking priority when vertical movement exceeds one snap step
+  if (!_drag_moved && plot_h > 0)
+  {
+    double snap_px = _snap_amount > 0 ? _snap_amount * plot_h : 1.0;
+    if (std::abs(dy) > snap_px)
+    {
+      _drag_moved = true;
+      emit dragIndexChanged(_drag_hit.index);
+    }
+  }
   if (plot_h <= 0)
     return;
 
@@ -644,4 +652,9 @@ void YAxisPanel::setCanvasHeight(int h)
 {
   _label_col->setCanvasHeight(h);
   _bar_col->setCanvasHeight(h);
+}
+
+void YAxisPanel::setSnapAmount(double snap)
+{
+  _bar_col->setSnapAmount(snap);
 }
