@@ -1,0 +1,204 @@
+Signal View Plugin - Feature Behavior Reference
+================================================
+
+Plugin type: PJ::ToolboxPlugin (FLOATING)
+Accessed via: PlotJuggler > Tools > Signal View
+Version: 0.4.0
+
+
+TOOLBAR
+-------
+- "Add Signal" button: opens a dropdown listing all numeric signals from
+  PlotJuggler's data source that have not yet been added. Sorted alphabetically.
+  Y range is auto-detected from data with 10% margin.
+- "Remove Signal" button: opens a dropdown listing currently added signals.
+  Selecting one removes it and re-assigns band positions for remaining signals.
+- "Reset Zoom" button: resets the time axis to auto-fit all loaded data with
+  a 2% margin on each side.
+- "Close" button: closes the Signal View and returns to PlotJuggler's default
+  view. Emits the plugin's closed() signal which tells PlotJuggler to switch
+  the stacked widget back to index 0. Can be reopened via Tools > Signal View.
+- Version label: displays "Signal View vX.Y.Z" in the toolbar for identification.
+
+
+LAYOUT: THREE-COLUMN Y-AXIS PANEL + PLOT CANVAS
+------------------------------------------------
+The widget is split into a Y-axis panel (left) and a plot canvas (right),
+joined by a QSplitter so the boundary is horizontally resizable.
+
+The Y-axis panel itself contains three columns joined by nested QSplitters:
+
+  1. Signal Name Column (leftmost)
+     - Displays a colored dot and the signal name for each signal.
+     - Text is elided with middle ellipsis if the column is too narrow.
+     - Background is transparent (no per-band fill), so overlapping
+       signals do not obscure each other.
+
+  2. Signal Value Column (middle)
+     - Displays the cursor readout value for each signal in the signal's color.
+     - Uses monospace bold font, 6 significant digits.
+     - Shows "---" when no valid data exists at the cursor position.
+     - Background is transparent (no per-band fill).
+
+  3. Y-Axis Bar Column (rightmost)
+     - Displays a vertical axis bar for each signal with:
+       - A colored stripe on the right edge (adjacent to canvas).
+       - A vertical axis line in the signal's color.
+       - Horizontal grab handles at the top and bottom edges.
+       - Tick marks and numeric value labels along the axis.
+       - Number of ticks auto-scales based on band height (min 2, ~1 per 35px).
+     - Band background is an opaque dark rectangle.
+
+All three columns and the panel/canvas boundary are independently resizable
+via QSplitter drag handles.
+
+
+SIGNAL BANDS
+------------
+Each signal occupies a vertical "band" on the canvas and Y-axis panel.
+Bands are defined by:
+  - band_center: normalized position [0,1] where 0=top, 1=bottom.
+  - band_height: fraction of the plot area height.
+
+When signals are added or removed, bands are auto-assigned:
+  - 1 signal: centered at 0.5 with 90% height.
+  - N signals: evenly spaced, each occupying (1/N)*90% of the height.
+
+Band positions are shared between the canvas and all Y-axis panel columns
+using the AxisLayout::bandTopY / bandBottomY helpers, which account for
+the canvas margin constants (top=10px, bottom=40px, left=10px, right=20px).
+
+
+PLOT CANVAS
+-----------
+Rendering:
+  - Dark background (30,30,30).
+  - Plot area bordered by a gray rectangle.
+  - Dotted grid lines: 5 horizontal, ~8 vertical with "nice" step spacing.
+  - Signal traces rendered as antialiased QPainterPaths, clipped to plot area.
+  - Traces outside the view range are culled, with boundary points preserved
+    to avoid clipping artifacts.
+
+Time axis:
+  - Drawn below the plot area with tick marks and labels.
+  - Nice tick spacing (1, 2, 5 multiples of powers of 10).
+  - Decimal precision adapts to tick step size.
+  - "Time (s)" label centered at the bottom.
+
+Cursor:
+  - Vertical dashed yellow line spanning the plot area.
+  - Small yellow triangle handle at the top.
+  - Shows SizeHorCursor when hovering near the cursor line.
+
+Auto-fit:
+  - When enabled (default), the time range auto-fits to all signal data
+    with 2% margin on each side.
+  - Auto-fit is disabled when the user pans or zooms manually.
+  - Re-enabled by clicking "Reset Zoom".
+
+
+MOUSE INTERACTION: SIGNAL NAME COLUMN
+--------------------------------------
+- Click area: only the 20px text row at the top of each band (not the
+  full band height).
+- Left click + drag: repositions the signal's band vertically.
+  - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
+  - Clamped to [0, 1] normalized range.
+
+
+MOUSE INTERACTION: SIGNAL VALUE COLUMN
+---------------------------------------
+- Click area: only the 20px text row at the top of each band (not the
+  full band height).
+- Left click + drag: repositions the signal's band vertically (same
+  behavior as the name column).
+  - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
+
+
+MOUSE INTERACTION: Y-AXIS BAR COLUMN
+--------------------------------------
+- Click area: full vertical height of the band, plus 8px grab zones
+  beyond the top and bottom edges.
+
+- Left click + drag on BODY: repositions the signal's band vertically.
+  - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
+
+- Left click + drag on TOP EDGE: resizes the band by moving the top edge.
+  - Y min/max values remain the same; only band_center and band_height change.
+  - Minimum band height enforced at 2% of plot area.
+  - Shows SizeVerCursor.
+
+- Left click + drag on BOTTOM EDGE: resizes the band by moving the bottom edge.
+  - Same behavior as top edge but in the opposite direction.
+  - Shows SizeVerCursor.
+
+- Right click on a band: removes that signal immediately.
+
+- Double click on a band: opens input dialogs to manually set Y min and Y max.
+
+- Mouse wheel on a band: zooms the Y range in/out (0.8x / 1.25x factor),
+  centered on the current Y midpoint.
+
+
+MOUSE INTERACTION: PLOT CANVAS
+-------------------------------
+- Left click anywhere: places the cursor at that time position and begins
+  cursor dragging. Cursor time is clamped to the current view range.
+
+- Left click + drag: drags the cursor along the time axis. Continuously
+  updates cursor readout values in the signal value column.
+
+- Middle click + drag: pans the time axis. Disables auto-fit.
+  - Shows ClosedHandCursor while panning.
+
+- Mouse wheel: zooms the time axis in/out (0.8x / 1.25x factor), centered
+  on the mouse position. Disables auto-fit.
+
+
+CURSOR READOUT
+--------------
+When the cursor moves, the plugin queries each signal's PlotData using
+getYfromX(cursor_time) and displays the interpolated value in the signal
+value column. If the signal has no data at the cursor time, "---" is shown.
+
+
+COLOR ASSIGNMENT
+----------------
+Signals are assigned colors in order from a predefined palette:
+  1. Cyan-blue    (#00B4FF)
+  2. Orange-red   (#FF6432)
+  3. Green        (#32DC64)
+  4. Yellow       (#FFDC32)
+  5. Purple       (#C850FF)
+  6. Pink         (#FF64B4)
+  7. Teal         (#64FFDC)
+  8. Amber        (#FFA032)
+Colors cycle if more than 8 signals are added.
+
+
+LAYOUT SAVE / RESTORE
+----------------------
+The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
+
+Saved state includes:
+  - Widget visibility (visible="0" or "1").
+  - For each signal: name, color, y_min, y_max, band_center, band_height.
+  - Cursor time position.
+  - View time range (t_min, t_max).
+
+On layout load:
+  - Signals are restored without checking data existence (data is loaded
+    after plugin state by PlotJuggler's load order).
+  - View range and cursor position are restored.
+  - If the widget was visible, the plugin switches PlotJuggler's internal
+    QStackedWidget to show itself and calls onShowWidget().
+
+Usage:
+  ./run.sh -l dev_layout.xml
+
+
+BUILD & RUN
+-----------
+Build:   ./build.sh
+Run:     ./run.sh [-d data.csv] [-l layout.xml]
+Install: cmake --install build

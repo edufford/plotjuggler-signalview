@@ -22,6 +22,9 @@ public:
   std::vector<SignalEntry>& signalEntriesMutable() { return _signals; }
   double cursorTime() const { return _canvas->cursorTime(); }
 
+signals:
+  void closeRequested();
+
 private slots:
   void onAddSignal();
   void onRemoveSignal();

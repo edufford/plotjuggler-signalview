@@ -43,6 +43,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_add = new QPushButton("Add Signal", this);
   auto* btn_remove = new QPushButton("Remove Signal", this);
   auto* btn_reset = new QPushButton("Reset Zoom", this);
+  auto* btn_close = new QPushButton("Close", this);
 
   auto* version_label = new QLabel(QString("Signal View v%1").arg(kPluginVersion), this);
   version_label->setStyleSheet("color: #888; font-size: 9px; padding: 0 6px;");
@@ -53,6 +54,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_remove);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
+  toolbar->addSeparator();
+  toolbar->addWidget(btn_close);
 
   main_layout->addWidget(toolbar);
 
@@ -76,6 +79,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(btn_add, &QPushButton::clicked, this, &SignalViewWidget::onAddSignal);
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
+  connect(btn_close, &QPushButton::clicked, this, &SignalViewWidget::closeRequested);
   connect(_canvas, &PlotCanvas::cursorMoved, this, &SignalViewWidget::onCursorMoved);
   connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this, &SignalViewWidget::onYRangeChanged);
   connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this, &SignalViewWidget::onBandOffsetChanged);

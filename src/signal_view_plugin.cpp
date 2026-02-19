@@ -20,6 +20,7 @@ void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data, PJ::TransformsMap& tra
 
   _widget = new SignalViewWidget(_plot_data);
   connect(_widget, &QWidget::destroyed, this, [this]() { _widget = nullptr; });
+  connect(_widget, &SignalViewWidget::closeRequested, this, &SignalViewPlugin::closed);
 }
 
 std::pair<QWidget*, PJ::ToolboxPlugin::WidgetType> SignalViewPlugin::providedWidget() const
