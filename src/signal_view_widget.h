@@ -61,9 +61,10 @@ private:
   QSplitter* _main_splitter;
   QComboBox* _snap_combo;
 
-  // Multi-drag state: original band_centers captured at drag start
+  // Multi-drag state: original positions captured at drag start
   int _multi_drag_index = -1;
-  std::map<int, double> _multi_drag_origins;
+  std::map<int, double> _multi_drag_origins;      // band_center origins
+  std::map<int, double> _multi_drag_bar_x_origins; // bar_x origins
 
   // Predefined signal colors
   static const std::vector<QColor>& signalColors();

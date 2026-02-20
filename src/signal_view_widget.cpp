@@ -270,8 +270,12 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
     {
       _multi_drag_index = index;
       _multi_drag_origins.clear();
+      _multi_drag_bar_x_origins.clear();
       for (int i : sel)
+      {
         _multi_drag_origins[i] = _signals[i].band_center;
+        _multi_drag_bar_x_origins[i] = _signals[i].bar_x;
+      }
     }
 
     // Compute snapped delta from the dragged signal
@@ -292,6 +296,7 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
   else
   {
     _multi_drag_origins.clear();
+    _multi_drag_bar_x_origins.clear();
     _multi_drag_index = -1;
 
     double half_h = _signals[index].band_height * 0.5;
@@ -363,7 +368,27 @@ void SignalViewWidget::onBarXChanged(int index, double new_bar_x)
 {
   if (index < 0 || index >= (int)_signals.size())
     return;
-  _signals[index].bar_x = snapValue(new_bar_x);
+
+  const auto& sel = _y_axis_panel->selection();
+  if (sel.count(index) && sel.size() > 1 && !_multi_drag_bar_x_origins.empty())
+  {
+    // Multi-drag: apply the same horizontal delta to all selected signals
+    double snapped = snapValue(new_bar_x);
+    double delta = snapped - _multi_drag_bar_x_origins[index];
+
+    // Clamp delta so no selected signal leaves [0, 1]
+    for (auto& [i, origin] : _multi_drag_bar_x_origins)
+    {
+      delta = std::max(delta, -origin);
+      delta = std::min(delta, 1.0 - origin);
+    }
+    for (auto& [i, origin] : _multi_drag_bar_x_origins)
+      _signals[i].bar_x = origin + delta;
+  }
+  else
+  {
+    _signals[index].bar_x = snapValue(new_bar_x);
+  }
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
 }
