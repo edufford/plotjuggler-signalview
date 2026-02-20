@@ -352,6 +352,8 @@ void PlotCanvas::drawSignals(QPainter& painter)
         {
           double px = timeToPixelX(pt.x);
           double py = valueToPixelY(pt.y, sig);
+          // Step-wise: hold previous value, then step
+          path.lineTo(px, path.currentPosition().y());
           path.lineTo(px, py);
           break;
         }
@@ -376,6 +378,8 @@ void PlotCanvas::drawSignals(QPainter& painter)
       }
       else
       {
+        // Step-wise rendering: hold previous value, then step to new value
+        path.lineTo(px, path.currentPosition().y());
         path.lineTo(px, py);
       }
     }
