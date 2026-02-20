@@ -52,14 +52,16 @@ inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entri
   {
     double base_y = bandTopY(entries[idx], widget_height);
     double row_y = base_y;
-    // Push down until no overlap with any previously placed row
+    // Push down until no overlap with any previously placed row.
+    // Use 0.5px tolerance to avoid infinite loop from floating-point
+    // precision: (py + row_height) - py can be slightly < row_height.
     bool collision = true;
     while (collision)
     {
       collision = false;
       for (double py : placed)
       {
-        if (std::abs(row_y - py) < row_height)
+        if (std::abs(row_y - py) < row_height - 0.5)
         {
           row_y = py + row_height;
           collision = true;

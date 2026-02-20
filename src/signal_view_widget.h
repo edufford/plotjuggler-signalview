@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QComboBox>
 #include <vector>
+#include <map>
 #include "plot_canvas.h"
 #include "y_axis_panel.h"
 #include "PlotJuggler/plotdata.h"
@@ -55,6 +56,10 @@ private:
   PlotCanvas* _canvas;
   YAxisPanel* _y_axis_panel;
   QComboBox* _snap_combo;
+
+  // Multi-drag state: original band_centers captured at drag start
+  int _multi_drag_index = -1;
+  std::map<int, double> _multi_drag_origins;
 
   // Predefined signal colors
   static const std::vector<QColor>& signalColors();

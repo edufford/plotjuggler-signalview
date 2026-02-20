@@ -128,6 +128,15 @@ Signals can be selected in any Y-axis panel column:
     release. Ctrl+drag adds to the existing selection.
   - Selected signals get a subtle white highlight in the name and value columns.
 
+Multi-signal operations (when multiple signals are selected):
+  - Dragging a selected signal moves all selected signals together,
+    preserving their relative vertical positions. Movement is clamped
+    so no signal leaves the [0, 1] range.
+  - Resizing a selected signal's band edge applies the same height
+    change to all selected signals (same edge direction).
+  - Mouse wheel zoom on a selected signal's Y-axis bar applies the
+    same zoom factor to all selected signals.
+
 
 MOUSE INTERACTION: SIGNAL NAME COLUMN
 --------------------------------------
