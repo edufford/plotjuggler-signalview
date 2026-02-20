@@ -3,7 +3,7 @@ Signal View Plugin - Feature Behavior Reference
 
 Plugin type: PJ::ToolboxPlugin (FLOATING)
 Accessed via: PlotJuggler > Tools > Signal View
-Version: 0.6.0
+Version: 0.7.0
 
 
 TOOLBAR
@@ -14,7 +14,7 @@ TOOLBAR
 - "Remove Signal" button: opens a dropdown listing currently added signals.
   Selecting one removes it and re-assigns band positions for remaining signals.
 - "Group" button: groups all currently selected signals so they overlap.
-  Copies the band position, band height, bar_x, Y min, and Y max from the topmost
+  Copies band position, band height, bar_x, divisions, Y min, and Y max from the topmost
   selected signal (lowest band_top) to all other selected signals. No-op if
   fewer than 2 signals are selected.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data with
@@ -63,7 +63,8 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
        - Horizontal grab handles at the top and bottom edges.
        - Tick marks and numeric value labels along the axis.
        - Number of ticks: uses the signal's divisions setting (default 8).
-         Setting divisions to 0 auto-scales based on band height (min 2, ~1 per 35px).
+         Setting divisions to 0 auto-scales based on band height
+         (min 2, max 32, ~1 per 32px).
      - Background is transparent (no per-band fill).
      - Each bar has a horizontal position (bar_x) within the column.
        Bars default to the right edge (bar_x=1.0) and can be dragged
@@ -139,6 +140,8 @@ Multi-signal operations (when multiple signals are selected):
   - Dragging a selected signal moves all selected signals together,
     preserving their relative vertical positions. Movement is clamped
     so no signal leaves the [0, 1] range.
+  - Dragging a selected Y-axis bar also moves all selected bars
+    horizontally together, preserving their relative bar_x positions.
   - Resizing a selected signal's band edge applies the same height
     change to all selected signals (same edge direction).
   - Mouse wheel zoom on a selected signal's Y-axis bar applies the
@@ -274,7 +277,7 @@ The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
 Saved state includes:
   - Widget visibility (visible="0" or "1").
   - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x,
-    divisions (only saved when > 0).
+    divisions.
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.
