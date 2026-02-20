@@ -62,7 +62,7 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, _scroll_offset);
 
   for (int i = 0; i < (int)_signals.size(); i++)
   {
@@ -97,7 +97,7 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
 
 int SignalNameColumn::hitTestSignal(const QPoint& pos) const
 {
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, _scroll_offset);
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
@@ -280,7 +280,7 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, _scroll_offset);
 
   for (int i = 0; i < (int)_signals.size(); i++)
   {
@@ -320,7 +320,7 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
 
 int SignalValueColumn::hitTestSignal(const QPoint& pos) const
 {
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, _scroll_offset);
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
@@ -836,7 +836,7 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
     QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
     if (rb.height() > 3)
     {
-      // Select signals whose bands overlap with the rubber band Y range
+      // Select signals whose bands overlap with the rubber band in both axes
       std::set<int> new_sel;
       if (_rubber_band_ctrl)
         new_sel = _selected;  // Ctrl: add to existing
@@ -844,7 +844,11 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
       {
         double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
         double bottom = AxisLayout::bandBottomY(_signals[i], height(), _scroll_offset);
-        if (bottom >= rb.top() && top <= rb.bottom())
+        double ax = axisX(_signals[i].bar_x);
+        double bar_left = ax - 30;
+        double bar_right = ax + 10;
+        if (bottom >= rb.top() && top <= rb.bottom() &&
+            bar_right >= rb.left() && bar_left <= rb.right())
           new_sel.insert(i);
       }
       _selected = new_sel;
@@ -975,18 +979,22 @@ YAxisPanel::YAxisPanel(QWidget* parent)
     _bar_col->setSelection(sel);
   });
 
-  // Handle box-select from label columns
+  // Handle box-select from label columns — use text row positions (not full band)
   connect(_label_col, &YAxisLabelColumn::boxSelect, this,
           [this](double y_top, double y_bottom, bool add) {
     std::set<int> sel;
     if (add)
       sel = _bar_col->selection();
     int h = _bar_col->height();
+    constexpr int row_h = 15;  // matches SignalNameColumn::kTextRowHeight
+    auto offsets = AxisLayout::textRowYOffsets(_signals, h, row_h,
+                                              _bar_col->scrollOffset());
     for (int i = 0; i < (int)_signals.size(); i++)
     {
-      double top = AxisLayout::bandTopY(_signals[i], h, _bar_col->scrollOffset());
-      double bottom = AxisLayout::bandBottomY(_signals[i], h, _bar_col->scrollOffset());
-      if (bottom >= y_top && top <= y_bottom)
+      double row_top = AxisLayout::bandTopY(_signals[i], h, _bar_col->scrollOffset())
+                       + offsets[i];
+      double row_bottom = row_top + row_h;
+      if (row_bottom >= y_top && row_top <= y_bottom)
         sel.insert(i);
     }
     _bar_col->setSelection(sel);

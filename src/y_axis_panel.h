@@ -25,28 +25,24 @@ inline double bandBottomY(const SignalEntry& sig, int widget_height, double scro
 }
 // Returns the pixel Y offset for each signal's text row, ensuring no
 // overlap. Signals are processed top-to-bottom so the highest signal
-// claims the top slot. The dragged signal (if any) sorts last among
-// signals at the same position so it stacks below stationary ones.
+// claims the top slot. At the same position, earlier-added signals
+// (lower index) stay on top for stable, predictable stacking.
 inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entries,
                                            int widget_height, int row_height,
-                                           int drag_index = -1,
                                            double scroll_offset = 0.0)
 {
   std::vector<double> y_offsets(entries.size(), 0.0);
   if (entries.empty())
     return y_offsets;
 
-  // Process signals from top to bottom; dragged signal sorts last at same Y
+  // Process signals from top to bottom; earlier-added (lower index) first at same Y
   std::vector<size_t> order(entries.size());
   for (size_t i = 0; i < entries.size(); i++) order[i] = i;
   std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
     double ya = bandTopY(entries[a], widget_height, scroll_offset);
     double yb = bandTopY(entries[b], widget_height, scroll_offset);
-    if (std::abs(ya - yb) < 1.0)  // truly same position, not just overlapping
-    {
-      if ((int)a == drag_index) return false;
-      if ((int)b == drag_index) return true;
-    }
+    if (std::abs(ya - yb) < 1.0)
+      return a < b;
     return ya < yb;
   });
 

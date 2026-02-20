@@ -73,9 +73,8 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
      - Background is transparent (no per-band fill).
      - When multiple signals overlap vertically, names stack downward
        with no gap (15px row height). The highest signal claims the top
-       slot; a single-signal drag demotes the dragged signal to stack
-       last among signals at the same position. Multi-signal drags
-       preserve the existing stacking order.
+       slot. At the same vertical position, earlier-added signals (lower
+       index) stay on top for stable, predictable stacking.
 
   2. Signal Value Column (middle)
      - Displays the cursor readout value for each signal in the signal's color.
@@ -198,9 +197,12 @@ Signals can be selected in any Y-axis panel column:
     preserved (enabling double-click and multi-selection drag).
   - Ctrl+click: toggles the signal in/out of the selection.
   - Click on empty area: clears the selection.
-  - Click + drag on empty area: rubber band selection. All signals whose
-    bands overlap the rubber band's vertical extent are selected on
-    release. Ctrl+drag adds to the existing selection.
+  - Click + drag on empty area: rubber band selection. In the name and
+    value columns, a signal is selected when the rubber band overlaps its
+    15px text row (at its stacked position). In the bar column, a signal
+    is selected when the rubber band overlaps both the bar's vertical
+    extent and its horizontal axis position. Ctrl+drag adds to the
+    existing selection.
   - Selected signals get a subtle white highlight in the name and value columns.
 
 Multi-signal operations (when multiple signals are selected):
