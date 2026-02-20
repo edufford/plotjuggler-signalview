@@ -343,6 +343,8 @@ void PlotCanvas::drawSignals(QPainter& painter)
 
   painter.setRenderHint(QPainter::Antialiasing, true);
 
+  const double plot_w = width() - kMarginLeft - kMarginRight;
+
   for (const auto& sig : _signals)
   {
     auto resolved = _overlay_mgr->resolveSignal(sig.name);
@@ -356,56 +358,182 @@ void PlotCanvas::drawSignals(QPainter& painter)
 
     painter.setPen(QPen(sig.color, sig.line_width, sig.line_style));
 
+    // Binary search for the first point at or after view_t_min (in local time)
+    double local_t_min = _view_t_min - t_offset;
+    double local_t_max = _view_t_max - t_offset;
+    auto lb = std::lower_bound(
+        series.begin(), series.end(),
+        PJ::PlotData::Point(local_t_min, 0.0),
+        [](const auto& a, const auto& b) { return a.x < b.x; });
+
+    // Include one point before the view for the entry hold value
+    size_t start_idx = (lb != series.begin()) ? (lb - series.begin() - 1) : 0;
+
     QPainterPath path;
     bool first = true;
 
-    for (size_t i = 0; i < series.size(); i++)
+    // Determine if downsampling is needed: compare visible point count to pixel width
+    auto ub = std::lower_bound(
+        series.begin(), series.end(),
+        PJ::PlotData::Point(local_t_max, 0.0),
+        [](const auto& a, const auto& b) { return a.x < b.x; });
+    size_t end_idx = std::min((size_t)(ub - series.begin() + 1), series.size());
+    size_t visible_count = (end_idx > start_idx) ? (end_idx - start_idx) : 0;
+    bool downsample = (plot_w > 0 && visible_count > (size_t)(plot_w * 2));
+
+    if (downsample)
     {
-      const auto& pt = series[i];
-      double t = pt.x + t_offset;
-      if (t < _view_t_min || t > _view_t_max)
+      // Per-pixel-column min/max downsampling for step-wise signals.
+      // For each pixel column, we track the first value (entry hold), min, max,
+      // and last value. We emit: hold line to column, then min→max or max→min
+      // vertical extent, then the exit value. This preserves every visible
+      // vertical extent identically to full-resolution rendering.
+
+      int prev_px_col = -1;
+      double col_first_y = 0, col_min_y = 0, col_max_y = 0, col_last_y = 0;
+      int col_min_idx = 0, col_max_idx = 0;  // track order of min/max
+
+      for (size_t i = start_idx; i < series.size(); i++)
       {
-        // Still draw the boundary points to avoid clipping artifacts
+        const auto& pt = series[i];
+        double t = pt.x + t_offset;
+
+        if (t > _view_t_max)
+        {
+          // Flush current column
+          if (prev_px_col >= 0 && !first)
+          {
+            double cpx = (double)prev_px_col;
+            // Hold line from previous position
+            path.lineTo(cpx, path.currentPosition().y());
+            path.lineTo(cpx, col_first_y);
+            // Draw min/max extent in order of occurrence
+            if (col_min_idx < col_max_idx)
+            {
+              path.lineTo(cpx, col_min_y);
+              path.lineTo(cpx, col_max_y);
+            }
+            else
+            {
+              path.lineTo(cpx, col_max_y);
+              path.lineTo(cpx, col_min_y);
+            }
+            path.lineTo(cpx, col_last_y);
+          }
+          // Draw boundary point for clean exit
+          if (!first)
+          {
+            double px = timeToPixelX(t);
+            double py = valueToPixelY(pt.y, sig);
+            path.lineTo(px, path.currentPosition().y());
+            path.lineTo(px, py);
+          }
+          break;
+        }
+
+        double px = timeToPixelX(t);
+        double py = valueToPixelY(pt.y, sig);
+        int px_col = (int)std::round(px);
+
+        if (first)
+        {
+          path.moveTo(px, py);
+          first = false;
+          prev_px_col = px_col;
+          col_first_y = col_min_y = col_max_y = col_last_y = py;
+          col_min_idx = col_max_idx = 0;
+          continue;
+        }
+
+        if (px_col == prev_px_col)
+        {
+          // Same pixel column — accumulate min/max
+          int idx = (int)(i - start_idx);
+          if (py < col_min_y) { col_min_y = py; col_min_idx = idx; }
+          if (py > col_max_y) { col_max_y = py; col_max_idx = idx; }
+          col_last_y = py;
+        }
+        else
+        {
+          // Flush previous pixel column
+          double cpx = (double)prev_px_col;
+          path.lineTo(cpx, path.currentPosition().y());
+          path.lineTo(cpx, col_first_y);
+          if (col_min_idx < col_max_idx)
+          {
+            path.lineTo(cpx, col_min_y);
+            path.lineTo(cpx, col_max_y);
+          }
+          else
+          {
+            path.lineTo(cpx, col_max_y);
+            path.lineTo(cpx, col_min_y);
+          }
+          path.lineTo(cpx, col_last_y);
+
+          // Start new column
+          prev_px_col = px_col;
+          col_first_y = col_min_y = col_max_y = col_last_y = py;
+          col_min_idx = col_max_idx = (int)(i - start_idx);
+        }
+      }
+
+      // Flush last column if loop ended without exceeding view
+      if (prev_px_col >= 0 && !first)
+      {
+        double cpx = (double)prev_px_col;
+        path.lineTo(cpx, path.currentPosition().y());
+        path.lineTo(cpx, col_first_y);
+        if (col_min_idx < col_max_idx)
+        {
+          path.lineTo(cpx, col_min_y);
+          path.lineTo(cpx, col_max_y);
+        }
+        else
+        {
+          path.lineTo(cpx, col_max_y);
+          path.lineTo(cpx, col_min_y);
+        }
+        path.lineTo(cpx, col_last_y);
+      }
+    }
+    else
+    {
+      // Full-resolution step-wise rendering
+      for (size_t i = start_idx; i < series.size(); i++)
+      {
+        const auto& pt = series[i];
+        double t = pt.x + t_offset;
+
         if (t > _view_t_max && !first)
         {
           double px = timeToPixelX(t);
           double py = valueToPixelY(pt.y, sig);
-          // Step-wise: hold previous value, then step
           path.lineTo(px, path.currentPosition().y());
           path.lineTo(px, py);
           break;
         }
-        // Skip until we're near the view, but keep the last pre-view point
-        if (i + 1 < series.size() && series[i + 1].x + t_offset >= _view_t_min)
+
+        double px = timeToPixelX(t);
+        double py = valueToPixelY(pt.y, sig);
+
+        if (first)
         {
-          double px = timeToPixelX(t);
-          double py = valueToPixelY(pt.y, sig);
           path.moveTo(px, py);
           first = false;
         }
-        continue;
-      }
-
-      double px = timeToPixelX(t);
-      double py = valueToPixelY(pt.y, sig);
-
-      if (first)
-      {
-        path.moveTo(px, py);
-        first = false;
-      }
-      else
-      {
-        // Step-wise rendering: hold previous value, then step to new value
-        path.lineTo(px, path.currentPosition().y());
-        path.lineTo(px, py);
+        else
+        {
+          path.lineTo(px, path.currentPosition().y());
+          path.lineTo(px, py);
+        }
       }
     }
 
     painter.drawPath(path);
 
-    // Draw markers at data points
-    if (sig.marker_style != MarkerStyle::None)
+    // Draw markers at data points (skip when downsampled — markers are sub-pixel)
+    if (sig.marker_style != MarkerStyle::None && !downsample)
     {
       const double r = sig.line_width + 1.5;  // marker radius scales with line width
       bool filled = (sig.marker_style == MarkerStyle::FilledCircle ||
@@ -422,7 +550,7 @@ void PlotCanvas::drawSignals(QPainter& painter)
         painter.setBrush(Qt::NoBrush);
       }
 
-      for (size_t i = 0; i < series.size(); i++)
+      for (size_t i = start_idx; i < series.size(); i++)
       {
         const auto& pt = series[i];
         double t = pt.x + t_offset;

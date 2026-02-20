@@ -150,11 +150,21 @@ Rendering:
   - Signal traces rendered as step-wise (staircase) antialiased QPainterPaths,
     clipped to plot area. Values are held constant until the next data point,
     then step vertically to the new value.
+  - Binary search is used to skip directly to the first visible data point
+    instead of scanning from the beginning of the series.
+  - Per-pixel-column downsampling: when the number of visible data points
+    exceeds twice the pixel width of the plot area, points are aggregated
+    per pixel column. For each column, the first, min, max, and last Y
+    values are emitted, preserving the full vertical extent of the signal
+    at that pixel. This is visually identical to full-resolution rendering
+    but reduces the QPainterPath element count from potentially millions
+    to at most ~4 per pixel column.
   - Traces outside the view range are culled, with boundary points preserved
     to avoid clipping artifacts.
   - Optional data point markers drawn at each sample within the view range.
-    Marker styles: None (default), Filled Circle, Open Circle, Filled Square,
-    Open Square, Filled Triangle, Open Triangle. Marker size scales with
+    Markers are automatically suppressed when downsampling is active (points
+    are sub-pixel). Marker styles: None (default), Filled Circle, Open Circle,
+    Filled Square, Open Square, Filled Triangle, Open Triangle. Marker size scales with
     line width. Filled markers use solid fill; open markers use outline only.
 
 Time axis:
