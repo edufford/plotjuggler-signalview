@@ -578,13 +578,14 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   dlg.setWindowTitle("Edit Y Range");
   auto* layout = new QVBoxLayout(&dlg);
 
-  auto* table = new QTableWidget((int)row_to_idx.size(), 7, &dlg);
-  table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Line Width", "Y Min", "Y Max", "Divisions"});
+  auto* table = new QTableWidget((int)row_to_idx.size(), 8, &dlg);
+  table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Marker", "Line Width", "Y Min", "Y Max", "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
   table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
   table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
   table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table->verticalHeader()->setVisible(false);
@@ -598,7 +599,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     using QItemSelectionModel::QItemSelectionModel;
     void select(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 6)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 7)
       {
         if (isRowSelected(index.row(), index.parent()))
           return;  // row already selected — preserve multi-selection
@@ -614,7 +615,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     }
     void setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 6)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 7)
       {
         if (isRowSelected(index.row(), index.parent()))
         {
@@ -640,10 +641,22 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     {"Dash-Dot-Dot", Qt::DashDotDotLine},
   };
 
+  // Marker style options
+  struct MarkerStyleOption { QString label; MarkerStyle style; };
+  const std::vector<MarkerStyleOption> marker_style_options = {
+    {"None",             MarkerStyle::None},
+    {"Filled Circle",    MarkerStyle::FilledCircle},
+    {"Open Circle",      MarkerStyle::OpenCircle},
+    {"Filled Square",    MarkerStyle::FilledSquare},
+    {"Open Square",      MarkerStyle::OpenSquare},
+    {"Filled Triangle",  MarkerStyle::FilledTriangle},
+    {"Open Triangle",    MarkerStyle::OpenTriangle},
+  };
+
   // Store widget pointers for reading results
   std::vector<QLineEdit*> min_edits, max_edits, div_edits, width_edits;
   std::vector<QPushButton*> color_btns;
-  std::vector<QComboBox*> style_combos;
+  std::vector<QComboBox*> style_combos, marker_combos;
   std::vector<QColor> colors;
 
   auto setColorBtnStyle = [](QPushButton* btn, const QColor& c) {
@@ -683,32 +696,45 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     table->setCellWidget(row, 2, style_combo);
     style_combos.push_back(style_combo);
 
+    // Marker style combo
+    auto* marker_combo = new QComboBox(&dlg);
+    int current_marker_idx = 0;
+    for (int m = 0; m < (int)marker_style_options.size(); m++)
+    {
+      marker_combo->addItem(marker_style_options[m].label, (int)marker_style_options[m].style);
+      if (marker_style_options[m].style == sig.marker_style)
+        current_marker_idx = m;
+    }
+    marker_combo->setCurrentIndex(current_marker_idx);
+    table->setCellWidget(row, 3, marker_combo);
+    marker_combos.push_back(marker_combo);
+
     // Line width edit
     auto* width_edit = new QLineEdit(&dlg);
     width_edit->setValidator(new QDoubleValidator(0.1, 10.0, 1, &dlg));
     width_edit->setText(QString::number(sig.line_width, 'f', 1));
-    table->setCellWidget(row, 3, width_edit);
+    table->setCellWidget(row, 4, width_edit);
     width_edits.push_back(width_edit);
 
     // Y Min line edit
     auto* min_edit = new QLineEdit(&dlg);
     min_edit->setValidator(new QDoubleValidator(&dlg));
     min_edit->setText(QString::number(sig.y_min, 'g', 6));
-    table->setCellWidget(row, 4, min_edit);
+    table->setCellWidget(row, 5, min_edit);
     min_edits.push_back(min_edit);
 
     // Y Max line edit
     auto* max_edit = new QLineEdit(&dlg);
     max_edit->setValidator(new QDoubleValidator(&dlg));
     max_edit->setText(QString::number(sig.y_max, 'g', 6));
-    table->setCellWidget(row, 5, max_edit);
+    table->setCellWidget(row, 6, max_edit);
     max_edits.push_back(max_edit);
 
     // Divisions line edit (0 = auto)
     auto* div_edit = new QLineEdit(&dlg);
     div_edit->setValidator(new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
     div_edit->setText(QString::number(sig.divisions));
-    table->setCellWidget(row, 6, div_edit);
+    table->setCellWidget(row, 7, div_edit);
     div_edits.push_back(div_edit);
   }
 
@@ -717,9 +743,9 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   // When a line edit value changes, apply to all selected rows in the same column
   auto editForCol = [&](int row, int col) -> QLineEdit* {
-    if (col == 3) return width_edits[row];
-    if (col == 4) return min_edits[row];
-    if (col == 5) return max_edits[row];
+    if (col == 4) return width_edits[row];
+    if (col == 5) return min_edits[row];
+    if (col == 6) return max_edits[row];
     return div_edits[row];
   };
   auto propagateText = [&](int source_row, int col) {
@@ -748,13 +774,13 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
     connect(width_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagateText, row]() { propagateText(row, 3); });
-    connect(min_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagateText, row]() { propagateText(row, 4); });
-    connect(max_edits[row], &QLineEdit::textEdited,
+    connect(min_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagateText, row]() { propagateText(row, 5); });
-    connect(div_edits[row], &QLineEdit::textEdited,
+    connect(max_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagateText, row]() { propagateText(row, 6); });
+    connect(div_edits[row], &QLineEdit::textEdited,
+            &dlg, [&propagateText, row]() { propagateText(row, 7); });
 
     // Line style combo: propagate to selected rows
     connect(style_combos[row], QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -771,6 +797,24 @@ void SignalViewWidget::onEditYRange(int clicked_index)
         style_combos[r]->blockSignals(true);
         style_combos[r]->setCurrentIndex(idx);
         style_combos[r]->blockSignals(false);
+      }
+    });
+
+    // Marker style combo: propagate to selected rows
+    connect(marker_combos[row], QOverload<int>::of(&QComboBox::currentIndexChanged),
+            &dlg, [&, row](int idx) {
+      if (!isRowSelected(row))
+        return;
+      auto selected_rows = table->selectionModel()->selectedRows();
+      if (selected_rows.size() <= 1)
+        return;
+      for (const auto& mi : selected_rows)
+      {
+        int r = mi.row();
+        if (r == row) continue;
+        marker_combos[r]->blockSignals(true);
+        marker_combos[r]->setCurrentIndex(idx);
+        marker_combos[r]->blockSignals(false);
       }
     });
 
@@ -808,7 +852,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   layout->addWidget(table);
   layout->addWidget(buttons);
-  dlg.resize(820, 50 + 30 * (int)row_to_idx.size() + 60);
+  dlg.resize(920, 50 + 30 * (int)row_to_idx.size() + 60);
 
   if (dlg.exec() != QDialog::Accepted)
     return;
@@ -819,6 +863,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     int sig_idx = row_to_idx[row];
     _signals[sig_idx].color = colors[row];
     _signals[sig_idx].line_style = (Qt::PenStyle)style_combos[row]->currentData().toInt();
+    _signals[sig_idx].marker_style = (MarkerStyle)marker_combos[row]->currentData().toInt();
     bool ok_w = false;
     double new_w = width_edits[row]->text().toDouble(&ok_w);
     if (ok_w && new_w >= 0.1 && new_w <= 10.0)

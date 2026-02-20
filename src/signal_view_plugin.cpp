@@ -63,6 +63,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
     sig_elem.setAttribute("divisions", sig.divisions);
     sig_elem.setAttribute("line_style", (int)sig.line_style);
     sig_elem.setAttribute("line_width", sig.line_width);
+    sig_elem.setAttribute("marker_style", (int)sig.marker_style);
     parent_element.appendChild(sig_elem);
   }
 
@@ -127,6 +128,8 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     entry.line_style = (Qt::PenStyle)sig_elem.attribute("line_style",
         QString::number((int)Qt::SolidLine)).toInt();
     entry.line_width = sig_elem.attribute("line_width", "1.5").toDouble();
+    entry.marker_style = (MarkerStyle)sig_elem.attribute("marker_style",
+        QString::number((int)MarkerStyle::None)).toInt();
 
     // Don't check data existence here — data is loaded after plugins
     sig_entries.push_back(entry);

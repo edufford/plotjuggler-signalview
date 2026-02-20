@@ -8,6 +8,17 @@
 
 class QLineEdit;
 
+enum class MarkerStyle : int
+{
+  None = 0,
+  FilledCircle,
+  OpenCircle,
+  FilledSquare,
+  OpenSquare,
+  FilledTriangle,
+  OpenTriangle,
+};
+
 struct SignalEntry
 {
   std::string name;
@@ -22,6 +33,7 @@ struct SignalEntry
   int divisions = 8;          // Y-axis tick divisions (0 = auto)
   Qt::PenStyle line_style = Qt::SolidLine;
   double line_width = 1.5;
+  MarkerStyle marker_style = MarkerStyle::None;
 
   static constexpr int kMaxDivisions = 32;
   static constexpr int kPixelsPerAutoTick = 32;

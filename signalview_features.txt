@@ -136,9 +136,15 @@ Rendering:
   - Dotted grid lines: per-signal horizontal lines aligned to each signal's
     Y-axis tick divisions (same count as the Y-axis bar column ticks), drawn
     in gray (60,60,60). ~8 vertical with "nice" step spacing.
-  - Signal traces rendered as antialiased QPainterPaths, clipped to plot area.
+  - Signal traces rendered as step-wise (staircase) antialiased QPainterPaths,
+    clipped to plot area. Values are held constant until the next data point,
+    then step vertically to the new value.
   - Traces outside the view range are culled, with boundary points preserved
     to avoid clipping artifacts.
+  - Optional data point markers drawn at each sample within the view range.
+    Marker styles: None (default), Filled Circle, Open Circle, Filled Square,
+    Open Square, Filled Triangle, Open Triangle. Marker size scales with
+    line width. Filled markers use solid fill; open markers use outline only.
 
 Time axis:
   - Drawn below the plot area with tick marks and labels.
@@ -267,6 +273,9 @@ Columns:
     to all selected rows. The signal name text color updates to match.
   - Line Style: dropdown combo box with options: Solid, Dash, Dot, Dash-Dot,
     Dash-Dot-Dot. Default: Solid. Propagates to all selected rows.
+  - Marker: dropdown combo box with options: None, Filled Circle, Open Circle,
+    Filled Square, Open Square, Filled Triangle, Open Triangle. Default: None.
+    Propagates to all selected rows.
   - Line Width: editable numeric field (validated 0.1–10.0, 1 decimal place).
     Default: 1.5. Propagates to all selected rows.
   - Y Min: editable numeric text field (validated as double, 6 significant digits).
@@ -339,7 +348,7 @@ The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
 Saved state includes:
   - Widget visibility (visible="0" or "1").
   - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x,
-    divisions, line_style, line_width.
+    divisions, line_style, line_width, marker_style.
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.

@@ -385,6 +385,63 @@ void PlotCanvas::drawSignals(QPainter& painter)
     }
 
     painter.drawPath(path);
+
+    // Draw markers at data points
+    if (sig.marker_style != MarkerStyle::None)
+    {
+      const double r = sig.line_width + 1.5;  // marker radius scales with line width
+      bool filled = (sig.marker_style == MarkerStyle::FilledCircle ||
+                     sig.marker_style == MarkerStyle::FilledSquare ||
+                     sig.marker_style == MarkerStyle::FilledTriangle);
+      if (filled)
+      {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(sig.color);
+      }
+      else
+      {
+        painter.setPen(QPen(sig.color, sig.line_width));
+        painter.setBrush(Qt::NoBrush);
+      }
+
+      for (size_t i = 0; i < series.size(); i++)
+      {
+        const auto& pt = series[i];
+        if (pt.x < _view_t_min)
+          continue;
+        if (pt.x > _view_t_max)
+          break;
+
+        double px = timeToPixelX(pt.x);
+        double py = valueToPixelY(pt.y, sig);
+
+        switch (sig.marker_style)
+        {
+          case MarkerStyle::FilledCircle:
+          case MarkerStyle::OpenCircle:
+            painter.drawEllipse(QPointF(px, py), r, r);
+            break;
+          case MarkerStyle::FilledSquare:
+          case MarkerStyle::OpenSquare:
+            painter.drawRect(QRectF(px - r, py - r, r * 2, r * 2));
+            break;
+          case MarkerStyle::FilledTriangle:
+          case MarkerStyle::OpenTriangle:
+          {
+            QPainterPath tri;
+            tri.moveTo(px, py - r);
+            tri.lineTo(px - r, py + r);
+            tri.lineTo(px + r, py + r);
+            tri.closeSubpath();
+            painter.drawPath(tri);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+      painter.setBrush(Qt::NoBrush);
+    }
   }
 
   painter.setRenderHint(QPainter::Antialiasing, false);
