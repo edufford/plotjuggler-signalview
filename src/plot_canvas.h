@@ -44,10 +44,14 @@ public:
   double viewMaxTime() const { return _view_t_max; }
   void setViewRange(double t_min, double t_max);
 
+  void setScrollOffset(double offset);
+  void setZoomMode(bool enabled);
+
 signals:
   void cursorMoved(double time);
   void viewRangeChanged(double t_min, double t_max);
   void canvasResized(int new_height);
+  void verticalScrollRequested(double delta);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -78,6 +82,10 @@ private:
   double _view_t_min = 0.0;
   double _view_t_max = 10.0;
   bool _auto_fit = true;
+
+  // Vertical scroll
+  double _scroll_offset = 0.0;
+  bool _zoom_mode = false;
 
   // Cursor
   double _cursor_time = 0.0;

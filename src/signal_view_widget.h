@@ -47,6 +47,7 @@ private slots:
   void onEditYRange(int clicked_index);
   void onGroupSignals();
   void onDeleteSelected();
+  void onVerticalScroll(double delta);
 
 private:
   double snapValue(double val) const;
@@ -56,6 +57,7 @@ private:
   PJ::PlotDataMapRef* _data;
   std::vector<SignalEntry> _signals;
   double _snap_amount = 0.01;
+  double _scroll_offset = 0.0;
 
   PlotCanvas* _canvas;
   YAxisPanel* _y_axis_panel;

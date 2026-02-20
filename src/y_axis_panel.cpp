@@ -36,6 +36,12 @@ void SignalNameColumn::setSelection(const std::set<int>& sel)
   update();
 }
 
+void SignalNameColumn::setScrollOffset(double offset)
+{
+  _scroll_offset = offset;
+  update();
+}
+
 int SignalNameColumn::effectiveDragIndex() const
 {
   // Only apply drag demotion after movement starts, not on initial press.
@@ -55,12 +61,12 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
 
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     const auto& sig = _signals[i];
-    double top = AxisLayout::bandTopY(sig, height());
+    double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
     double row_y = top + offsets[i];
 
     // Selection highlight
@@ -90,10 +96,10 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
 
 int SignalNameColumn::hitTestSignal(const QPoint& pos) const
 {
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
   for (int i = 0; i < (int)_signals.size(); i++)
   {
-    double top = AxisLayout::bandTopY(_signals[i], height());
+    double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
     double row_y = top + offsets[i];
     if (pos.y() >= row_y && pos.y() <= row_y + kTextRowHeight)
       return i;
@@ -162,7 +168,7 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
     return;
 
   double delta = dy / plot_h;
-  double new_center = std::clamp(_drag_start_band_center + delta, 0.0, 1.0);
+  double new_center = _drag_start_band_center + delta;
   emit bandOffsetChanged(_drag_index, new_center);
 }
 
@@ -200,10 +206,15 @@ void SignalNameColumn::mouseDoubleClickEvent(QMouseEvent* event)
   else
   {
     double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
-    band_center = std::clamp(band_center, 0.0, 1.0);
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h + _scroll_offset : 0.5;
     emit addSignalRequested(band_center);
   }
+}
+
+void SignalNameColumn::wheelEvent(QWheelEvent* event)
+{
+  double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
+  emit verticalScrollRequested(delta);
 }
 
 // ============================================================================
@@ -245,6 +256,12 @@ void SignalValueColumn::setSelection(const std::set<int>& sel)
   update();
 }
 
+void SignalValueColumn::setScrollOffset(double offset)
+{
+  _scroll_offset = offset;
+  update();
+}
+
 int SignalValueColumn::effectiveDragIndex() const
 {
   if (_drag_index >= 0 && _drag_moved)
@@ -262,12 +279,12 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
 
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     const auto& sig = _signals[i];
-    double top = AxisLayout::bandTopY(sig, height());
+    double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
     double row_y = top + offsets[i];
 
     // Selection highlight
@@ -302,10 +319,10 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
 
 int SignalValueColumn::hitTestSignal(const QPoint& pos) const
 {
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex());
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight, effectiveDragIndex(), _scroll_offset);
   for (int i = 0; i < (int)_signals.size(); i++)
   {
-    double top = AxisLayout::bandTopY(_signals[i], height());
+    double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
     double row_y = top + offsets[i];
     if (pos.y() >= row_y && pos.y() <= row_y + kTextRowHeight)
       return i;
@@ -371,7 +388,7 @@ void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
     return;
 
   double delta = dy / plot_h;
-  double new_center = std::clamp(_drag_start_band_center + delta, 0.0, 1.0);
+  double new_center = _drag_start_band_center + delta;
   emit bandOffsetChanged(_drag_index, new_center);
 }
 
@@ -409,10 +426,15 @@ void SignalValueColumn::mouseDoubleClickEvent(QMouseEvent* event)
   else
   {
     double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
-    band_center = std::clamp(band_center, 0.0, 1.0);
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h + _scroll_offset : 0.5;
     emit addSignalRequested(band_center);
   }
+}
+
+void SignalValueColumn::wheelEvent(QWheelEvent* event)
+{
+  double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
+  emit verticalScrollRequested(delta);
 }
 
 // ============================================================================
@@ -474,6 +496,12 @@ YAxisLabelColumn::YAxisLabelColumn(QWidget* parent)
           this, &YAxisLabelColumn::boxSelect);
   connect(_value_col, &SignalValueColumn::boxSelect,
           this, &YAxisLabelColumn::boxSelect);
+
+  // Forward vertical scroll requests
+  connect(_name_col, &SignalNameColumn::verticalScrollRequested,
+          this, &YAxisLabelColumn::verticalScrollRequested);
+  connect(_value_col, &SignalValueColumn::verticalScrollRequested,
+          this, &YAxisLabelColumn::verticalScrollRequested);
 }
 
 void YAxisLabelColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
@@ -498,6 +526,12 @@ void YAxisLabelColumn::setSelection(const std::set<int>& sel)
 {
   _name_col->setSelection(sel);
   _value_col->setSelection(sel);
+}
+
+void YAxisLabelColumn::setScrollOffset(double offset)
+{
+  _name_col->setScrollOffset(offset);
+  _value_col->setScrollOffset(offset);
 }
 
 void YAxisLabelColumn::setCanvasHeight(int /*h*/)
@@ -550,6 +584,12 @@ void YAxisBarColumn::setCanvasHeight(int /*h*/)
   update();
 }
 
+void YAxisBarColumn::setScrollOffset(double offset)
+{
+  _scroll_offset = offset;
+  update();
+}
+
 void YAxisBarColumn::setSnapAmount(double snap)
 {
   _snap_amount = snap;
@@ -570,8 +610,8 @@ YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const
     if (pos.x() < ax - 30 || pos.x() > ax + 10)
       continue;
 
-    double top = AxisLayout::bandTopY(_signals[i], height());
-    double bottom = AxisLayout::bandBottomY(_signals[i], height());
+    double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
+    double bottom = AxisLayout::bandBottomY(_signals[i], height(), _scroll_offset);
 
     if (pos.y() < top - kEdgeGrabPixels || pos.y() > bottom + kEdgeGrabPixels)
       continue;
@@ -595,8 +635,8 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
   for (int i = 0; i < (int)_signals.size(); i++)
   {
     const auto& sig = _signals[i];
-    double top = AxisLayout::bandTopY(sig, height());
-    double bottom = AxisLayout::bandBottomY(sig, height());
+    double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
+    double bottom = AxisLayout::bandBottomY(sig, height(), _scroll_offset);
     double band_h = bottom - top;
 
     if (band_h < 4)
@@ -753,7 +793,7 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
   {
     // Vertical movement
     double delta_y = dy / plot_h;
-    double new_center = std::clamp(_drag_start_band_center + delta_y, 0.0, 1.0);
+    double new_center = _drag_start_band_center + delta_y;
     emit bandOffsetChanged(idx, new_center);
 
     // Horizontal movement
@@ -770,7 +810,7 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
     double delta_norm = dy / plot_h;
     double old_top = _drag_start_band_center - _drag_start_band_height * 0.5;
     double old_bottom = _drag_start_band_center + _drag_start_band_height * 0.5;
-    double new_top = std::clamp(old_top + delta_norm, 0.0, old_bottom - 0.02);
+    double new_top = std::min(old_top + delta_norm, old_bottom - 0.02);
     double new_height = old_bottom - new_top;
     double new_center = new_top + new_height * 0.5;
     emit bandResized(idx, new_center, new_height);
@@ -780,7 +820,7 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
     double delta_norm = dy / plot_h;
     double old_top = _drag_start_band_center - _drag_start_band_height * 0.5;
     double old_bottom = _drag_start_band_center + _drag_start_band_height * 0.5;
-    double new_bottom = std::clamp(old_bottom + delta_norm, old_top + 0.02, 1.0);
+    double new_bottom = std::max(old_bottom + delta_norm, old_top + 0.02);
     double new_height = new_bottom - old_top;
     double new_center = old_top + new_height * 0.5;
     emit bandResized(idx, new_center, new_height);
@@ -801,8 +841,8 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
         new_sel = _selected;  // Ctrl: add to existing
       for (int i = 0; i < (int)_signals.size(); i++)
       {
-        double top = AxisLayout::bandTopY(_signals[i], height());
-        double bottom = AxisLayout::bandBottomY(_signals[i], height());
+        double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
+        double bottom = AxisLayout::bandBottomY(_signals[i], height(), _scroll_offset);
         if (bottom >= rb.top() && top <= rb.bottom())
           new_sel.insert(i);
       }
@@ -834,24 +874,15 @@ void YAxisBarColumn::mouseDoubleClickEvent(QMouseEvent* event)
   else
   {
     double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
-    band_center = std::clamp(band_center, 0.0, 1.0);
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h + _scroll_offset : 0.5;
     emit addSignalRequested(band_center);
   }
 }
 
 void YAxisBarColumn::wheelEvent(QWheelEvent* event)
 {
-  auto hit = hitTest(event->position().toPoint());
-  if (hit.index < 0)
-    return;
-
-  const auto& sig = _signals[hit.index];
-  double factor = (event->angleDelta().y() > 0) ? 0.8 : 1.25;
-  double center = (sig.y_min + sig.y_max) * 0.5;
-  double half_range = (sig.y_max - sig.y_min) * 0.5 * factor;
-  if (half_range > 1e-12)
-    emit yRangeChanged(hit.index, center - half_range, center + half_range);
+  double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
+  emit verticalScrollRequested(delta);
 }
 
 // ============================================================================
@@ -903,6 +934,12 @@ YAxisPanel::YAxisPanel(QWidget* parent)
   connect(_label_col, &YAxisLabelColumn::addSignalRequested,
           this, &YAxisPanel::addSignalRequested);
 
+  // Forward vertical scroll requests
+  connect(_bar_col, &YAxisBarColumn::verticalScrollRequested,
+          this, &YAxisPanel::verticalScrollRequested);
+  connect(_label_col, &YAxisLabelColumn::verticalScrollRequested,
+          this, &YAxisPanel::verticalScrollRequested);
+
   // Propagate bar column drag index to label columns (name + value)
   connect(_bar_col, &YAxisBarColumn::dragIndexChanged,
           _label_col, &YAxisLabelColumn::setDragIndex);
@@ -946,8 +983,8 @@ YAxisPanel::YAxisPanel(QWidget* parent)
     int h = _bar_col->height();
     for (int i = 0; i < (int)_signals.size(); i++)
     {
-      double top = AxisLayout::bandTopY(_signals[i], h);
-      double bottom = AxisLayout::bandBottomY(_signals[i], h);
+      double top = AxisLayout::bandTopY(_signals[i], h, _bar_col->scrollOffset());
+      double bottom = AxisLayout::bandBottomY(_signals[i], h, _bar_col->scrollOffset());
       if (bottom >= y_top && top <= y_bottom)
         sel.insert(i);
     }
@@ -991,6 +1028,12 @@ void YAxisPanel::setCanvasHeight(int h)
 {
   _label_col->setCanvasHeight(h);
   _bar_col->setCanvasHeight(h);
+}
+
+void YAxisPanel::setScrollOffset(double offset)
+{
+  _label_col->setScrollOffset(offset);
+  _bar_col->setScrollOffset(offset);
 }
 
 void YAxisPanel::setSnapAmount(double snap)

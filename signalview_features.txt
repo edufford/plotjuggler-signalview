@@ -25,6 +25,9 @@ TOOLBAR
   and bar_x (horizontal) when dragging bars or signal names/values. Edge
   resize drags snap the moving edge to the grid while leaving the fixed
   edge unchanged.
+- "H. Zoom" toggle button: when checked, the scroll wheel performs time-axis
+  zoom (centered on mouse position). When unchecked (default), the scroll
+  wheel scrolls the view vertically.
 - "Close" button: closes the Signal View and returns to PlotJuggler's default
   view. Emits the plugin's closed() signal which tells PlotJuggler to switch
   the stacked widget back to index 0. Can be reopened via Tools > Signal View.
@@ -78,7 +81,8 @@ SIGNAL BANDS
 ------------
 Each signal occupies a vertical "band" on the canvas and Y-axis panel.
 Bands are defined by:
-  - band_center: normalized position [0,1] where 0=top, 1=bottom.
+  - band_center: normalized vertical position where 0=top of initial view,
+    1=bottom. Values beyond 1.0 are accessible by scrolling down.
   - band_height: fraction of the plot area height.
   - bar_x: horizontal position of the Y-axis bar [0=left, 1=right], default 1.0.
   - divisions: number of Y-axis tick divisions, default 8. 0 = auto-scale.
@@ -90,7 +94,22 @@ to the current snap grid.
 
 Band positions are shared between the canvas and all Y-axis panel columns
 using the AxisLayout::bandTopY / bandBottomY helpers, which account for
-the canvas margin constants (top=10px, bottom=40px, left=10px, right=20px).
+the canvas margin constants (top=10px, bottom=40px, left=10px, right=20px)
+and the current vertical scroll offset.
+
+VERTICAL SCROLLING
+------------------
+The entire view (canvas and all Y-axis columns) can be scrolled vertically
+using the mouse scroll wheel. This reveals plotting space below the initial
+visible area, allowing signals with band_center > 1.0 to be reached.
+
+  - Scroll wheel: scrolls down (positive offset) or up. The scroll offset
+    is clamped to >= 0 (cannot scroll above the top).
+  - Each scroll notch moves the view by 5% of the plot height.
+  - When the "H. Zoom" toolbar button is toggled on, the scroll wheel
+    performs time-axis zoom instead (see TOOLBAR section).
+  - Signals can be dragged below the initial [0,1] visible area and
+    scrolled to. There is no upper clamp on band positions.
 
 
 PLOT CANVAS
@@ -143,14 +162,11 @@ Signals can be selected in any Y-axis panel column:
 
 Multi-signal operations (when multiple signals are selected):
   - Dragging a selected signal moves all selected signals together,
-    preserving their relative vertical positions. Movement is clamped
-    so no signal leaves the [0, 1] range.
+    preserving their relative vertical positions.
   - Dragging a selected Y-axis bar also moves all selected bars
     horizontally together, preserving their relative bar_x positions.
   - Resizing a selected signal's band edge applies the same height
     change to all selected signals (same edge direction).
-  - Mouse wheel zoom on a selected signal's Y-axis bar applies the
-    same zoom factor to all selected signals.
   - Pressing Delete removes all selected signals and clears the
     selection.
 
@@ -162,10 +178,10 @@ MOUSE INTERACTION: SIGNAL NAME COLUMN
 - Left click on signal: selects on press, drag repositions the signal's
   band vertically (see SIGNAL SELECTION above).
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
-  - Clamped to [0, 1] normalized range.
   - Drag index is propagated to the value column so stacking stays
     consistent across all columns during the drag.
 - Left click + drag on empty area: rubber band selection.
+- Mouse wheel: scrolls the view vertically (see VERTICAL SCROLLING).
 - Double click on signal: opens the Y-range table dialog for the clicked
   signal (plus any selected signals).
 - Double click on empty area: opens the Add Signal dialog. The new signal's
@@ -181,6 +197,7 @@ MOUSE INTERACTION: SIGNAL VALUE COLUMN
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Drag index is propagated to the name column.
 - Left click + drag on empty area: rubber band selection.
+- Mouse wheel: scrolls the view vertically (see VERTICAL SCROLLING).
 - Double click on signal: opens the Y-range table dialog (same as name column).
 - Double click on empty area: opens the Add Signal dialog. The new signal's
   band is placed at the vertical position of the double-click.
@@ -218,8 +235,7 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
 - Double click on empty area: opens the Add Signal dialog. The new signal's
   band is placed at the vertical position of the double-click.
 
-- Mouse wheel on a band: zooms the Y range in/out (0.8x / 1.25x factor),
-  centered on the current Y midpoint.
+- Mouse wheel: scrolls the view vertically (see VERTICAL SCROLLING).
 
 
 Y-RANGE TABLE DIALOG
@@ -259,8 +275,10 @@ MOUSE INTERACTION: PLOT CANVAS
 - Right click + drag: pans the time axis. Disables auto-fit.
   - Shows ClosedHandCursor while panning.
 
-- Mouse wheel: zooms the time axis in/out (0.8x / 1.25x factor), centered
-  on the mouse position. Disables auto-fit.
+- Mouse wheel (default): scrolls the view vertically (see VERTICAL SCROLLING).
+
+- Mouse wheel (H. Zoom mode): zooms the time axis in/out (0.8x / 1.25x
+  factor), centered on the mouse position. Disables auto-fit.
 
 
 CURSOR READOUT

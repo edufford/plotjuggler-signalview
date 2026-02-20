@@ -11,15 +11,15 @@
 // Shared band-position helpers used by all column widgets.
 namespace AxisLayout
 {
-inline double bandTopY(const SignalEntry& sig, int widget_height)
+inline double bandTopY(const SignalEntry& sig, int widget_height, double scroll_offset = 0.0)
 {
   double plot_h = widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-  return PlotCanvas::kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5 - scroll_offset);
 }
-inline double bandBottomY(const SignalEntry& sig, int widget_height)
+inline double bandBottomY(const SignalEntry& sig, int widget_height, double scroll_offset = 0.0)
 {
   double plot_h = widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-  return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+  return PlotCanvas::kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5 - scroll_offset);
 }
 // Returns the pixel Y offset for each signal's text row, ensuring no
 // overlap. Signals are processed top-to-bottom so the highest signal
@@ -27,7 +27,8 @@ inline double bandBottomY(const SignalEntry& sig, int widget_height)
 // signals at the same position so it stacks below stationary ones.
 inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entries,
                                            int widget_height, int row_height,
-                                           int drag_index = -1)
+                                           int drag_index = -1,
+                                           double scroll_offset = 0.0)
 {
   std::vector<double> y_offsets(entries.size(), 0.0);
   if (entries.empty())
@@ -37,8 +38,8 @@ inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entri
   std::vector<size_t> order(entries.size());
   for (size_t i = 0; i < entries.size(); i++) order[i] = i;
   std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-    double ya = bandTopY(entries[a], widget_height);
-    double yb = bandTopY(entries[b], widget_height);
+    double ya = bandTopY(entries[a], widget_height, scroll_offset);
+    double yb = bandTopY(entries[b], widget_height, scroll_offset);
     if (std::abs(ya - yb) < 1.0)  // truly same position, not just overlapping
     {
       if ((int)a == drag_index) return false;
@@ -50,7 +51,7 @@ inline std::vector<double> textRowYOffsets(const std::vector<SignalEntry>& entri
   std::vector<double> placed;  // absolute Y of each placed row
   for (size_t idx : order)
   {
-    double base_y = bandTopY(entries[idx], widget_height);
+    double base_y = bandTopY(entries[idx], widget_height, scroll_offset);
     double row_y = base_y;
     // Push down until no overlap with any previously placed row.
     // Use 0.5px tolerance to avoid infinite loop from floating-point
@@ -86,6 +87,7 @@ public:
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
+  void setScrollOffset(double offset);
 
   static constexpr int kDefaultWidth = 70;
 
@@ -96,6 +98,7 @@ signals:
   void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
+  void verticalScrollRequested(double delta);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -103,6 +106,7 @@ protected:
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
   void mouseDoubleClickEvent(QMouseEvent* event) override;
+  void wheelEvent(QWheelEvent* event) override;
 
 private:
   int effectiveDragIndex() const;
@@ -110,6 +114,7 @@ private:
   static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
   std::set<int> _selected;
+  double _scroll_offset = 0.0;
   int _drag_index = -1;
   int _external_drag_index = -1;
   bool _drag_moved = false;
@@ -133,6 +138,7 @@ public:
   void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
+  void setScrollOffset(double offset);
 
   static constexpr int kDefaultWidth = 70;
 
@@ -143,6 +149,7 @@ signals:
   void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
+  void verticalScrollRequested(double delta);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -150,6 +157,7 @@ protected:
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
   void mouseDoubleClickEvent(QMouseEvent* event) override;
+  void wheelEvent(QWheelEvent* event) override;
 
 private:
   int effectiveDragIndex() const;
@@ -157,6 +165,7 @@ private:
   static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
   std::set<int> _selected;
+  double _scroll_offset = 0.0;
   std::vector<double> _cursor_values;
   std::vector<bool> _cursor_valid;
   int _drag_index = -1;
@@ -183,6 +192,7 @@ public:
   void setCanvasHeight(int h);
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
+  void setScrollOffset(double offset);
 
   static constexpr int kDefaultWidth = SignalNameColumn::kDefaultWidth +
                                        SignalValueColumn::kDefaultWidth + 3;
@@ -196,6 +206,7 @@ signals:
   void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
+  void verticalScrollRequested(double delta);
 
 private:
   QSplitter* _splitter;
@@ -216,6 +227,8 @@ public:
   const std::set<int>& selection() const { return _selected; }
   void setSelection(const std::set<int>& sel);
   void clearSelection();
+  void setScrollOffset(double offset);
+  double scrollOffset() const { return _scroll_offset; }
 
   static constexpr int kDefaultWidth = 60;
 
@@ -229,6 +242,7 @@ signals:
   void selectionChanged();
   void editYRangeRequested(int clicked_index);
   void addSignalRequested(double band_center);
+  void verticalScrollRequested(double delta);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -246,6 +260,7 @@ private:
 
   std::vector<SignalEntry> _signals;
   std::set<int> _selected;
+  double _scroll_offset = 0.0;
   HitResult _drag_hit;
   bool _drag_moved = false;
   double _snap_amount = 0.01;
@@ -276,6 +291,7 @@ public:
   void updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
+  void setScrollOffset(double offset);
   const std::set<int>& selection() const;
   void clearSelection();
 
@@ -294,6 +310,7 @@ signals:
   void editYRangeRequested(int clicked_index);
   void addSignalRequested(double band_center);
   void selectionChanged();
+  void verticalScrollRequested(double delta);
 
 private:
   QSplitter* _splitter;

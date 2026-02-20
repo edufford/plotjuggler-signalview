@@ -85,6 +85,11 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(snap_label);
   toolbar->addWidget(_snap_combo);
   toolbar->addSeparator();
+  auto* btn_zoom = new QPushButton("H. Zoom", this);
+  btn_zoom->setCheckable(true);
+  btn_zoom->setToolTip("Toggle horizontal (time) zoom on scroll wheel");
+  toolbar->addWidget(btn_zoom);
+  toolbar->addSeparator();
   toolbar->addWidget(btn_close);
 
   main_layout->addWidget(toolbar);
@@ -126,6 +131,17 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::editYRangeRequested, this, &SignalViewWidget::onEditYRange);
   connect(_y_axis_panel, &YAxisPanel::addSignalRequested, this, &SignalViewWidget::onAddSignal);
   connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
+
+  // Zoom mode toggle
+  connect(btn_zoom, &QPushButton::toggled, this, [this](bool checked) {
+    _canvas->setZoomMode(checked);
+  });
+
+  // Vertical scroll from all sources
+  connect(_canvas, &PlotCanvas::verticalScrollRequested,
+          this, &SignalViewWidget::onVerticalScroll);
+  connect(_y_axis_panel, &YAxisPanel::verticalScrollRequested,
+          this, &SignalViewWidget::onVerticalScroll);
 
   auto* delete_shortcut = new QShortcut(Qt::Key_Delete, this);
   delete_shortcut->setContext(Qt::WindowShortcut);
@@ -753,4 +769,11 @@ void SignalViewWidget::autoAssignBands()
       _signals[i].band_height = bottom - top;
     }
   }
+}
+
+void SignalViewWidget::onVerticalScroll(double delta)
+{
+  _scroll_offset = std::max(0.0, _scroll_offset + delta);
+  _canvas->setScrollOffset(_scroll_offset);
+  _y_axis_panel->setScrollOffset(_scroll_offset);
 }

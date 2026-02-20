@@ -137,14 +137,25 @@ double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const
   if (plot_h <= 0 || sig.y_max <= sig.y_min)
     return kMarginTop + plot_h * 0.5;
 
-  // The signal's band occupies a portion of the canvas
-  double band_top = kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
-  double band_bottom = kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+  // The signal's band occupies a portion of the canvas, shifted by scroll offset
+  double band_top = kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5 - _scroll_offset);
+  double band_bottom = kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5 - _scroll_offset);
   double band_h = band_bottom - band_top;
 
   // Map value within [y_min, y_max] to pixel within [band_bottom, band_top] (Y inverted)
   double normalized = (value - sig.y_min) / (sig.y_max - sig.y_min);
   return band_bottom - normalized * band_h;
+}
+
+void PlotCanvas::setScrollOffset(double offset)
+{
+  _scroll_offset = offset;
+  update();
+}
+
+void PlotCanvas::setZoomMode(bool enabled)
+{
+  _zoom_mode = enabled;
 }
 
 void PlotCanvas::repositionTimeEdits()
@@ -206,8 +217,8 @@ void PlotCanvas::drawGrid(QPainter& painter)
   // Per-signal horizontal grid lines aligned to each signal's Y-axis divisions
   for (const auto& sig : _signals)
   {
-    double band_top = kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
-    double band_bottom = kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+    double band_top = kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5 - _scroll_offset);
+    double band_bottom = kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5 - _scroll_offset);
     double band_h = band_bottom - band_top;
 
     if (band_h < 4)
@@ -537,11 +548,19 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
 
 void PlotCanvas::wheelEvent(QWheelEvent* event)
 {
+  if (!_zoom_mode)
+  {
+    // Default: vertical scroll
+    double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
+    emit verticalScrollRequested(delta);
+    return;
+  }
+
+  // Zoom mode: time-axis zoom centered on mouse position
   double plot_w = width() - kMarginLeft - kMarginRight;
   if (plot_w <= 0)
     return;
 
-  // Zoom centered on mouse position
   double mouse_t = pixelXToTime(event->position().x());
   double factor = (event->angleDelta().y() > 0) ? 0.8 : 1.25;
 
