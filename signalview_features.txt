@@ -105,7 +105,8 @@ Bands are defined by:
 When a signal is added, it gets a 20% height band at the top.
 Existing signals are not moved. When signals are removed, bands are
 auto-assigned evenly among the remaining signals. Positions are snapped
-to the current snap grid.
+to the current snap grid. Dragging and top-edge resizing are clamped so
+the top edge of a band cannot go above position 0 (absolute top).
 
 Band positions are shared between the canvas and all Y-axis panel columns
 using the AxisLayout::bandTopY / bandBottomY helpers, which account for

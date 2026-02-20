@@ -373,11 +373,11 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
     double snapped_center = new_top + half_h;
     double delta = snapped_center - _multi_drag_origins[index];
 
-    // Clamp delta so no selected signal leaves [0, 1]
+    // Clamp delta so no selected signal's top edge goes above position 0
     for (auto& [i, origin] : _multi_drag_origins)
     {
-      delta = std::max(delta, -origin);
-      delta = std::min(delta, 1.0 - origin);
+      double half = _signals[i].band_height * 0.5;
+      delta = std::max(delta, half - origin);
     }
     for (auto& [i, origin] : _multi_drag_origins)
       _signals[i].band_center = origin + delta;
@@ -389,7 +389,7 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
     _multi_drag_index = -1;
 
     double half_h = _signals[index].band_height * 0.5;
-    double new_top = snapValue(new_center - half_h);
+    double new_top = std::max(0.0, snapValue(new_center - half_h));
     _signals[index].band_center = new_top + half_h;
   }
 
@@ -414,7 +414,7 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
   bool bottom_moving = std::abs(new_bottom - cur_bottom) > 1e-6;
 
   if (top_moving)
-    new_top = snapValue(new_top);
+    new_top = std::max(0.0, snapValue(new_top));
   if (bottom_moving)
     new_bottom = snapValue(new_bottom);
 
