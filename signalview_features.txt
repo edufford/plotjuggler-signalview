@@ -166,8 +166,10 @@ MOUSE INTERACTION: SIGNAL NAME COLUMN
   - Drag index is propagated to the value column so stacking stays
     consistent across all columns during the drag.
 - Left click + drag on empty area: rubber band selection.
-- Double click: opens the Y-range table dialog for the clicked signal
-  (plus any selected signals).
+- Double click on signal: opens the Y-range table dialog for the clicked
+  signal (plus any selected signals).
+- Double click on empty area: opens the Add Signal dialog. The new signal's
+  band is placed at the vertical position of the double-click.
 
 
 MOUSE INTERACTION: SIGNAL VALUE COLUMN
@@ -179,7 +181,9 @@ MOUSE INTERACTION: SIGNAL VALUE COLUMN
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Drag index is propagated to the name column.
 - Left click + drag on empty area: rubber band selection.
-- Double click: opens the Y-range table dialog (same as name column).
+- Double click on signal: opens the Y-range table dialog (same as name column).
+- Double click on empty area: opens the Add Signal dialog. The new signal's
+  band is placed at the vertical position of the double-click.
 
 
 MOUSE INTERACTION: Y-AXIS BAR COLUMN
@@ -210,6 +214,9 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
 - Right click on a band: removes that signal immediately.
 
 - Double click on a band: opens the Y-range table dialog.
+
+- Double click on empty area: opens the Add Signal dialog. The new signal's
+  band is placed at the vertical position of the double-click.
 
 - Mouse wheel on a band: zooms the Y range in/out (0.8x / 1.25x factor),
   centered on the current Y midpoint.

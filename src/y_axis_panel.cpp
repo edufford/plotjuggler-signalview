@@ -194,7 +194,16 @@ void SignalNameColumn::mouseDoubleClickEvent(QMouseEvent* event)
 {
   int idx = hitTestSignal(event->pos());
   if (idx >= 0)
+  {
     emit editYRangeRequested(idx);
+  }
+  else
+  {
+    double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
+    band_center = std::clamp(band_center, 0.0, 1.0);
+    emit addSignalRequested(band_center);
+  }
 }
 
 // ============================================================================
@@ -394,7 +403,16 @@ void SignalValueColumn::mouseDoubleClickEvent(QMouseEvent* event)
 {
   int idx = hitTestSignal(event->pos());
   if (idx >= 0)
+  {
     emit editYRangeRequested(idx);
+  }
+  else
+  {
+    double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
+    band_center = std::clamp(band_center, 0.0, 1.0);
+    emit addSignalRequested(band_center);
+  }
 }
 
 // ============================================================================
@@ -440,6 +458,12 @@ YAxisLabelColumn::YAxisLabelColumn(QWidget* parent)
           this, &YAxisLabelColumn::editYRangeRequested);
   connect(_value_col, &SignalValueColumn::editYRangeRequested,
           this, &YAxisLabelColumn::editYRangeRequested);
+
+  // Forward addSignalRequested from sub-columns
+  connect(_name_col, &SignalNameColumn::addSignalRequested,
+          this, &YAxisLabelColumn::addSignalRequested);
+  connect(_value_col, &SignalValueColumn::addSignalRequested,
+          this, &YAxisLabelColumn::addSignalRequested);
 
   // Forward selection signals from sub-columns
   connect(_name_col, &SignalNameColumn::clickSelect,
@@ -804,7 +828,16 @@ void YAxisBarColumn::mouseDoubleClickEvent(QMouseEvent* event)
 {
   auto hit = hitTest(event->pos());
   if (hit.index >= 0)
+  {
     emit editYRangeRequested(hit.index);
+  }
+  else
+  {
+    double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
+    double band_center = (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h : 0.5;
+    band_center = std::clamp(band_center, 0.0, 1.0);
+    emit addSignalRequested(band_center);
+  }
 }
 
 void YAxisBarColumn::wheelEvent(QWheelEvent* event)
@@ -863,6 +896,12 @@ YAxisPanel::YAxisPanel(QWidget* parent)
           this, &YAxisPanel::editYRangeRequested);
   connect(_label_col, &YAxisLabelColumn::editYRangeRequested,
           this, &YAxisPanel::editYRangeRequested);
+
+  // Forward addSignalRequested from both bar and label columns
+  connect(_bar_col, &YAxisBarColumn::addSignalRequested,
+          this, &YAxisPanel::addSignalRequested);
+  connect(_label_col, &YAxisLabelColumn::addSignalRequested,
+          this, &YAxisPanel::addSignalRequested);
 
   // Propagate bar column drag index to label columns (name + value)
   connect(_bar_col, &YAxisBarColumn::dragIndexChanged,

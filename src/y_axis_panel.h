@@ -93,6 +93,7 @@ signals:
   void bandOffsetChanged(int index, double new_center);
   void dragIndexChanged(int index);
   void editYRangeRequested(int index);
+  void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
 
@@ -139,6 +140,7 @@ signals:
   void bandOffsetChanged(int index, double new_center);
   void dragIndexChanged(int index);
   void editYRangeRequested(int index);
+  void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
 
@@ -191,6 +193,7 @@ public:
 signals:
   void bandOffsetChanged(int index, double new_center);
   void editYRangeRequested(int index);
+  void addSignalRequested(double band_center);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
 
@@ -225,6 +228,7 @@ signals:
   void dragIndexChanged(int index);
   void selectionChanged();
   void editYRangeRequested(int clicked_index);
+  void addSignalRequested(double band_center);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -288,6 +292,7 @@ signals:
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
   void editYRangeRequested(int clicked_index);
+  void addSignalRequested(double band_center);
   void selectionChanged();
 
 private:

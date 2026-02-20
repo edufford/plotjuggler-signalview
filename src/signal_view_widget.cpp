@@ -105,7 +105,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   main_layout->addWidget(_main_splitter, 1);
 
   // Connections
-  connect(btn_add, &QPushButton::clicked, this, &SignalViewWidget::onAddSignal);
+  connect(btn_add, &QPushButton::clicked, this, [this]() { onAddSignal(); });
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
   connect(btn_group, &QPushButton::clicked, this, &SignalViewWidget::onGroupSignals);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
@@ -123,6 +123,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::barXChanged, this, &SignalViewWidget::onBarXChanged);
   connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this, &SignalViewWidget::onRemoveSignalByIndex);
   connect(_y_axis_panel, &YAxisPanel::editYRangeRequested, this, &SignalViewWidget::onEditYRange);
+  connect(_y_axis_panel, &YAxisPanel::addSignalRequested, this, &SignalViewWidget::onAddSignal);
   connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
 
   auto* delete_shortcut = new QShortcut(Qt::Key_Delete, this);
@@ -130,7 +131,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(delete_shortcut, &QShortcut::activated, this, &SignalViewWidget::onDeleteSelected);
 }
 
-void SignalViewWidget::onAddSignal()
+void SignalViewWidget::onAddSignal(double band_center)
 {
   if (!_data)
     return;
@@ -187,10 +188,12 @@ void SignalViewWidget::onAddSignal()
     }
   }
 
-  // Default band: kDefaultBandHeight, centered at top
-  double half = kDefaultBandHeight * 0.5;
-  entry.band_center = snapValue(half);
+  // Default band: kDefaultBandHeight, at the given position or top
   entry.band_height = kDefaultBandHeight;
+  if (band_center >= 0.0)
+    entry.band_center = snapValue(band_center);
+  else
+    entry.band_center = snapValue(kDefaultBandHeight * 0.5);
 
   _signals.push_back(entry);
   refreshViews();

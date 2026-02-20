@@ -33,7 +33,7 @@ signals:
   void closeRequested();
 
 private slots:
-  void onAddSignal();
+  void onAddSignal(double band_center = -1.0);
   void onRemoveSignal();
   void onResetZoom();
   void onCursorMoved(double time);
