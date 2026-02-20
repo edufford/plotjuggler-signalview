@@ -98,6 +98,11 @@ private:
   double _pan_t_min_start = 0.0;
   double _pan_t_max_start = 0.0;
 
+  // Zoom-select (rubber band) state
+  bool _zoom_selecting = false;
+  double _zoom_select_start_x = 0.0;   // pixel X of press
+  double _zoom_select_current_x = 0.0; // pixel X of current drag
+
   // Time range edit fields
   QLineEdit* _time_start_edit;
   QLineEdit* _time_end_edit;

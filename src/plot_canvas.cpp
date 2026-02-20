@@ -436,6 +436,23 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/)
   drawGrid(painter);
   drawSignals(painter);
   drawCursor(painter);
+
+  // Zoom rubber band overlay
+  if (_zoom_selecting)
+  {
+    double x1 = std::max(_zoom_select_start_x, (double)kMarginLeft);
+    double x2 = std::max(_zoom_select_current_x, (double)kMarginLeft);
+    x1 = std::min(x1, (double)(width() - kMarginRight));
+    x2 = std::min(x2, (double)(width() - kMarginRight));
+    double left = std::min(x1, x2);
+    double right = std::max(x1, x2);
+    painter.fillRect(QRectF(left, kMarginTop, right - left, plot_h),
+                     QColor(255, 255, 100, 40));
+    painter.setPen(QPen(QColor(255, 255, 100, 160), 1));
+    painter.drawLine(QPointF(left, kMarginTop), QPointF(left, kMarginTop + plot_h));
+    painter.drawLine(QPointF(right, kMarginTop), QPointF(right, kMarginTop + plot_h));
+  }
+
   painter.restore();
 
   drawTimeAxis(painter);
@@ -470,6 +487,15 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
+    if (_zoom_mode)
+    {
+      // Start rubber-band zoom selection
+      _zoom_selecting = true;
+      _zoom_select_start_x = event->pos().x();
+      _zoom_select_current_x = event->pos().x();
+      update();
+      return;
+    }
     // Check if clicking near the cursor
     double cursor_x = timeToPixelX(_cursor_time);
     if (std::abs(event->pos().x() - cursor_x) < 10 ||
@@ -501,6 +527,12 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event)
 
 void PlotCanvas::mouseMoveEvent(QMouseEvent* event)
 {
+  if (_zoom_selecting)
+  {
+    _zoom_select_current_x = event->pos().x();
+    update();
+    return;
+  }
   if (_cursor_dragging)
   {
     _cursor_time = pixelXToTime(event->pos().x());
@@ -537,6 +569,25 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
+    if (_zoom_selecting)
+    {
+      _zoom_selecting = false;
+      double t1 = pixelXToTime(_zoom_select_start_x);
+      double t2 = pixelXToTime(event->pos().x());
+      double new_min = std::min(t1, t2);
+      double new_max = std::max(t1, t2);
+      // Only zoom if the selection spans a meaningful range
+      if (new_max - new_min > 1e-9)
+      {
+        _view_t_min = new_min;
+        _view_t_max = new_max;
+        _auto_fit = false;
+        updateTimeEditTexts();
+        emit viewRangeChanged(_view_t_min, _view_t_max);
+      }
+      update();
+      return;
+    }
     _cursor_dragging = false;
   }
   else if (event->button() == Qt::RightButton)

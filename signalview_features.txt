@@ -277,11 +277,18 @@ OK applies changes; Cancel discards. Changes are only applied if Y Max > Y Min.
 
 MOUSE INTERACTION: PLOT CANVAS
 -------------------------------
-- Left click anywhere: places the cursor at that time position and begins
-  cursor dragging. Cursor time is clamped to the current view range.
+- Left click anywhere (default mode): places the cursor at that time
+  position and begins cursor dragging. Cursor time is clamped to the
+  current view range.
 
-- Left click + drag: drags the cursor along the time axis. Continuously
-  updates cursor readout values in the signal value column.
+- Left click + drag (default mode): drags the cursor along the time axis.
+  Continuously updates cursor readout values in the signal value column.
+
+- Left click + drag (H. Zoom mode): shows a rubber-band vertical band
+  (semi-transparent yellow overlay with edge lines) between the click
+  point and the current cursor position. On button release, zooms the
+  time axis to the selected range. Disables auto-fit. A click without
+  meaningful drag (< 1ns range) is ignored.
 
 - Right click + drag: pans the time axis. Disables auto-fit.
   - Shows ClosedHandCursor while panning.
