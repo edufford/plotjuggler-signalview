@@ -15,6 +15,7 @@
 #include <QDoubleValidator>
 #include <QIntValidator>
 #include <QHeaderView>
+#include <QShortcut>
 #include <algorithm>
 #include <cmath>
 
@@ -123,6 +124,10 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this, &SignalViewWidget::onRemoveSignalByIndex);
   connect(_y_axis_panel, &YAxisPanel::editYRangeRequested, this, &SignalViewWidget::onEditYRange);
   connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
+
+  auto* delete_shortcut = new QShortcut(Qt::Key_Delete, this);
+  delete_shortcut->setContext(Qt::WindowShortcut);
+  connect(delete_shortcut, &QShortcut::activated, this, &SignalViewWidget::onDeleteSelected);
 }
 
 void SignalViewWidget::onAddSignal()
@@ -619,6 +624,25 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     if (ok_div && new_div >= 0)
       _signals[sig_idx].divisions = new_div;
   }
+  refreshViews();
+}
+
+void SignalViewWidget::onDeleteSelected()
+{
+  const auto& sel = _y_axis_panel->selection();
+  if (sel.empty())
+    return;
+
+  // Remove from highest index to lowest so indices stay valid
+  std::vector<int> indices(sel.begin(), sel.end());
+  std::sort(indices.rbegin(), indices.rend());
+  for (int i : indices)
+  {
+    if (i >= 0 && i < (int)_signals.size())
+      _signals.erase(_signals.begin() + i);
+  }
+
+  _y_axis_panel->clearSelection();
   refreshViews();
 }
 

@@ -150,6 +150,8 @@ Multi-signal operations (when multiple signals are selected):
     change to all selected signals (same edge direction).
   - Mouse wheel zoom on a selected signal's Y-axis bar applies the
     same zoom factor to all selected signals.
+  - Pressing Delete removes all selected signals and clears the
+    selection.
 
 
 MOUSE INTERACTION: SIGNAL NAME COLUMN

@@ -46,6 +46,7 @@ private slots:
   void onSnapComboChanged(int combo_index);
   void onEditYRange(int clicked_index);
   void onGroupSignals();
+  void onDeleteSelected();
 
 private:
   double snapValue(double val) const;
