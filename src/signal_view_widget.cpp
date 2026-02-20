@@ -11,6 +11,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QTableWidget>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QDoubleValidator>
 #include <QIntValidator>
@@ -156,46 +157,77 @@ void SignalViewWidget::onAddSignal(double band_center)
   }
 
   if (available.isEmpty())
-  {
     return;
-  }
 
   available.sort();
 
-  bool ok;
-  QString selected = QInputDialog::getItem(
-      this, "Add Signal", "Select a signal:", available, 0, false, &ok);
+  // Custom dialog with filter + multi-select list
+  QDialog dlg(this);
+  dlg.setWindowTitle("Add Signals");
+  dlg.resize(400, 500);
+  auto* layout = new QVBoxLayout(&dlg);
 
-  if (!ok || selected.isEmpty())
+  auto* filter_edit = new QLineEdit(&dlg);
+  filter_edit->setPlaceholderText("Type to filter...");
+  layout->addWidget(filter_edit);
+
+  auto* list = new QListWidget(&dlg);
+  list->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  for (const auto& name : available)
+    list->addItem(name);
+  layout->addWidget(list);
+
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  layout->addWidget(buttons);
+  connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+
+  // Filter: show/hide items as user types
+  connect(filter_edit, &QLineEdit::textChanged, [&](const QString& text) {
+    for (int i = 0; i < list->count(); i++)
+    {
+      auto* item = list->item(i);
+      item->setHidden(!item->text().contains(text, Qt::CaseInsensitive));
+    }
+  });
+
+  if (dlg.exec() != QDialog::Accepted)
     return;
 
-  SignalEntry entry;
-  entry.name = selected.toStdString();
-  entry.color = signalColors()[_signals.size() % signalColors().size()];
+  auto selected_items = list->selectedItems();
+  if (selected_items.isEmpty())
+    return;
 
-  // Auto-detect Y range from data
-  auto it = _data->numeric.find(entry.name);
-  if (it != _data->numeric.end() && it->second.size() > 0)
+  // Treat click position as top edge of first band, not center
+  double pos = (band_center >= 0.0) ? band_center + kDefaultBandHeight * 0.5
+                                     : kDefaultBandHeight * 0.5;
+  for (auto* item : selected_items)
   {
-    auto range = it->second.rangeY();
-    if (range)
+    SignalEntry entry;
+    entry.name = item->text().toStdString();
+    entry.color = signalColors()[_signals.size() % signalColors().size()];
+
+    // Auto-detect Y range from data
+    auto it = _data->numeric.find(entry.name);
+    if (it != _data->numeric.end() && it->second.size() > 0)
     {
-      double margin = (range->max - range->min) * 0.1;
-      if (margin < 1e-9)
-        margin = 1.0;
-      entry.y_min = range->min - margin;
-      entry.y_max = range->max + margin;
+      auto range = it->second.rangeY();
+      if (range)
+      {
+        double margin = (range->max - range->min) * 0.1;
+        if (margin < 1e-9)
+          margin = 1.0;
+        entry.y_min = range->min - margin;
+        entry.y_max = range->max + margin;
+      }
     }
+
+    entry.band_height = kDefaultBandHeight;
+    entry.band_center = snapValue(pos);
+    pos += kDefaultBandHeight;
+
+    _signals.push_back(entry);
   }
-
-  // Default band: kDefaultBandHeight, at the given position or top
-  entry.band_height = kDefaultBandHeight;
-  if (band_center >= 0.0)
-    entry.band_center = snapValue(band_center);
-  else
-    entry.band_center = snapValue(kDefaultBandHeight * 0.5);
-
-  _signals.push_back(entry);
   refreshViews();
 }
 
