@@ -580,6 +580,15 @@ void YAxisBarColumn::clearSelection()
   update();
 }
 
+void YAxisBarColumn::selectAll()
+{
+  _selected.clear();
+  for (int i = 0; i < (int)_signals.size(); i++)
+    _selected.insert(i);
+  emit selectionChanged();
+  update();
+}
+
 void YAxisBarColumn::setCanvasHeight(int /*h*/)
 {
   update();
@@ -1073,4 +1082,9 @@ const std::set<int>& YAxisPanel::selection() const
 void YAxisPanel::clearSelection()
 {
   _bar_col->clearSelection();
+}
+
+void YAxisPanel::selectAll()
+{
+  _bar_col->selectAll();
 }

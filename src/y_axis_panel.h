@@ -225,6 +225,7 @@ public:
   const std::set<int>& selection() const { return _selected; }
   void setSelection(const std::set<int>& sel);
   void clearSelection();
+  void selectAll();
   void setScrollOffset(double offset);
   double scrollOffset() const { return _scroll_offset; }
 
@@ -292,6 +293,7 @@ public:
   void setScrollOffset(double offset);
   const std::set<int>& selection() const;
   void clearSelection();
+  void selectAll();
 
   // Splitter size accessors for layout save/restore
   QList<int> splitterSizes() const { return _splitter->sizes(); }

@@ -239,6 +239,12 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   delete_shortcut->setContext(Qt::WindowShortcut);
   connect(delete_shortcut, &QShortcut::activated, this, &SignalViewWidget::onDeleteSelected);
 
+  auto* select_all_shortcut = new QShortcut(QKeySequence::SelectAll, this);
+  select_all_shortcut->setContext(Qt::WindowShortcut);
+  connect(select_all_shortcut, &QShortcut::activated, this, [this]() {
+    _y_axis_panel->selectAll();
+  });
+
   updateScrollBar();
 }
 
