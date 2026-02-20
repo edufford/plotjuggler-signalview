@@ -6,6 +6,8 @@
 #include <string>
 #include "PlotJuggler/plotdata.h"
 
+class QLineEdit;
+
 struct SignalEntry
 {
   std::string name;
@@ -86,6 +88,12 @@ private:
   QPoint _pan_start;
   double _pan_t_min_start = 0.0;
   double _pan_t_max_start = 0.0;
+
+  // Time range edit fields
+  QLineEdit* _time_start_edit;
+  QLineEdit* _time_end_edit;
+  void repositionTimeEdits();
+  void updateTimeEditTexts();
 
 public:
   // Layout constants — public so YAxisPanel can align with the plot area

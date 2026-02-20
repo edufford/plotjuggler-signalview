@@ -4,6 +4,8 @@
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QLineEdit>
+#include <QDoubleValidator>
 #include <cmath>
 #include <algorithm>
 #include <limits>
@@ -19,6 +21,53 @@ PlotCanvas::PlotCanvas(QWidget* parent)
   QPalette pal = palette();
   pal.setColor(QPalette::Window, QColor(30, 30, 30));
   setPalette(pal);
+
+  // Time range edit fields at the bottom corners of the plot area
+  auto setupTimeEdit = [this](QLineEdit* edit) {
+    edit->setValidator(new QDoubleValidator(edit));
+    edit->setFixedHeight(16);
+    edit->setFrame(false);
+    edit->setStyleSheet(
+        "QLineEdit {"
+        "  background: rgba(30, 30, 30, 220);"
+        "  color: #b4b4b4;"
+        "  border: 1px solid #555;"
+        "  font: bold 8pt monospace;"
+        "  padding: 0px 2px;"
+        "}");
+  };
+
+  _time_start_edit = new QLineEdit(this);
+  _time_end_edit = new QLineEdit(this);
+  setupTimeEdit(_time_start_edit);
+  setupTimeEdit(_time_end_edit);
+  _time_end_edit->setAlignment(Qt::AlignRight);
+
+  connect(_time_start_edit, &QLineEdit::editingFinished, this, [this]() {
+    bool ok;
+    double val = _time_start_edit->text().toDouble(&ok);
+    if (ok && val < _view_t_max) {
+      _view_t_min = val;
+      _auto_fit = false;
+      emit viewRangeChanged(_view_t_min, _view_t_max);
+      update();
+    }
+    updateTimeEditTexts();
+  });
+
+  connect(_time_end_edit, &QLineEdit::editingFinished, this, [this]() {
+    bool ok;
+    double val = _time_end_edit->text().toDouble(&ok);
+    if (ok && val > _view_t_min) {
+      _view_t_max = val;
+      _auto_fit = false;
+      emit viewRangeChanged(_view_t_min, _view_t_max);
+      update();
+    }
+    updateTimeEditTexts();
+  });
+
+  updateTimeEditTexts();
 }
 
 void PlotCanvas::setDataSource(PJ::PlotDataMapRef* data)
@@ -47,6 +96,7 @@ void PlotCanvas::setViewRange(double t_min, double t_max)
   _view_t_min = t_min;
   _view_t_max = t_max;
   _auto_fit = false;
+  updateTimeEditTexts();
   update();
 }
 
@@ -92,6 +142,23 @@ double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const
   return band_bottom - normalized * band_h;
 }
 
+void PlotCanvas::repositionTimeEdits()
+{
+  const int field_w = 80;
+  const int field_h = 16;
+  int y = height() - field_h - 1;
+  _time_start_edit->setGeometry(kMarginLeft, y, field_w, field_h);
+  _time_end_edit->setGeometry(width() - kMarginRight - field_w, y, field_w, field_h);
+}
+
+void PlotCanvas::updateTimeEditTexts()
+{
+  if (!_time_start_edit->hasFocus())
+    _time_start_edit->setText(QString::number(_view_t_min, 'g', 6));
+  if (!_time_end_edit->hasFocus())
+    _time_end_edit->setText(QString::number(_view_t_max, 'g', 6));
+}
+
 void PlotCanvas::autoFitTimeRange()
 {
   if (!_data || _signals.empty())
@@ -116,10 +183,10 @@ void PlotCanvas::autoFitTimeRange()
 
   if (t_min < t_max)
   {
-    double margin = (t_max - t_min) * 0.02;
-    _view_t_min = t_min - margin;
-    _view_t_max = t_max + margin;
+    _view_t_min = t_min;
+    _view_t_max = t_max;
   }
+  updateTimeEditTexts();
 }
 
 // --- Drawing ---
@@ -227,9 +294,14 @@ void PlotCanvas::drawTimeAxis(QPainter& painter)
     painter.drawText(text_rect, Qt::AlignHCenter | Qt::AlignTop, label);
   }
 
-  // Axis label
-  QRectF label_rect(kMarginLeft, height() - 18, plot_w, 18);
-  painter.drawText(label_rect, Qt::AlignCenter, "Time (s)");
+  // Axis label — centered between the time edit fields
+  int label_left = kMarginLeft + 84;
+  int label_right = width() - kMarginRight - 84;
+  if (label_right > label_left)
+  {
+    QRectF label_rect(label_left, height() - 18, label_right - label_left, 18);
+    painter.drawText(label_rect, Qt::AlignCenter, "Time (s)");
+  }
 }
 
 void PlotCanvas::drawSignals(QPainter& painter)
@@ -397,6 +469,7 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event)
     _view_t_min = _pan_t_min_start + dt;
     _view_t_max = _pan_t_max_start + dt;
     _auto_fit = false;
+    updateTimeEditTexts();
     emit viewRangeChanged(_view_t_min, _view_t_max);
     update();
   }
@@ -442,6 +515,7 @@ void PlotCanvas::wheelEvent(QWheelEvent* event)
     _view_t_min = new_min;
     _view_t_max = new_max;
     _auto_fit = false;
+    updateTimeEditTexts();
     emit viewRangeChanged(_view_t_min, _view_t_max);
     update();
   }
@@ -450,6 +524,7 @@ void PlotCanvas::wheelEvent(QWheelEvent* event)
 void PlotCanvas::resizeEvent(QResizeEvent* event)
 {
   QWidget::resizeEvent(event);
+  repositionTimeEdits();
   emit canvasResized(height());
   update();
 }

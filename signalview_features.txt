@@ -17,8 +17,7 @@ TOOLBAR
   Copies band position, band height, bar_x, divisions, Y min, and Y max from the topmost
   selected signal (lowest band_top) to all other selected signals. No-op if
   fewer than 2 signals are selected.
-- "Reset Zoom" button: resets the time axis to auto-fit all loaded data with
-  a 2% margin on each side.
+- "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
 - "Snap" dropdown: selects the position snapping grid size for bar and band
   dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.
   Default: 0.01. Snapping is based on the top edge of the band (vertical)
@@ -110,6 +109,12 @@ Time axis:
   - Nice tick spacing (1, 2, 5 multiples of powers of 10).
   - Decimal precision adapts to tick step size.
   - "Time (s)" label centered at the bottom.
+  - Editable time range fields at the bottom corners of the plot area:
+    - Start time field at the bottom-left corner shows the view's start time.
+    - End time field at the bottom-right corner shows the view's end time.
+    - Fields update live during pan, zoom, and auto-fit.
+    - Editing a value and pressing Enter (or losing focus) sets the view
+      range and disables auto-fit. Invalid values are reverted.
 
 Cursor:
   - Vertical dashed yellow line spanning the plot area.
@@ -117,8 +122,7 @@ Cursor:
   - Shows SizeHorCursor when hovering near the cursor line.
 
 Auto-fit:
-  - When enabled (default), the time range auto-fits to all signal data
-    with 2% margin on each side.
+  - When enabled (default), the time range auto-fits to the data extents.
   - Auto-fit is disabled when the user pans or zooms manually.
   - Re-enabled by clicking "Reset Zoom".
 
