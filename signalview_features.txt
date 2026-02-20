@@ -8,8 +8,9 @@ Version: 0.9.0
 
 TOOLBAR
 -------
-- "Add Signal" button: opens a dropdown listing all numeric signals from
-  PlotJuggler's data source that have not yet been added. Sorted alphabetically.
+- "Add Signal" button: opens a dialog listing all numeric signals from all
+  loaded data layers. Sorted alphabetically with a type-to-filter field.
+  The same signal can be added multiple times for independent traces.
   Y range is auto-detected from data with 10% margin. New signals are added
   with 20% height bands at the top without changing existing signals.
 - "Remove Signal" button: opens a dropdown listing currently added signals.
@@ -33,11 +34,14 @@ TOOLBAR
   edge unchanged.
 - "H. Zoom" toggle button: when checked, the scroll wheel performs time-axis
   zoom (centered on mouse position). When unchecked (default), the scroll
-  wheel scrolls the view vertically.
+  wheel scrolls the view vertically. Button turns bright yellow when active.
+  Canvas shows a custom cursor (arrow with magnifying glass).
 - "Time Shift" toggle button: when checked, left-click+drag on the canvas
   shifts the time offset of target data layers. The target layers are
   determined by the current signal selection (see DATA OVERLAY section).
   Mutually exclusive with "H. Zoom" — enabling one disables the other.
+  Button turns bright yellow when active. Canvas shows a custom cursor
+  (sine wave with horizontal double-arrow).
 - "Layer:" combo box: selects the default layer to shift when no signals
   are selected in the Y-axis panel. Defaults to the highest layer index.
   Updated automatically when overlays are loaded or removed.
@@ -181,7 +185,9 @@ Time axis:
 Cursor:
   - Vertical dashed yellow line spanning the plot area.
   - Small yellow triangle handle at the top.
-  - Shows SizeHorCursor when hovering near the cursor line.
+  - In default mode, shows SizeHorCursor when hovering near the cursor line.
+  - In H. Zoom mode, shows a custom magnifying glass cursor.
+  - In Time Shift mode, shows a custom sine wave + arrow cursor.
 
 Auto-fit:
   - When enabled (default), the time range auto-fits to the data extents.
@@ -214,6 +220,7 @@ Multi-signal operations (when multiple signals are selected):
     change to all selected signals (same edge direction).
   - Pressing Delete removes all selected signals and clears the
     selection.
+  - Ctrl+A selects all signals.
 
 
 MOUSE INTERACTION: SIGNAL NAME COLUMN
@@ -338,7 +345,7 @@ MOUSE INTERACTION: PLOT CANVAS
   target data layers. Target layers are determined by the current signal
   selection: if signals from layers #1 and #3 are selected, both layers
   shift simultaneously. If no signals are selected, the layer from the
-  "Layer:" combo box is shifted. Shows SizeHorCursor during drag.
+  "Layer:" combo box is shifted.
 
 - Right click + drag: pans the time axis. Disables auto-fit.
   - Shows ClosedHandCursor while panning.
