@@ -1013,10 +1013,23 @@ void YAxisPanel::updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time
     if (it == data->numeric.end() || it->second.size() == 0)
       continue;
 
-    auto val = it->second.getYfromX(cursor_time);
-    if (val.has_value())
+    // Step-wise lookup: find the last data point at or before cursor_time
+    const auto& series = it->second;
+    auto lb = std::lower_bound(
+        series.begin(), series.end(),
+        PJ::PlotData::Point(cursor_time, 0.0),
+        [](const auto& a, const auto& b) { return a.x < b.x; });
+
+    // lower_bound gives first element with x >= cursor_time
+    if (lb != series.end() && lb->x == cursor_time)
     {
-      values[i] = val.value();
+      values[i] = lb->y;
+      valid[i] = true;
+    }
+    else if (lb != series.begin())
+    {
+      --lb;  // step back to last point before cursor_time
+      values[i] = lb->y;
       valid[i] = true;
     }
   }
