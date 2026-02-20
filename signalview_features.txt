@@ -18,6 +18,10 @@ TOOLBAR
   Copies band position, band height, bar_x, divisions, Y min, and Y max from the topmost
   selected signal (lowest band_top) to all other selected signals. No-op if
   fewer than 2 signals are selected.
+- "Auto Scale" button: sets the Y min/max of each selected signal (or all
+  signals if none are selected) to automatically fit the data extents with
+  10% margin. Signals with no data or constant data use a fallback margin
+  of 1.0.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
 - "Snap" dropdown: selects the position snapping grid size for bar and band
   dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.

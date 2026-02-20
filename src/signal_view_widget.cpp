@@ -53,6 +53,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_add = new QPushButton("Add Signal", this);
   auto* btn_remove = new QPushButton("Remove Signal", this);
   auto* btn_group = new QPushButton("Group", this);
+  auto* btn_autoscale = new QPushButton("Auto Scale", this);
   auto* btn_reset = new QPushButton("Reset Zoom", this);
   auto* btn_reset_cursor = new QPushButton("Reset Cursor", this);
   auto* btn_close = new QPushButton("Close", this);
@@ -78,6 +79,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_add);
   toolbar->addWidget(btn_remove);
   toolbar->addWidget(btn_group);
+  toolbar->addWidget(btn_autoscale);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
   toolbar->addWidget(btn_reset_cursor);
@@ -124,6 +126,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(btn_add, &QPushButton::clicked, this, [this]() { onAddSignal(); });
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
   connect(btn_group, &QPushButton::clicked, this, &SignalViewWidget::onGroupSignals);
+  connect(btn_autoscale, &QPushButton::clicked, this, &SignalViewWidget::onAutoScale);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
   connect(btn_reset_cursor, &QPushButton::clicked, this, [this]() {
     _canvas->setCursorTime(_canvas->viewMinTime());
@@ -775,6 +778,40 @@ void SignalViewWidget::onGroupSignals()
     _signals[i].divisions = _signals[topmost].divisions;
   }
   refreshViews();
+}
+
+void SignalViewWidget::onAutoScale()
+{
+  if (!_data || _signals.empty())
+    return;
+
+  // Auto-scale selected signals, or all signals if none selected
+  const auto& sel = _y_axis_panel->selection();
+  bool changed = false;
+
+  for (int i = 0; i < (int)_signals.size(); i++)
+  {
+    if (!sel.empty() && sel.count(i) == 0)
+      continue;
+
+    auto it = _data->numeric.find(_signals[i].name);
+    if (it == _data->numeric.end() || it->second.size() == 0)
+      continue;
+
+    auto range = it->second.rangeY();
+    if (!range)
+      continue;
+
+    double margin = (range->max - range->min) * 0.1;
+    if (margin < 1e-9)
+      margin = 1.0;
+    _signals[i].y_min = range->min - margin;
+    _signals[i].y_max = range->max + margin;
+    changed = true;
+  }
+
+  if (changed)
+    refreshViews();
 }
 
 void SignalViewWidget::autoAssignBands()

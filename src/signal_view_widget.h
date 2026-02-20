@@ -47,6 +47,7 @@ private slots:
   void onSnapComboChanged(int combo_index);
   void onEditYRange(int clicked_index);
   void onGroupSignals();
+  void onAutoScale();
   void onDeleteSelected();
   void onVerticalScroll(double delta);
 
