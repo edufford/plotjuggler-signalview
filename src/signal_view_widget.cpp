@@ -20,6 +20,7 @@
 #include <QColorDialog>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 static constexpr const char* kPluginVersion = "0.8.0";
 
@@ -955,15 +956,40 @@ void SignalViewWidget::onAutoScale()
     if (it == _data->numeric.end() || it->second.size() == 0)
       continue;
 
-    auto range = it->second.rangeY();
-    if (!range)
+    // Find Y range within the current view time range
+    const auto& series = it->second;
+    double t_min = _canvas->viewMinTime();
+    double t_max = _canvas->viewMaxTime();
+
+    // Find first point at or after t_min
+    auto lb = std::lower_bound(
+        series.begin(), series.end(),
+        PJ::PlotData::Point(t_min, 0.0),
+        [](const auto& a, const auto& b) { return a.x < b.x; });
+
+    // Include the last point before t_min for step-wise hold value
+    if (lb != series.begin())
+      --lb;
+
+    double y_lo = std::numeric_limits<double>::max();
+    double y_hi = std::numeric_limits<double>::lowest();
+    bool found = false;
+
+    for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max; ++pt_it)
+    {
+      y_lo = std::min(y_lo, pt_it->y);
+      y_hi = std::max(y_hi, pt_it->y);
+      found = true;
+    }
+
+    if (!found)
       continue;
 
-    double margin = (range->max - range->min) * 0.1;
+    double margin = (y_hi - y_lo) * 0.1;
     if (margin < 1e-9)
       margin = 1.0;
-    _signals[i].y_min = range->min - margin;
-    _signals[i].y_max = range->max + margin;
+    _signals[i].y_min = y_lo - margin;
+    _signals[i].y_max = y_hi + margin;
     changed = true;
   }
 

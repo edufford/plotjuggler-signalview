@@ -19,9 +19,11 @@ TOOLBAR
   selected signal (lowest band_top) to all other selected signals. No-op if
   fewer than 2 signals are selected.
 - "Auto Scale" button: sets the Y min/max of each selected signal (or all
-  signals if none are selected) to automatically fit the data extents with
-  10% margin. Signals with no data or constant data use a fallback margin
-  of 1.0.
+  signals if none are selected) to automatically fit the Y range to the data
+  within the current view time range (respecting time zoom) with 10% margin.
+  The last data point before the view start is included for step-wise hold
+  value accuracy. Signals with no data in view or constant data use a
+  fallback margin of 1.0.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
 - "Snap" dropdown: selects the position snapping grid size for bar and band
   dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.
@@ -322,9 +324,11 @@ MOUSE INTERACTION: PLOT CANVAS
 
 CURSOR READOUT
 --------------
-When the cursor moves, the plugin queries each signal's PlotData using
-getYfromX(cursor_time) and displays the interpolated value in the signal
-value column. If the signal has no data at the cursor time, "---" is shown.
+When the cursor moves, the plugin performs a step-wise (sample-and-hold)
+lookup for each signal: it finds the last data point at or before the
+cursor time and displays that value. This matches the step-wise line
+rendering where the value holds constant until the next sample. If the
+signal has no data before the cursor time, "---" is shown.
 
 
 COLOR ASSIGNMENT
