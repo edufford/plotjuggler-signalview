@@ -578,11 +578,13 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   dlg.setWindowTitle("Edit Y Range");
   auto* layout = new QVBoxLayout(&dlg);
 
-  auto* table = new QTableWidget((int)row_to_idx.size(), 5, &dlg);
-  table->setHorizontalHeaderLabels({"Signal", "Color", "Y Min", "Y Max", "Divisions"});
+  auto* table = new QTableWidget((int)row_to_idx.size(), 7, &dlg);
+  table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Line Width", "Y Min", "Y Max", "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
   table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table->verticalHeader()->setVisible(false);
@@ -596,7 +598,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     using QItemSelectionModel::QItemSelectionModel;
     void select(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 4)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 6)
       {
         if (isRowSelected(index.row(), index.parent()))
           return;  // row already selected — preserve multi-selection
@@ -612,7 +614,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     }
     void setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 4)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 6)
       {
         if (isRowSelected(index.row(), index.parent()))
         {
@@ -628,9 +630,20 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   };
   table->setSelectionModel(new ColumnGuardSelectionModel(table->model(), table));
 
+  // Line style options
+  struct LineStyleOption { QString label; Qt::PenStyle style; };
+  const std::vector<LineStyleOption> line_style_options = {
+    {"Solid",      Qt::SolidLine},
+    {"Dash",       Qt::DashLine},
+    {"Dot",        Qt::DotLine},
+    {"Dash-Dot",   Qt::DashDotLine},
+    {"Dash-Dot-Dot", Qt::DashDotDotLine},
+  };
+
   // Store widget pointers for reading results
-  std::vector<QLineEdit*> min_edits, max_edits, div_edits;
+  std::vector<QLineEdit*> min_edits, max_edits, div_edits, width_edits;
   std::vector<QPushButton*> color_btns;
+  std::vector<QComboBox*> style_combos;
   std::vector<QColor> colors;
 
   auto setColorBtnStyle = [](QPushButton* btn, const QColor& c) {
@@ -657,25 +670,45 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     table->setCellWidget(row, 1, color_btn);
     color_btns.push_back(color_btn);
 
+    // Line style combo
+    auto* style_combo = new QComboBox(&dlg);
+    int current_style_idx = 0;
+    for (int s = 0; s < (int)line_style_options.size(); s++)
+    {
+      style_combo->addItem(line_style_options[s].label, (int)line_style_options[s].style);
+      if (line_style_options[s].style == sig.line_style)
+        current_style_idx = s;
+    }
+    style_combo->setCurrentIndex(current_style_idx);
+    table->setCellWidget(row, 2, style_combo);
+    style_combos.push_back(style_combo);
+
+    // Line width edit
+    auto* width_edit = new QLineEdit(&dlg);
+    width_edit->setValidator(new QDoubleValidator(0.1, 10.0, 1, &dlg));
+    width_edit->setText(QString::number(sig.line_width, 'f', 1));
+    table->setCellWidget(row, 3, width_edit);
+    width_edits.push_back(width_edit);
+
     // Y Min line edit
     auto* min_edit = new QLineEdit(&dlg);
     min_edit->setValidator(new QDoubleValidator(&dlg));
     min_edit->setText(QString::number(sig.y_min, 'g', 6));
-    table->setCellWidget(row, 2, min_edit);
+    table->setCellWidget(row, 4, min_edit);
     min_edits.push_back(min_edit);
 
     // Y Max line edit
     auto* max_edit = new QLineEdit(&dlg);
     max_edit->setValidator(new QDoubleValidator(&dlg));
     max_edit->setText(QString::number(sig.y_max, 'g', 6));
-    table->setCellWidget(row, 3, max_edit);
+    table->setCellWidget(row, 5, max_edit);
     max_edits.push_back(max_edit);
 
     // Divisions line edit (0 = auto)
     auto* div_edit = new QLineEdit(&dlg);
     div_edit->setValidator(new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
     div_edit->setText(QString::number(sig.divisions));
-    table->setCellWidget(row, 4, div_edit);
+    table->setCellWidget(row, 6, div_edit);
     div_edits.push_back(div_edit);
   }
 
@@ -684,11 +717,12 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   // When a line edit value changes, apply to all selected rows in the same column
   auto editForCol = [&](int row, int col) -> QLineEdit* {
-    if (col == 2) return min_edits[row];
-    if (col == 3) return max_edits[row];
+    if (col == 3) return width_edits[row];
+    if (col == 4) return min_edits[row];
+    if (col == 5) return max_edits[row];
     return div_edits[row];
   };
-  auto propagate = [&](int source_row, int col) {
+  auto propagateText = [&](int source_row, int col) {
     QString text = editForCol(source_row, col)->text();
     auto selected_rows = table->selectionModel()->selectedRows();
     for (const auto& mi : selected_rows)
@@ -703,14 +737,42 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     }
   };
 
+  // Helper to check if a row is in the current selection
+  auto isRowSelected = [&](int row) {
+    auto selected_rows = table->selectionModel()->selectedRows();
+    for (const auto& mi : selected_rows)
+      if (mi.row() == row) return true;
+    return false;
+  };
+
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
+    connect(width_edits[row], &QLineEdit::textEdited,
+            &dlg, [&propagateText, row]() { propagateText(row, 3); });
     connect(min_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagate, row]() { propagate(row, 2); });
+            &dlg, [&propagateText, row]() { propagateText(row, 4); });
     connect(max_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagate, row]() { propagate(row, 3); });
+            &dlg, [&propagateText, row]() { propagateText(row, 5); });
     connect(div_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagate, row]() { propagate(row, 4); });
+            &dlg, [&propagateText, row]() { propagateText(row, 6); });
+
+    // Line style combo: propagate to selected rows
+    connect(style_combos[row], QOverload<int>::of(&QComboBox::currentIndexChanged),
+            &dlg, [&, row](int idx) {
+      if (!isRowSelected(row))
+        return;
+      auto selected_rows = table->selectionModel()->selectedRows();
+      if (selected_rows.size() <= 1)
+        return;
+      for (const auto& mi : selected_rows)
+      {
+        int r = mi.row();
+        if (r == row) continue;
+        style_combos[r]->blockSignals(true);
+        style_combos[r]->setCurrentIndex(idx);
+        style_combos[r]->blockSignals(false);
+      }
+    });
 
     // Color button: open picker and propagate to selected rows
     connect(color_btns[row], &QPushButton::clicked, &dlg, [&, row]() {
@@ -718,11 +780,10 @@ void SignalViewWidget::onEditYRange(int clicked_index)
       if (!chosen.isValid())
         return;
       auto selected_rows = table->selectionModel()->selectedRows();
-      // If clicked row is selected, apply to all selected rows; otherwise just this row
-      bool row_is_selected = false;
+      bool row_sel = false;
       for (const auto& mi : selected_rows)
-        if (mi.row() == row) { row_is_selected = true; break; }
-      if (row_is_selected && selected_rows.size() > 1)
+        if (mi.row() == row) { row_sel = true; break; }
+      if (row_sel && selected_rows.size() > 1)
       {
         for (const auto& mi : selected_rows)
         {
@@ -747,7 +808,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   layout->addWidget(table);
   layout->addWidget(buttons);
-  dlg.resize(540, 50 + 30 * (int)row_to_idx.size() + 60);
+  dlg.resize(820, 50 + 30 * (int)row_to_idx.size() + 60);
 
   if (dlg.exec() != QDialog::Accepted)
     return;
@@ -757,6 +818,11 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   {
     int sig_idx = row_to_idx[row];
     _signals[sig_idx].color = colors[row];
+    _signals[sig_idx].line_style = (Qt::PenStyle)style_combos[row]->currentData().toInt();
+    bool ok_w = false;
+    double new_w = width_edits[row]->text().toDouble(&ok_w);
+    if (ok_w && new_w >= 0.1 && new_w <= 10.0)
+      _signals[sig_idx].line_width = new_w;
     bool ok_min = false, ok_max = false;
     double new_min = min_edits[row]->text().toDouble(&ok_min);
     double new_max = max_edits[row]->text().toDouble(&ok_max);

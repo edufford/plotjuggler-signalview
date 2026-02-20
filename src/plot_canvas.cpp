@@ -337,7 +337,7 @@ void PlotCanvas::drawSignals(QPainter& painter)
     if (series.size() < 2)
       continue;
 
-    painter.setPen(QPen(sig.color, 1.5));
+    painter.setPen(QPen(sig.color, sig.line_width, sig.line_style));
 
     QPainterPath path;
     bool first = true;

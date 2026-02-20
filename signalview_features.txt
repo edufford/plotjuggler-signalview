@@ -265,6 +265,10 @@ Columns:
   - Color: clickable color swatch button. Opens a QColorDialog to pick a new
     color. When multiple rows are selected, changing one row's color applies
     to all selected rows. The signal name text color updates to match.
+  - Line Style: dropdown combo box with options: Solid, Dash, Dot, Dash-Dot,
+    Dash-Dot-Dot. Default: Solid. Propagates to all selected rows.
+  - Line Width: editable numeric field (validated 0.1–10.0, 1 decimal place).
+    Default: 1.5. Propagates to all selected rows.
   - Y Min: editable numeric text field (validated as double, 6 significant digits).
   - Y Max: editable numeric text field (validated as double, 6 significant digits).
   - Divisions: editable integer field (validated 0–32, default 8).
@@ -335,7 +339,7 @@ The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
 Saved state includes:
   - Widget visibility (visible="0" or "1").
   - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x,
-    divisions.
+    divisions, line_style, line_width.
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.

@@ -61,6 +61,8 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
     sig_elem.setAttribute("band_height", sig.band_height);
     sig_elem.setAttribute("bar_x", sig.bar_x);
     sig_elem.setAttribute("divisions", sig.divisions);
+    sig_elem.setAttribute("line_style", (int)sig.line_style);
+    sig_elem.setAttribute("line_width", sig.line_width);
     parent_element.appendChild(sig_elem);
   }
 
@@ -122,6 +124,9 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
     entry.bar_x = sig_elem.attribute("bar_x", "1.0").toDouble();
     entry.divisions = sig_elem.attribute("divisions", "8").toInt();
+    entry.line_style = (Qt::PenStyle)sig_elem.attribute("line_style",
+        QString::number((int)Qt::SolidLine)).toInt();
+    entry.line_width = sig_elem.attribute("line_width", "1.5").toDouble();
 
     // Don't check data existence here — data is loaded after plugins
     sig_entries.push_back(entry);
