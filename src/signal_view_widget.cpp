@@ -18,11 +18,13 @@
 #include <QHeaderView>
 #include <QShortcut>
 #include <QColorDialog>
+#include <QFileDialog>
+#include <QMessageBox>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-static constexpr const char* kPluginVersion = "0.8.0";
+static constexpr const char* kPluginVersion = "0.9.0";
 
 const std::vector<QColor>& SignalViewWidget::signalColors()
 {
@@ -42,6 +44,9 @@ const std::vector<QColor>& SignalViewWidget::signalColors()
 SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
     : QWidget(parent), _data(data)
 {
+  _overlay_mgr = new OverlayManager();
+  _overlay_mgr->setBaseData(_data);
+
   setWindowTitle("Signal View");
   resize(900, 500);
 
@@ -94,6 +99,23 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   btn_zoom->setToolTip("Toggle horizontal (time) zoom on scroll wheel");
   toolbar->addWidget(btn_zoom);
   toolbar->addSeparator();
+  auto* btn_time_shift = new QPushButton("Time Shift", this);
+  btn_time_shift->setCheckable(true);
+  btn_time_shift->setToolTip("Drag to shift data layer time offsets");
+  toolbar->addWidget(btn_time_shift);
+
+  auto* shift_layer_label = new QLabel("Layer:", this);
+  shift_layer_label->setStyleSheet("color: #ccc; font-size: 9px; padding: 0 2px;");
+  toolbar->addWidget(shift_layer_label);
+  _shift_layer_combo = new QComboBox(this);
+  _shift_layer_combo->setToolTip("Default layer to shift when no signals are selected");
+  toolbar->addWidget(_shift_layer_combo);
+  toolbar->addSeparator();
+
+  auto* btn_overlay = new QPushButton("Overlay", this);
+  btn_overlay->setToolTip("Load an overlay data file (CSV) for comparison");
+  toolbar->addWidget(btn_overlay);
+  toolbar->addSeparator();
   toolbar->addWidget(btn_close);
 
   main_layout->addWidget(toolbar);
@@ -101,7 +123,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   // Main content: Y-axis panel | Plot canvas in a splitter
   _y_axis_panel = new YAxisPanel(nullptr);
   _canvas = new PlotCanvas(nullptr);
-  _canvas->setDataSource(_data);
+  _canvas->setDataSource(_overlay_mgr);
 
   _main_splitter = new QSplitter(Qt::Horizontal, this);
   _main_splitter->setChildrenCollapsible(false);
@@ -123,6 +145,12 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   content_layout->addWidget(_main_splitter, 1);
   content_layout->addWidget(_scrollbar);
   main_layout->addLayout(content_layout, 1);
+
+  // Data Sets Panel (footer)
+  _data_sets_panel = new DataSetsPanel(this);
+  main_layout->addWidget(_data_sets_panel);
+  _data_sets_panel->refresh(_overlay_mgr);
+  updateShiftLayerCombo();
 
   // Connections
   connect(btn_add, &QPushButton::clicked, this, [this]() { onAddSignal(); });
@@ -147,9 +175,47 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::addSignalRequested, this, &SignalViewWidget::onAddSignal);
   connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
 
+  // Overlay button
+  connect(btn_overlay, &QPushButton::clicked, this, &SignalViewWidget::onLoadOverlay);
+
+  // Data Sets Panel signals
+  connect(_data_sets_panel, &DataSetsPanel::loadOverlayRequested,
+          this, &SignalViewWidget::onLoadOverlay);
+  connect(_data_sets_panel, &DataSetsPanel::removeOverlayRequested,
+          this, &SignalViewWidget::onRemoveOverlay);
+  connect(_data_sets_panel, &DataSetsPanel::styleLayerRequested,
+          this, &SignalViewWidget::onStyleLayer);
+  connect(_data_sets_panel, &DataSetsPanel::layerRenamed,
+          this, &SignalViewWidget::onLayerRenamed);
+
   // Zoom mode toggle
-  connect(btn_zoom, &QPushButton::toggled, this, [this](bool checked) {
+  connect(btn_zoom, &QPushButton::toggled, this, [this, btn_time_shift](bool checked) {
     _canvas->setZoomMode(checked);
+    if (checked) btn_time_shift->setChecked(false);
+  });
+
+  // Time shift mode toggle
+  connect(btn_time_shift, &QPushButton::toggled, this, [this, btn_zoom](bool checked) {
+    _canvas->setTimeShiftMode(checked);
+    if (checked) btn_zoom->setChecked(false);
+  });
+
+  // Shift layer combo
+  connect(_shift_layer_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, [this](int idx) {
+    int layer = _shift_layer_combo->itemData(idx).toInt();
+    _canvas->setDefaultShiftLayer(layer);
+  });
+
+  // Update selected layers when Y-axis panel selection changes
+  connect(_y_axis_panel, &YAxisPanel::selectionChanged, this, [this]() {
+    updateSelectedLayers();
+  });
+
+  // When time shift is dragged, update DataSetsPanel offsets and cursor readout
+  connect(_canvas, &PlotCanvas::timeShiftChanged, this, [this]() {
+    _data_sets_panel->updateOffsets(_overlay_mgr);
+    _y_axis_panel->updateCursorValues(_overlay_mgr, _canvas->cursorTime());
   });
 
   // Vertical scroll from all sources
@@ -174,17 +240,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
 void SignalViewWidget::onAddSignal(double band_center)
 {
-  if (!_data)
+  if (!_overlay_mgr)
     return;
 
+  auto all_signals = _overlay_mgr->allAvailableSignals();
   QStringList available;
-  for (const auto& pair : _data->numeric)
+  for (const auto& name : all_signals)
   {
     // Skip signals already added
     bool already_added = false;
     for (const auto& sig : _signals)
     {
-      if (sig.name == pair.first)
+      if (sig.name == name)
       {
         already_added = true;
         break;
@@ -192,7 +259,7 @@ void SignalViewWidget::onAddSignal(double band_center)
     }
     if (!already_added)
     {
-      available.append(QString::fromStdString(pair.first));
+      available.append(QString::fromStdString(name));
     }
   }
 
@@ -248,10 +315,10 @@ void SignalViewWidget::onAddSignal(double band_center)
     entry.color = signalColors()[_signals.size() % signalColors().size()];
 
     // Auto-detect Y range from data
-    auto it = _data->numeric.find(entry.name);
-    if (it != _data->numeric.end() && it->second.size() > 0)
+    auto resolved = _overlay_mgr->resolveSignal(entry.name);
+    if (resolved && resolved->series->size() > 0)
     {
-      auto range = it->second.rangeY();
+      auto range = resolved->series->rangeY();
       if (range)
       {
         double margin = (range->max - range->min) * 0.1;
@@ -306,7 +373,7 @@ void SignalViewWidget::onResetZoom()
 
 void SignalViewWidget::onCursorMoved(double time)
 {
-  _y_axis_panel->updateCursorValues(_data, time);
+  _y_axis_panel->updateCursorValues(_overlay_mgr, time);
 }
 
 void SignalViewWidget::onYRangeChanged(int index, double y_min, double y_max)
@@ -526,6 +593,13 @@ void SignalViewWidget::setSnapIndex(int index)
     _snap_combo->setCurrentIndex(index);
 }
 
+void SignalViewWidget::refreshOverlayUI()
+{
+  _data_sets_panel->refresh(_overlay_mgr);
+  updateShiftLayerCombo();
+  refreshViews();
+}
+
 void SignalViewWidget::onRemoveSignalByIndex(int index)
 {
   if (index < 0 || index >= (int)_signals.size())
@@ -539,7 +613,7 @@ void SignalViewWidget::refreshViews()
 {
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
-  _y_axis_panel->updateCursorValues(_data, _canvas->cursorTime());
+  _y_axis_panel->updateCursorValues(_overlay_mgr, _canvas->cursorTime());
   updateScrollBar();
 }
 
@@ -940,7 +1014,7 @@ void SignalViewWidget::onGroupSignals()
 
 void SignalViewWidget::onAutoScale()
 {
-  if (!_data || _signals.empty())
+  if (!_overlay_mgr || _signals.empty())
     return;
 
   // Auto-scale selected signals, or all signals if none selected
@@ -952,16 +1026,17 @@ void SignalViewWidget::onAutoScale()
     if (!sel.empty() && sel.count(i) == 0)
       continue;
 
-    auto it = _data->numeric.find(_signals[i].name);
-    if (it == _data->numeric.end() || it->second.size() == 0)
+    auto resolved = _overlay_mgr->resolveSignal(_signals[i].name);
+    if (!resolved || resolved->series->size() == 0)
       continue;
 
-    // Find Y range within the current view time range
-    const auto& series = it->second;
-    double t_min = _canvas->viewMinTime();
-    double t_max = _canvas->viewMaxTime();
+    // Find Y range within the current view time range, accounting for time offset
+    const auto& series = *resolved->series;
+    double t_offset = resolved->time_offset;
+    double t_min = _canvas->viewMinTime() - t_offset;
+    double t_max = _canvas->viewMaxTime() - t_offset;
 
-    // Find first point at or after t_min
+    // Find first point at or after t_min (in local time)
     auto lb = std::lower_bound(
         series.begin(), series.end(),
         PJ::PlotData::Point(t_min, 0.0),
@@ -1041,4 +1116,254 @@ void SignalViewWidget::onVerticalScroll(double delta)
   _scrollbar->blockSignals(true);
   _scrollbar->setValue((int)(_scroll_offset * 1000));
   _scrollbar->blockSignals(false);
+}
+
+// --- Overlay ---
+
+void SignalViewWidget::migrateSignalNames(bool add_prefix)
+{
+  if (add_prefix)
+  {
+    // Add #1/ prefix to all existing unprefixed signal names
+    for (auto& sig : _signals)
+    {
+      auto parsed = OverlayManager::parsePrefixedName(sig.name);
+      if (parsed.layer == 0)
+        sig.name = OverlayManager::makePrefixedName(1, sig.name);
+    }
+  }
+  else
+  {
+    // Remove prefixes — only when going back to single-layer
+    for (auto& sig : _signals)
+    {
+      auto parsed = OverlayManager::parsePrefixedName(sig.name);
+      if (parsed.layer > 0)
+        sig.name = parsed.raw_name;
+    }
+  }
+}
+
+void SignalViewWidget::onLoadOverlay()
+{
+  QString file_path = QFileDialog::getOpenFileName(
+      this, "Load Overlay Data", QString(),
+      "CSV Files (*.csv *.tsv *.txt);;All Files (*)");
+
+  if (file_path.isEmpty())
+    return;
+
+  // If this is the first overlay and we have existing signals, prefix them with #1/
+  bool first_overlay = !_overlay_mgr->hasOverlays();
+  if (first_overlay && !_signals.empty())
+    migrateSignalNames(true);
+
+  int new_layer = _overlay_mgr->loadOverlayFile(file_path.toStdString());
+  if (new_layer < 0)
+  {
+    // Loading failed — undo prefix migration if it was the first attempt
+    if (first_overlay && !_signals.empty())
+      migrateSignalNames(false);
+    QMessageBox::warning(this, "Overlay Error",
+        "Failed to load overlay file:\n" + file_path);
+    return;
+  }
+
+  // Auto-match: for each displayed signal's raw name, check if overlay has a match
+  std::vector<std::string> raw_names;
+  for (const auto& sig : _signals)
+    raw_names.push_back(OverlayManager::rawName(sig.name));
+
+  auto matches = _overlay_mgr->findMatchingSignals(new_layer, raw_names);
+
+  // Add matched overlay signals with same position but different appearance
+  for (const auto& match_name : matches)
+  {
+    auto parsed = OverlayManager::parsePrefixedName(match_name);
+
+    // Find the base signal to copy band position from
+    SignalEntry new_entry;
+    new_entry.name = match_name;
+    new_entry.color = signalColors()[_signals.size() % signalColors().size()];
+    new_entry.line_style = Qt::DashLine;  // overlay signals get dashed lines
+
+    for (const auto& sig : _signals)
+    {
+      if (OverlayManager::rawName(sig.name) == parsed.raw_name)
+      {
+        new_entry.band_center = sig.band_center;
+        new_entry.band_height = sig.band_height;
+        new_entry.y_min = sig.y_min;
+        new_entry.y_max = sig.y_max;
+        new_entry.bar_x = sig.bar_x;
+        new_entry.divisions = sig.divisions;
+        new_entry.line_width = sig.line_width;
+        new_entry.marker_style = sig.marker_style;
+        break;
+      }
+    }
+
+    _signals.push_back(new_entry);
+  }
+
+  _data_sets_panel->refresh(_overlay_mgr);
+  updateShiftLayerCombo();
+  refreshViews();
+}
+
+void SignalViewWidget::onRemoveOverlay(int layer_index)
+{
+  // Remove all signals from this layer
+  auto it = std::remove_if(_signals.begin(), _signals.end(),
+      [layer_index](const SignalEntry& sig) {
+        auto parsed = OverlayManager::parsePrefixedName(sig.name);
+        return parsed.layer == layer_index;
+      });
+  _signals.erase(it, _signals.end());
+
+  _overlay_mgr->removeOverlay(layer_index);
+
+  // If no overlays remain, un-prefix signal names
+  if (!_overlay_mgr->hasOverlays())
+    migrateSignalNames(false);
+
+  _data_sets_panel->refresh(_overlay_mgr);
+  updateShiftLayerCombo();
+  refreshViews();
+}
+
+void SignalViewWidget::onStyleLayer(int layer_index)
+{
+  // Open a dialog to set color, line style, line width for all signals in this layer
+  QDialog dlg(this);
+  dlg.setWindowTitle(QString("Style Layer #%1").arg(layer_index));
+  auto* layout = new QVBoxLayout(&dlg);
+
+  // Color
+  QColor current_color;
+  for (const auto& sig : _signals)
+  {
+    auto parsed = OverlayManager::parsePrefixedName(sig.name);
+    if (parsed.layer == layer_index || (parsed.layer == 0 && layer_index == 1))
+    {
+      current_color = sig.color;
+      break;
+    }
+  }
+
+  auto* color_layout = new QHBoxLayout();
+  color_layout->addWidget(new QLabel("Color:", &dlg));
+  auto* color_btn = new QPushButton(&dlg);
+  QColor chosen_color = current_color.isValid() ? current_color : QColor(200, 200, 200);
+  color_btn->setStyleSheet(
+      QString("background-color: %1; border: 1px solid #888; min-width: 60px;")
+          .arg(chosen_color.name()));
+  connect(color_btn, &QPushButton::clicked, &dlg, [&]() {
+    QColor c = QColorDialog::getColor(chosen_color, &dlg, "Layer Color");
+    if (c.isValid())
+    {
+      chosen_color = c;
+      color_btn->setStyleSheet(
+          QString("background-color: %1; border: 1px solid #888; min-width: 60px;")
+              .arg(c.name()));
+    }
+  });
+  color_layout->addWidget(color_btn);
+  layout->addLayout(color_layout);
+
+  // Line style
+  struct LineStyleOption { QString label; Qt::PenStyle style; };
+  const std::vector<LineStyleOption> line_style_options = {
+    {"Solid",      Qt::SolidLine},
+    {"Dash",       Qt::DashLine},
+    {"Dot",        Qt::DotLine},
+    {"Dash-Dot",   Qt::DashDotLine},
+    {"Dash-Dot-Dot", Qt::DashDotDotLine},
+  };
+
+  auto* style_layout = new QHBoxLayout();
+  style_layout->addWidget(new QLabel("Line Style:", &dlg));
+  auto* style_combo = new QComboBox(&dlg);
+  for (const auto& opt : line_style_options)
+    style_combo->addItem(opt.label, (int)opt.style);
+  style_layout->addWidget(style_combo);
+  layout->addLayout(style_layout);
+
+  // Line width
+  auto* width_layout = new QHBoxLayout();
+  width_layout->addWidget(new QLabel("Line Width:", &dlg));
+  auto* width_edit = new QLineEdit(&dlg);
+  width_edit->setValidator(new QDoubleValidator(0.1, 10.0, 1, &dlg));
+  width_edit->setText("1.5");
+  width_layout->addWidget(width_edit);
+  layout->addLayout(width_layout);
+
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+  layout->addWidget(buttons);
+
+  if (dlg.exec() != QDialog::Accepted)
+    return;
+
+  // Apply to all signals from this layer
+  Qt::PenStyle new_style = (Qt::PenStyle)style_combo->currentData().toInt();
+  bool ok_w;
+  double new_width = width_edit->text().toDouble(&ok_w);
+  if (!ok_w || new_width < 0.1)
+    new_width = 1.5;
+
+  for (auto& sig : _signals)
+  {
+    auto parsed = OverlayManager::parsePrefixedName(sig.name);
+    int sig_layer = (parsed.layer == 0) ? 1 : parsed.layer;
+    if (sig_layer == layer_index)
+    {
+      sig.color = chosen_color;
+      sig.line_style = new_style;
+      sig.line_width = new_width;
+    }
+  }
+
+  refreshViews();
+}
+
+void SignalViewWidget::onLayerRenamed(int layer_index, const QString& name)
+{
+  auto* layer = _overlay_mgr->layerByIndex(layer_index);
+  if (layer)
+    layer->display_name = name.toStdString();
+}
+
+void SignalViewWidget::updateSelectedLayers()
+{
+  std::set<int> layers;
+  const auto& sel = _y_axis_panel->selection();
+  for (int idx : sel)
+  {
+    if (idx >= 0 && idx < (int)_signals.size())
+    {
+      auto parsed = OverlayManager::parsePrefixedName(_signals[idx].name);
+      int layer = (parsed.layer == 0) ? 1 : parsed.layer;
+      layers.insert(layer);
+    }
+  }
+  _canvas->setSelectedLayers(layers);
+}
+
+void SignalViewWidget::updateShiftLayerCombo()
+{
+  _shift_layer_combo->blockSignals(true);
+  _shift_layer_combo->clear();
+  for (const auto& layer : _overlay_mgr->layers())
+    _shift_layer_combo->addItem(QString("#%1").arg(layer.index), layer.index);
+
+  // Default to the highest layer index
+  if (_shift_layer_combo->count() > 0)
+  {
+    _shift_layer_combo->setCurrentIndex(_shift_layer_combo->count() - 1);
+    int layer = _shift_layer_combo->currentData().toInt();
+    _canvas->setDefaultShiftLayer(layer);
+  }
+  _shift_layer_combo->blockSignals(false);
 }

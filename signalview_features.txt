@@ -3,7 +3,7 @@ Signal View Plugin - Feature Behavior Reference
 
 Plugin type: PJ::ToolboxPlugin (FLOATING)
 Accessed via: PlotJuggler > Tools > Signal View
-Version: 0.8.0
+Version: 0.9.0
 
 
 TOOLBAR
@@ -34,6 +34,15 @@ TOOLBAR
 - "H. Zoom" toggle button: when checked, the scroll wheel performs time-axis
   zoom (centered on mouse position). When unchecked (default), the scroll
   wheel scrolls the view vertically.
+- "Time Shift" toggle button: when checked, left-click+drag on the canvas
+  shifts the time offset of target data layers. The target layers are
+  determined by the current signal selection (see DATA OVERLAY section).
+  Mutually exclusive with "H. Zoom" — enabling one disables the other.
+- "Layer:" combo box: selects the default layer to shift when no signals
+  are selected in the Y-axis panel. Defaults to the highest layer index.
+  Updated automatically when overlays are loaded or removed.
+- "Overlay" button: opens a file picker to load a CSV overlay data file
+  for comparison (see DATA OVERLAY section).
 - "Close" button: closes the Signal View and returns to PlotJuggler's default
   view. Emits the plugin's closed() signal which tells PlotJuggler to switch
   the stacked widget back to index 0. Can be reopened via Tools > Signal View.
@@ -313,6 +322,12 @@ MOUSE INTERACTION: PLOT CANVAS
   time axis to the selected range. Disables auto-fit. A click without
   meaningful drag (< 1ns range) is ignored.
 
+- Left click + drag (Time Shift mode): shifts the time offset of the
+  target data layers. Target layers are determined by the current signal
+  selection: if signals from layers #1 and #3 are selected, both layers
+  shift simultaneously. If no signals are selected, the layer from the
+  "Layer:" combo box is shifted. Shows SizeHorCursor during drag.
+
 - Right click + drag: pans the time axis. Disables auto-fit.
   - Shows ClosedHandCursor while panning.
 
@@ -345,23 +360,102 @@ Signals are assigned colors in order from a predefined palette:
 Colors cycle if more than 8 signals are added.
 
 
+DATA OVERLAY
+------------
+The plugin supports overlaying data from multiple CSV files for comparison.
+Each data source is assigned a layer number. Layers are managed by the
+OverlayManager class.
+
+Signal naming convention:
+  - #1/velocity    — base PlotJuggler data (layer 1)
+  - #2/velocity    — first overlay file (layer 2)
+  - #3/velocity    — second overlay file (layer 3)
+  - velocity       — unprefixed (backward compatible, treated as layer 1)
+
+When no overlays are loaded, signal names remain unprefixed. When the first
+overlay is loaded, existing signals are prefixed with #1/. When all overlays
+are removed, prefixes are stripped.
+
+Loading an overlay:
+  1. Click "Overlay" button or right-click in the Data Sets Panel → "Load Overlay..."
+  2. Select a CSV file (supports comma, tab, or semicolon delimiters).
+     First column is treated as time. Each subsequent column becomes a signal.
+  3. Auto-match: for each currently displayed signal's raw name, matching
+     signals in the overlay file are automatically added with the same band
+     position, Y range, and dimensions, but with a different color and
+     dashed line style.
+  4. Additional signals from any loaded data set can be added via the
+     "Add Signal" dialog, which lists all signals from all layers.
+
+Each data file may have different time steps and/or variable time steps.
+Each layer stores its own independent PlotData time series.
+
+Time shifting:
+  - Enable "Time Shift" mode via the toolbar toggle button.
+  - Left-click + drag on the canvas shifts the time offset of target layers.
+  - Target layers are determined by the Y-axis panel selection:
+    - If signals are selected, all distinct layers in the selection shift
+      simultaneously by the same time delta.
+    - If no signals are selected, the layer indicated by the "Layer:" combo
+      box is shifted (defaults to the highest layer index).
+  - Time offsets are applied additively: rendering uses (time + offset),
+    cursor lookups use (cursor_time - offset).
+  - All layers are independently shiftable, including the base layer #1.
+
+Removing an overlay:
+  - Right-click the layer in the Data Sets Panel → "Remove Overlay".
+  - All signals from that layer are removed.
+  - If no overlays remain, signal names are un-prefixed.
+
+
+DATA SETS PANEL
+---------------
+A compact footer widget displayed below the canvas at all times (even with
+a single data layer). Lists all loaded data layers.
+
+Each row shows:
+  - Layer number (#1, #2, ...)
+  - Display name: "PJ Data" for the PlotJuggler base layer, or the CSV
+    filename (basename) for overlay layers.
+  - Time offset value (e.g., "offset: +0.053s"), updated live during drag.
+
+Interactions:
+  - Double-click the display name to rename it (e.g., rename "PJ Data" to
+    a more descriptive label for screenshots).
+  - Right-click opens a context menu:
+    - "Style All Signals...": opens a dialog to set Color, Line Style, and
+      Line Width for all signals from that layer.
+    - "Rename...": opens an input dialog to rename the layer.
+    - "Remove Overlay": removes the overlay layer (only for layers 2+).
+    - "Load Overlay...": opens the file picker to add another overlay.
+
+When PlotJuggler provides no data, the first overlay file loaded becomes
+layer #1. Subsequent overlays become #2, #3, etc.
+
+
 LAYOUT SAVE / RESTORE
 ----------------------
 The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
 
 Saved state includes:
   - Widget visibility (visible="0" or "1").
-  - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x,
-    divisions, line_style, line_width, marker_style.
+  - For each signal: name (with layer prefix if overlays exist), color, y_min,
+    y_max, band_center, band_height, bar_x, divisions, line_style, line_width,
+    marker_style.
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.
   - Column widths: main splitter (panel|canvas), panel splitter (label|bar),
     label splitter (name|value).
+  - For each overlay layer: layer index, display name, file path, time offset.
+    The base layer's time offset and display name are also saved.
 
 On layout load:
   - Signals are restored without checking data existence (data is loaded
     after plugin state by PlotJuggler's load order).
+  - Overlay CSV files are reloaded from their saved file paths, and time
+    offsets and display names are restored. If an overlay file is missing,
+    it is silently skipped.
   - View range and cursor position are restored.
   - If the widget was visible, the plugin switches PlotJuggler's internal
     QStackedWidget to show itself and calls onShowWidget().

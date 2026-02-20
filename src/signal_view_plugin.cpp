@@ -1,5 +1,6 @@
 #include "signal_view_plugin.h"
 #include "signal_view_widget.h"
+#include "overlay_manager.h"
 #include <QStackedWidget>
 
 SignalViewPlugin::SignalViewPlugin() = default;
@@ -79,6 +80,22 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   QDomElement settings_elem = doc.createElement("settings");
   settings_elem.setAttribute("snap", _widget->snapAmount());
   parent_element.appendChild(settings_elem);
+
+  // Overlay layers (including base layer time offset)
+  auto* overlay_mgr = _widget->overlayManager();
+  if (overlay_mgr)
+  {
+    for (const auto& layer : overlay_mgr->layers())
+    {
+      QDomElement layer_elem = doc.createElement("overlay");
+      layer_elem.setAttribute("layer", layer.index);
+      layer_elem.setAttribute("display_name", QString::fromStdString(layer.display_name));
+      layer_elem.setAttribute("time_offset", layer.time_offset);
+      if (!layer.file_path.empty())
+        layer_elem.setAttribute("file", QString::fromStdString(layer.file_path));
+      parent_element.appendChild(layer_elem);
+    }
+  }
 
   // Splitter sizes: main (panel|canvas), panel (label|bar), label (name|value)
   QDomElement layout_elem = doc.createElement("layout");
@@ -180,9 +197,50 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
             layout_elem.attribute("value_w").toInt() });
   }
 
-  if (_plot_data)
+  // Restore overlay layers
+  auto* overlay_mgr = _widget->overlayManager();
+  if (overlay_mgr)
   {
-    _widget->yAxisPanel()->updateCursorValues(_plot_data, _widget->cursorTime());
+    QDomElement overlay_elem = parent_element.firstChildElement("overlay");
+    while (!overlay_elem.isNull())
+    {
+      int layer_index = overlay_elem.attribute("layer", "0").toInt();
+      double time_offset = overlay_elem.attribute("time_offset", "0").toDouble();
+      QString display_name = overlay_elem.attribute("display_name");
+      QString file_path = overlay_elem.attribute("file");
+
+      if (!file_path.isEmpty())
+      {
+        // Load the overlay file
+        int new_layer = overlay_mgr->loadOverlayFile(file_path.toStdString());
+        if (new_layer > 0)
+        {
+          overlay_mgr->setTimeOffset(new_layer, time_offset);
+          if (!display_name.isEmpty())
+          {
+            auto* layer = overlay_mgr->layerByIndex(new_layer);
+            if (layer)
+              layer->display_name = display_name.toStdString();
+          }
+        }
+      }
+      else
+      {
+        // Base layer — just restore time offset and display name
+        overlay_mgr->setTimeOffset(layer_index, time_offset);
+        if (!display_name.isEmpty())
+        {
+          auto* layer = overlay_mgr->layerByIndex(layer_index);
+          if (layer)
+            layer->display_name = display_name.toStdString();
+        }
+      }
+
+      overlay_elem = overlay_elem.nextSiblingElement("overlay");
+    }
+
+    // Refresh UI after overlay restore
+    _widget->refreshOverlayUI();
   }
 
   // Show the widget if it was visible when the layout was saved.

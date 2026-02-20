@@ -1,4 +1,5 @@
 #include "y_axis_panel.h"
+#include "overlay_manager.h"
 
 #include <QPainter>
 #include <QMouseEvent>
@@ -999,9 +1000,9 @@ void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)
   _bar_col->setSignalEntries(entries);
 }
 
-void YAxisPanel::updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time)
+void YAxisPanel::updateCursorValues(OverlayManager* overlay_mgr, double cursor_time)
 {
-  if (!data)
+  if (!overlay_mgr)
     return;
 
   std::vector<double> values(_signals.size(), 0.0);
@@ -1009,26 +1010,28 @@ void YAxisPanel::updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time
 
   for (size_t i = 0; i < _signals.size(); i++)
   {
-    auto it = data->numeric.find(_signals[i].name);
-    if (it == data->numeric.end() || it->second.size() == 0)
+    auto resolved = overlay_mgr->resolveSignal(_signals[i].name);
+    if (!resolved || resolved->series->size() == 0)
       continue;
 
-    // Step-wise lookup: find the last data point at or before cursor_time
-    const auto& series = it->second;
+    // Step-wise lookup: find the last data point at or before cursor_time,
+    // accounting for the layer's time offset.
+    const auto& series = *resolved->series;
+    double local_time = cursor_time - resolved->time_offset;
     auto lb = std::lower_bound(
         series.begin(), series.end(),
-        PJ::PlotData::Point(cursor_time, 0.0),
+        PJ::PlotData::Point(local_time, 0.0),
         [](const auto& a, const auto& b) { return a.x < b.x; });
 
-    // lower_bound gives first element with x >= cursor_time
-    if (lb != series.end() && lb->x == cursor_time)
+    // lower_bound gives first element with x >= local_time
+    if (lb != series.end() && lb->x == local_time)
     {
       values[i] = lb->y;
       valid[i] = true;
     }
     else if (lb != series.begin())
     {
-      --lb;  // step back to last point before cursor_time
+      --lb;  // step back to last point before local_time
       values[i] = lb->y;
       valid[i] = true;
     }

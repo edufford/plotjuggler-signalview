@@ -31,6 +31,10 @@ add_library(SignalViewPlugin SHARED
     src/plot_canvas.cpp
     src/y_axis_panel.h
     src/y_axis_panel.cpp
+    src/overlay_manager.h
+    src/overlay_manager.cpp
+    src/data_sets_panel.h
+    src/data_sets_panel.cpp
 )
 
 target_include_directories(SignalViewPlugin PRIVATE

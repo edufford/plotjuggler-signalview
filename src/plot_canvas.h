@@ -4,9 +4,12 @@
 #include <QColor>
 #include <vector>
 #include <string>
+#include <set>
+#include <map>
 #include "PlotJuggler/plotdata.h"
 
 class QLineEdit;
+class OverlayManager;
 
 enum class MarkerStyle : int
 {
@@ -46,7 +49,7 @@ class PlotCanvas : public QWidget
 public:
   explicit PlotCanvas(QWidget* parent = nullptr);
 
-  void setDataSource(PJ::PlotDataMapRef* data);
+  void setDataSource(OverlayManager* mgr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
 
   double cursorTime() const { return _cursor_time; }
@@ -60,12 +63,16 @@ public:
 
   void setScrollOffset(double offset);
   void setZoomMode(bool enabled);
+  void setTimeShiftMode(bool enabled);
+  void setSelectedLayers(const std::set<int>& layers);
+  void setDefaultShiftLayer(int layer_index);
 
 signals:
   void cursorMoved(double time);
   void viewRangeChanged(double t_min, double t_max);
   void canvasResized(int new_height);
   void verticalScrollRequested(double delta);
+  void timeShiftChanged();  // emitted when a layer's time offset is modified by drag
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -89,7 +96,7 @@ private:
   void drawCursor(class QPainter& painter);
   void drawGrid(class QPainter& painter);
 
-  PJ::PlotDataMapRef* _data = nullptr;
+  OverlayManager* _overlay_mgr = nullptr;
   std::vector<SignalEntry> _signals;
 
   // View range (time axis)
@@ -116,6 +123,14 @@ private:
   bool _zoom_selecting = false;
   double _zoom_select_start_x = 0.0;   // pixel X of press
   double _zoom_select_current_x = 0.0; // pixel X of current drag
+
+  // Time shift state
+  bool _time_shift_mode = false;
+  bool _time_shift_dragging = false;
+  QPoint _time_shift_start;
+  std::set<int> _selected_layers;
+  int _default_shift_layer = 1;
+  std::map<int, double> _time_shift_start_offsets;  // original offsets at drag start
 
   // Time range edit fields
   QLineEdit* _time_start_edit;

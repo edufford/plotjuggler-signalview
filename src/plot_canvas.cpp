@@ -1,4 +1,5 @@
 #include "plot_canvas.h"
+#include "overlay_manager.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -70,9 +71,9 @@ PlotCanvas::PlotCanvas(QWidget* parent)
   updateTimeEditTexts();
 }
 
-void PlotCanvas::setDataSource(PJ::PlotDataMapRef* data)
+void PlotCanvas::setDataSource(OverlayManager* mgr)
 {
-  _data = data;
+  _overlay_mgr = mgr;
 }
 
 void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries)
@@ -158,6 +159,21 @@ void PlotCanvas::setZoomMode(bool enabled)
   _zoom_mode = enabled;
 }
 
+void PlotCanvas::setTimeShiftMode(bool enabled)
+{
+  _time_shift_mode = enabled;
+}
+
+void PlotCanvas::setSelectedLayers(const std::set<int>& layers)
+{
+  _selected_layers = layers;
+}
+
+void PlotCanvas::setDefaultShiftLayer(int layer_index)
+{
+  _default_shift_layer = layer_index;
+}
+
 void PlotCanvas::repositionTimeEdits()
 {
   const int field_w = 80;
@@ -177,7 +193,7 @@ void PlotCanvas::updateTimeEditTexts()
 
 void PlotCanvas::autoFitTimeRange()
 {
-  if (!_data || _signals.empty())
+  if (!_overlay_mgr || _signals.empty())
     return;
 
   double t_min = std::numeric_limits<double>::max();
@@ -185,15 +201,15 @@ void PlotCanvas::autoFitTimeRange()
 
   for (const auto& sig : _signals)
   {
-    auto it = _data->numeric.find(sig.name);
-    if (it == _data->numeric.end() || it->second.size() == 0)
+    auto resolved = _overlay_mgr->resolveSignal(sig.name);
+    if (!resolved || resolved->series->size() == 0)
       continue;
 
-    auto range = it->second.rangeX();
+    auto range = resolved->series->rangeX();
     if (range)
     {
-      t_min = std::min(t_min, range->min);
-      t_max = std::max(t_max, range->max);
+      t_min = std::min(t_min, range->min + resolved->time_offset);
+      t_max = std::max(t_max, range->max + resolved->time_offset);
     }
   }
 
@@ -322,18 +338,19 @@ void PlotCanvas::drawTimeAxis(QPainter& painter)
 
 void PlotCanvas::drawSignals(QPainter& painter)
 {
-  if (!_data)
+  if (!_overlay_mgr)
     return;
 
   painter.setRenderHint(QPainter::Antialiasing, true);
 
   for (const auto& sig : _signals)
   {
-    auto it = _data->numeric.find(sig.name);
-    if (it == _data->numeric.end())
+    auto resolved = _overlay_mgr->resolveSignal(sig.name);
+    if (!resolved)
       continue;
 
-    const PJ::PlotData& series = it->second;
+    const PJ::PlotData& series = *resolved->series;
+    double t_offset = resolved->time_offset;
     if (series.size() < 2)
       continue;
 
@@ -345,12 +362,13 @@ void PlotCanvas::drawSignals(QPainter& painter)
     for (size_t i = 0; i < series.size(); i++)
     {
       const auto& pt = series[i];
-      if (pt.x < _view_t_min || pt.x > _view_t_max)
+      double t = pt.x + t_offset;
+      if (t < _view_t_min || t > _view_t_max)
       {
         // Still draw the boundary points to avoid clipping artifacts
-        if (pt.x > _view_t_max && !first)
+        if (t > _view_t_max && !first)
         {
-          double px = timeToPixelX(pt.x);
+          double px = timeToPixelX(t);
           double py = valueToPixelY(pt.y, sig);
           // Step-wise: hold previous value, then step
           path.lineTo(px, path.currentPosition().y());
@@ -358,9 +376,9 @@ void PlotCanvas::drawSignals(QPainter& painter)
           break;
         }
         // Skip until we're near the view, but keep the last pre-view point
-        if (i + 1 < series.size() && series[i + 1].x >= _view_t_min)
+        if (i + 1 < series.size() && series[i + 1].x + t_offset >= _view_t_min)
         {
-          double px = timeToPixelX(pt.x);
+          double px = timeToPixelX(t);
           double py = valueToPixelY(pt.y, sig);
           path.moveTo(px, py);
           first = false;
@@ -368,7 +386,7 @@ void PlotCanvas::drawSignals(QPainter& painter)
         continue;
       }
 
-      double px = timeToPixelX(pt.x);
+      double px = timeToPixelX(t);
       double py = valueToPixelY(pt.y, sig);
 
       if (first)
@@ -407,12 +425,13 @@ void PlotCanvas::drawSignals(QPainter& painter)
       for (size_t i = 0; i < series.size(); i++)
       {
         const auto& pt = series[i];
-        if (pt.x < _view_t_min)
+        double t = pt.x + t_offset;
+        if (t < _view_t_min)
           continue;
-        if (pt.x > _view_t_max)
+        if (t > _view_t_max)
           break;
 
-        double px = timeToPixelX(pt.x);
+        double px = timeToPixelX(t);
         double py = valueToPixelY(pt.y, sig);
 
         switch (sig.marker_style)
@@ -520,12 +539,12 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/)
 
   // Detect when signal data first becomes available (e.g. after layout
   // restore where data loads after the plugin state is restored).
-  if (_cursor_needs_data && _data && !_signals.empty())
+  if (_cursor_needs_data && _overlay_mgr && !_signals.empty())
   {
     for (const auto& sig : _signals)
     {
-      auto it = _data->numeric.find(sig.name);
-      if (it != _data->numeric.end() && it->second.size() > 0)
+      auto resolved = _overlay_mgr->resolveSignal(sig.name);
+      if (resolved && resolved->series->size() > 0)
       {
         _cursor_needs_data = false;
         if (_auto_fit)
@@ -548,6 +567,21 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
+    if (_time_shift_mode && _overlay_mgr)
+    {
+      // Start time shift drag
+      _time_shift_dragging = true;
+      _time_shift_start = event->pos();
+      // Capture current offsets for target layers
+      _time_shift_start_offsets.clear();
+      std::set<int> targets = _selected_layers.empty()
+          ? std::set<int>{_default_shift_layer}
+          : _selected_layers;
+      for (int layer_idx : targets)
+        _time_shift_start_offsets[layer_idx] = _overlay_mgr->timeOffset(layer_idx);
+      setCursor(Qt::SizeHorCursor);
+      return;
+    }
     if (_zoom_mode)
     {
       // Start rubber-band zoom selection
@@ -588,6 +622,19 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event)
 
 void PlotCanvas::mouseMoveEvent(QMouseEvent* event)
 {
+  if (_time_shift_dragging && _overlay_mgr)
+  {
+    double dx_pixels = event->pos().x() - _time_shift_start.x();
+    double plot_w = width() - kMarginLeft - kMarginRight;
+    if (plot_w <= 0)
+      return;
+    double dt = dx_pixels / plot_w * (_view_t_max - _view_t_min);
+    for (auto& [layer_idx, start_offset] : _time_shift_start_offsets)
+      _overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
+    emit timeShiftChanged();
+    update();
+    return;
+  }
   if (_zoom_selecting)
   {
     _zoom_select_current_x = event->pos().x();
@@ -630,6 +677,13 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
+    if (_time_shift_dragging)
+    {
+      _time_shift_dragging = false;
+      _time_shift_start_offsets.clear();
+      setCursor(Qt::ArrowCursor);
+      return;
+    }
     if (_zoom_selecting)
     {
       _zoom_selecting = false;

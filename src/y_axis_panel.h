@@ -8,6 +8,8 @@
 #include <cmath>
 #include "plot_canvas.h"
 
+class OverlayManager;
+
 // Shared band-position helpers used by all column widgets.
 namespace AxisLayout
 {
@@ -288,7 +290,7 @@ class YAxisPanel : public QWidget
 public:
   explicit YAxisPanel(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
-  void updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time);
+  void updateCursorValues(OverlayManager* overlay_mgr, double cursor_time);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
   void setScrollOffset(double offset);
