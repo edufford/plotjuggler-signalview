@@ -108,7 +108,17 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   _main_splitter->setSizes({ 173, 700 });
   _main_splitter->setHandleWidth(4);
 
-  main_layout->addWidget(_main_splitter, 1);
+  _scrollbar = new QScrollBar(Qt::Vertical, this);
+  _scrollbar->setRange(0, 0);
+  _scrollbar->setPageStep(1000);
+  _scrollbar->setSingleStep(50);  // matches 0.05 wheel scroll delta
+
+  auto* content_layout = new QHBoxLayout();
+  content_layout->setSpacing(0);
+  content_layout->setContentsMargins(0, 0, 0, 0);
+  content_layout->addWidget(_main_splitter, 1);
+  content_layout->addWidget(_scrollbar);
+  main_layout->addLayout(content_layout, 1);
 
   // Connections
   connect(btn_add, &QPushButton::clicked, this, [this]() { onAddSignal(); });
@@ -143,9 +153,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(_y_axis_panel, &YAxisPanel::verticalScrollRequested,
           this, &SignalViewWidget::onVerticalScroll);
 
+  // Scrollbar
+  connect(_scrollbar, &QScrollBar::valueChanged, this, [this](int value) {
+    _scroll_offset = value / 1000.0;
+    _canvas->setScrollOffset(_scroll_offset);
+    _y_axis_panel->setScrollOffset(_scroll_offset);
+  });
+
   auto* delete_shortcut = new QShortcut(Qt::Key_Delete, this);
   delete_shortcut->setContext(Qt::WindowShortcut);
   connect(delete_shortcut, &QShortcut::activated, this, &SignalViewWidget::onDeleteSelected);
+
+  updateScrollBar();
 }
 
 void SignalViewWidget::onAddSignal(double band_center)
@@ -373,6 +392,7 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
 
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
+  updateScrollBar();
 }
 
 void SignalViewWidget::onBandResized(int index, double new_center, double new_height)
@@ -429,6 +449,7 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
 
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
+  updateScrollBar();
 }
 
 void SignalViewWidget::onBarXChanged(int index, double new_bar_x)
@@ -514,6 +535,27 @@ void SignalViewWidget::refreshViews()
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
   _y_axis_panel->updateCursorValues(_data, _canvas->cursorTime());
+  updateScrollBar();
+}
+
+void SignalViewWidget::updateScrollBar()
+{
+  // Find the maximum bottom extent of all signals in normalized coordinates
+  double max_bottom = 1.0;
+  for (const auto& sig : _signals)
+  {
+    double bottom = sig.band_center + sig.band_height * 0.5;
+    if (bottom > max_bottom)
+      max_bottom = bottom;
+  }
+  // Ensure at least 2 screens worth of scrollable space
+  double max_extent = std::max(max_bottom, 2.0);
+  // Scrollable range: from 0 to (max_extent - 1.0), scaled by 1000
+  int range = std::max(0, (int)((max_extent - 1.0) * 1000));
+  _scrollbar->blockSignals(true);
+  _scrollbar->setRange(0, range);
+  _scrollbar->setValue((int)(_scroll_offset * 1000));
+  _scrollbar->blockSignals(false);
 }
 
 void SignalViewWidget::onEditYRange(int clicked_index)
@@ -776,4 +818,7 @@ void SignalViewWidget::onVerticalScroll(double delta)
   _scroll_offset = std::max(0.0, _scroll_offset + delta);
   _canvas->setScrollOffset(_scroll_offset);
   _y_axis_panel->setScrollOffset(_scroll_offset);
+  _scrollbar->blockSignals(true);
+  _scrollbar->setValue((int)(_scroll_offset * 1000));
+  _scrollbar->blockSignals(false);
 }

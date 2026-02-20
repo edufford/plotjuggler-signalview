@@ -34,10 +34,21 @@ TOOLBAR
 - Version label: displays "Signal View vX.Y.Z" in the toolbar for identification.
 
 
-LAYOUT: THREE-COLUMN Y-AXIS PANEL + PLOT CANVAS
-------------------------------------------------
-The widget is split into a Y-axis panel (left) and a plot canvas (right),
-joined by a QSplitter so the boundary is horizontally resizable.
+LAYOUT: THREE-COLUMN Y-AXIS PANEL + PLOT CANVAS + SCROLLBAR
+------------------------------------------------------------
+The widget is split into a Y-axis panel (left), a plot canvas (middle),
+and a vertical scrollbar (right). The panel and canvas are joined by a
+QSplitter so the boundary is horizontally resizable. The scrollbar is
+placed to the right of the splitter.
+
+The scrollbar reflects the current vertical scroll position and allows
+dragging to scroll. It is synchronized bidirectionally with the scroll
+wheel: wheel scrolling updates the scrollbar, and dragging the scrollbar
+updates the view. The scrollbar always provides at least 2 screens worth
+of scrollable space (range extends to normalized position 2.0 minimum),
+so there is usable space below even when no signals extend past the
+initial viewport. If signals extend beyond that, the range grows to
+accommodate them.
 
 The Y-axis panel itself contains three columns joined by nested QSplitters:
 

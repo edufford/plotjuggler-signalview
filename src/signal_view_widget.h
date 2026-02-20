@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QComboBox>
+#include <QScrollBar>
 #include <QSplitter>
 #include <vector>
 #include <map>
@@ -53,6 +54,7 @@ private:
   double snapValue(double val) const;
   void refreshViews();
   void autoAssignBands();
+  void updateScrollBar();
 
   PJ::PlotDataMapRef* _data;
   std::vector<SignalEntry> _signals;
@@ -63,6 +65,7 @@ private:
   YAxisPanel* _y_axis_panel;
   QSplitter* _main_splitter;
   QComboBox* _snap_combo;
+  QScrollBar* _scrollbar;
 
   // Multi-drag state: original positions captured at drag start
   int _multi_drag_index = -1;
