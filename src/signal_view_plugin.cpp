@@ -76,6 +76,28 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   settings_elem.setAttribute("snap", _widget->snapAmount());
   parent_element.appendChild(settings_elem);
 
+  // Splitter sizes: main (panel|canvas), panel (label|bar), label (name|value)
+  QDomElement layout_elem = doc.createElement("layout");
+  auto main_sizes = _widget->mainSplitter()->sizes();
+  if (main_sizes.size() == 2)
+  {
+    layout_elem.setAttribute("panel_w", main_sizes[0]);
+    layout_elem.setAttribute("canvas_w", main_sizes[1]);
+  }
+  auto panel_sizes = _widget->yAxisPanel()->splitterSizes();
+  if (panel_sizes.size() == 2)
+  {
+    layout_elem.setAttribute("label_w", panel_sizes[0]);
+    layout_elem.setAttribute("bar_w", panel_sizes[1]);
+  }
+  auto label_sizes = _widget->yAxisPanel()->labelSplitterSizes();
+  if (label_sizes.size() == 2)
+  {
+    layout_elem.setAttribute("name_w", label_sizes[0]);
+    layout_elem.setAttribute("value_w", label_sizes[1]);
+  }
+  parent_element.appendChild(layout_elem);
+
   return true;
 }
 
@@ -128,6 +150,24 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
   {
     double snap = settings_elem.attribute("snap", "0.01").toDouble();
     _widget->setSnapAmount(snap);
+  }
+
+  // Restore splitter sizes
+  QDomElement layout_elem = parent_element.firstChildElement("layout");
+  if (!layout_elem.isNull())
+  {
+    if (layout_elem.hasAttribute("panel_w") && layout_elem.hasAttribute("canvas_w"))
+      _widget->mainSplitter()->setSizes(
+          { layout_elem.attribute("panel_w").toInt(),
+            layout_elem.attribute("canvas_w").toInt() });
+    if (layout_elem.hasAttribute("label_w") && layout_elem.hasAttribute("bar_w"))
+      _widget->yAxisPanel()->setSplitterSizes(
+          { layout_elem.attribute("label_w").toInt(),
+            layout_elem.attribute("bar_w").toInt() });
+    if (layout_elem.hasAttribute("name_w") && layout_elem.hasAttribute("value_w"))
+      _widget->yAxisPanel()->setLabelSplitterSizes(
+          { layout_elem.attribute("name_w").toInt(),
+            layout_elem.attribute("value_w").toInt() });
   }
 
   if (_plot_data)

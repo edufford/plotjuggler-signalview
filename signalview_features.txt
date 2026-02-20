@@ -268,6 +268,8 @@ Saved state includes:
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.
+  - Column widths: main splitter (panel|canvas), panel splitter (label|bar),
+    label splitter (name|value).
 
 On layout load:
   - Signals are restored without checking data existence (data is loaded

@@ -185,6 +185,9 @@ public:
   static constexpr int kDefaultWidth = SignalNameColumn::kDefaultWidth +
                                        SignalValueColumn::kDefaultWidth + 3;
 
+  QList<int> splitterSizes() const { return _splitter->sizes(); }
+  void setSplitterSizes(const QList<int>& sizes) { _splitter->setSizes(sizes); }
+
 signals:
   void bandOffsetChanged(int index, double new_center);
   void editYRangeRequested(int index);
@@ -271,6 +274,12 @@ public:
   void setSnapAmount(double snap);
   const std::set<int>& selection() const;
   void clearSelection();
+
+  // Splitter size accessors for layout save/restore
+  QList<int> splitterSizes() const { return _splitter->sizes(); }
+  void setSplitterSizes(const QList<int>& sizes) { _splitter->setSizes(sizes); }
+  QList<int> labelSplitterSizes() const { return _label_col->splitterSizes(); }
+  void setLabelSplitterSizes(const QList<int>& sizes) { _label_col->setSplitterSizes(sizes); }
 
 signals:
   void yRangeChanged(int index, double y_min, double y_max);

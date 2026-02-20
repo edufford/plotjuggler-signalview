@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QComboBox>
+#include <QSplitter>
 #include <vector>
 #include <map>
 #include "plot_canvas.h"
@@ -17,6 +18,7 @@ public:
 
   PlotCanvas* canvas() { return _canvas; }
   YAxisPanel* yAxisPanel() { return _y_axis_panel; }
+  QSplitter* mainSplitter() { return _main_splitter; }
 
   const std::vector<SignalEntry>& signalEntries() const { return _signals; }
 
@@ -55,6 +57,7 @@ private:
 
   PlotCanvas* _canvas;
   YAxisPanel* _y_axis_panel;
+  QSplitter* _main_splitter;
   QComboBox* _snap_combo;
 
   // Multi-drag state: original band_centers captured at drag start

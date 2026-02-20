@@ -87,16 +87,16 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   _canvas = new PlotCanvas(nullptr);
   _canvas->setDataSource(_data);
 
-  auto* splitter = new QSplitter(Qt::Horizontal, this);
-  splitter->setChildrenCollapsible(false);
-  splitter->addWidget(_y_axis_panel);
-  splitter->addWidget(_canvas);
-  splitter->setStretchFactor(0, 0);  // panel: don't stretch
-  splitter->setStretchFactor(1, 1);  // canvas: stretch
-  splitter->setSizes({ 173, 700 });
-  splitter->setHandleWidth(4);
+  _main_splitter = new QSplitter(Qt::Horizontal, this);
+  _main_splitter->setChildrenCollapsible(false);
+  _main_splitter->addWidget(_y_axis_panel);
+  _main_splitter->addWidget(_canvas);
+  _main_splitter->setStretchFactor(0, 0);  // panel: don't stretch
+  _main_splitter->setStretchFactor(1, 1);  // canvas: stretch
+  _main_splitter->setSizes({ 173, 700 });
+  _main_splitter->setHandleWidth(4);
 
-  main_layout->addWidget(splitter, 1);
+  main_layout->addWidget(_main_splitter, 1);
 
   // Connections
   connect(btn_add, &QPushButton::clicked, this, &SignalViewWidget::onAddSignal);
