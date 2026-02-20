@@ -78,11 +78,16 @@ void PlotCanvas::setDataSource(PJ::PlotDataMapRef* data)
 void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries)
 {
   _signals = entries;
+  _cursor_needs_data = true;
   if (_auto_fit)
   {
     autoFitTimeRange();
+    // Snap cursor into data range if it's currently outside
+    if (_cursor_time < _view_t_min || _cursor_time > _view_t_max)
+      _cursor_time = _view_t_min;
   }
   update();
+  emit cursorMoved(_cursor_time);
 }
 
 void PlotCanvas::setCursorTime(double t)
@@ -389,6 +394,16 @@ void PlotCanvas::drawCursor(QPainter& painter)
   painter.setBrush(QColor(255, 255, 100, 200));
   painter.setPen(Qt::NoPen);
   painter.drawPath(handle);
+
+  // Time label next to the triangle
+  painter.setPen(QColor(255, 255, 100, 200));
+  painter.setFont(QFont("monospace", 8));
+  QString time_str = QString::number(_cursor_time, 'g', 6);
+  QRectF text_rect(x + 7, kMarginTop - 2, 80, 14);
+  // Flip to the left side if too close to the right edge
+  if (x + 7 + 80 > width() - kMarginRight)
+    text_rect = QRectF(x - 87, kMarginTop - 2, 80, 14);
+  painter.drawText(text_rect, (text_rect.left() < x ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, time_str);
 }
 
 void PlotCanvas::paintEvent(QPaintEvent* /*event*/)
@@ -413,6 +428,29 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/)
   painter.restore();
 
   drawTimeAxis(painter);
+
+  // Detect when signal data first becomes available (e.g. after layout
+  // restore where data loads after the plugin state is restored).
+  if (_cursor_needs_data && _data && !_signals.empty())
+  {
+    for (const auto& sig : _signals)
+    {
+      auto it = _data->numeric.find(sig.name);
+      if (it != _data->numeric.end() && it->second.size() > 0)
+      {
+        _cursor_needs_data = false;
+        if (_auto_fit)
+        {
+          autoFitTimeRange();
+          if (_cursor_time < _view_t_min || _cursor_time > _view_t_max)
+            _cursor_time = _view_t_min;
+        }
+        emit cursorMoved(_cursor_time);
+        update();
+        break;
+      }
+    }
+  }
 }
 
 // --- Mouse interaction ---

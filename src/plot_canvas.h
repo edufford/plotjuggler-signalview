@@ -82,6 +82,7 @@ private:
   // Cursor
   double _cursor_time = 0.0;
   bool _cursor_dragging = false;
+  bool _cursor_needs_data = false;  // set when signals change, cleared when data found
 
   // Pan state
   bool _panning = false;

@@ -52,6 +52,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_remove = new QPushButton("Remove Signal", this);
   auto* btn_group = new QPushButton("Group", this);
   auto* btn_reset = new QPushButton("Reset Zoom", this);
+  auto* btn_reset_cursor = new QPushButton("Reset Cursor", this);
   auto* btn_close = new QPushButton("Close", this);
 
   auto* snap_label = new QLabel("Snap:", this);
@@ -77,6 +78,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_group);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
+  toolbar->addWidget(btn_reset_cursor);
   toolbar->addSeparator();
   toolbar->addWidget(snap_label);
   toolbar->addWidget(_snap_combo);
@@ -106,6 +108,10 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
   connect(btn_group, &QPushButton::clicked, this, &SignalViewWidget::onGroupSignals);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
+  connect(btn_reset_cursor, &QPushButton::clicked, this, [this]() {
+    _canvas->setCursorTime(_canvas->viewMinTime());
+    onCursorMoved(_canvas->viewMinTime());
+  });
   connect(btn_close, &QPushButton::clicked, this, &SignalViewWidget::closeRequested);
   connect(_snap_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &SignalViewWidget::onSnapComboChanged);
