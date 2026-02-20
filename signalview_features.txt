@@ -3,7 +3,7 @@ Signal View Plugin - Feature Behavior Reference
 
 Plugin type: PJ::ToolboxPlugin (FLOATING)
 Accessed via: PlotJuggler > Tools > Signal View
-Version: 0.7.0
+Version: 0.8.0
 
 
 TOOLBAR

@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <cmath>
 
-static constexpr const char* kPluginVersion = "0.7.0";
+static constexpr const char* kPluginVersion = "0.8.0";
 
 const std::vector<QColor>& SignalViewWidget::signalColors()
 {
