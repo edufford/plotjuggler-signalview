@@ -868,9 +868,10 @@ YAxisPanel::YAxisPanel(QWidget* parent)
   connect(_bar_col, &YAxisBarColumn::dragIndexChanged,
           _label_col, &YAxisLabelColumn::setDragIndex);
 
-  // Propagate selection from bar column to label columns
+  // Propagate selection from bar column to label columns and parent
   connect(_bar_col, &YAxisBarColumn::selectionChanged, this, [this]() {
     _label_col->setSelection(_bar_col->selection());
+    emit selectionChanged();
   });
 
   // Handle click-select from label columns

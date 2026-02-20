@@ -288,6 +288,7 @@ signals:
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
   void editYRangeRequested(int clicked_index);
+  void selectionChanged();
 
 private:
   QSplitter* _splitter;

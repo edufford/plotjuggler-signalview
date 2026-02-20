@@ -49,6 +49,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   auto* btn_add = new QPushButton("Add Signal", this);
   auto* btn_remove = new QPushButton("Remove Signal", this);
+  auto* btn_group = new QPushButton("Group", this);
   auto* btn_reset = new QPushButton("Reset Zoom", this);
   auto* btn_close = new QPushButton("Close", this);
 
@@ -72,6 +73,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addSeparator();
   toolbar->addWidget(btn_add);
   toolbar->addWidget(btn_remove);
+  toolbar->addWidget(btn_group);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
   toolbar->addSeparator();
@@ -101,6 +103,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   // Connections
   connect(btn_add, &QPushButton::clicked, this, &SignalViewWidget::onAddSignal);
   connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
+  connect(btn_group, &QPushButton::clicked, this, &SignalViewWidget::onGroupSignals);
   connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
   connect(btn_close, &QPushButton::clicked, this, &SignalViewWidget::closeRequested);
   connect(_snap_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -566,6 +569,39 @@ void SignalViewWidget::onEditYRange(int clicked_index)
       _signals[sig_idx].y_min = new_min;
       _signals[sig_idx].y_max = new_max;
     }
+  }
+  refreshViews();
+}
+
+void SignalViewWidget::onGroupSignals()
+{
+  const auto& sel = _y_axis_panel->selection();
+  if (sel.size() < 2)
+    return;
+
+  // Find the topmost selected signal (lowest band_top = band_center - band_height/2)
+  int topmost = -1;
+  double topmost_top = 2.0;  // above any valid position
+  for (int i : sel)
+  {
+    double top = _signals[i].band_center - _signals[i].band_height * 0.5;
+    if (top < topmost_top)
+    {
+      topmost_top = top;
+      topmost = i;
+    }
+  }
+
+  // Copy the topmost signal's band position, height, and Y range to all selected
+  for (int i : sel)
+  {
+    if (i == topmost)
+      continue;
+    _signals[i].band_center = _signals[topmost].band_center;
+    _signals[i].band_height = _signals[topmost].band_height;
+    _signals[i].y_min = _signals[topmost].y_min;
+    _signals[i].y_max = _signals[topmost].y_max;
+    _signals[i].bar_x = _signals[topmost].bar_x;
   }
   refreshViews();
 }
