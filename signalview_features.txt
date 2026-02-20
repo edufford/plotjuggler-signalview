@@ -262,6 +262,9 @@ are currently selected).
 
 Columns:
   - Signal: read-only name in the signal's color.
+  - Color: clickable color swatch button. Opens a QColorDialog to pick a new
+    color. When multiple rows are selected, changing one row's color applies
+    to all selected rows. The signal name text color updates to match.
   - Y Min: editable numeric text field (validated as double, 6 significant digits).
   - Y Max: editable numeric text field (validated as double, 6 significant digits).
   - Divisions: editable integer field (validated 0–32, default 8).

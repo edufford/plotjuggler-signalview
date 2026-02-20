@@ -17,6 +17,7 @@
 #include <QIntValidator>
 #include <QHeaderView>
 #include <QShortcut>
+#include <QColorDialog>
 #include <algorithm>
 #include <cmath>
 
@@ -577,10 +578,11 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   dlg.setWindowTitle("Edit Y Range");
   auto* layout = new QVBoxLayout(&dlg);
 
-  auto* table = new QTableWidget((int)row_to_idx.size(), 4, &dlg);
-  table->setHorizontalHeaderLabels({"Signal", "Y Min", "Y Max", "Divisions"});
+  auto* table = new QTableWidget((int)row_to_idx.size(), 5, &dlg);
+  table->setHorizontalHeaderLabels({"Signal", "Color", "Y Min", "Y Max", "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+  table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table->verticalHeader()->setVisible(false);
@@ -594,7 +596,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     using QItemSelectionModel::QItemSelectionModel;
     void select(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 3)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 4)
       {
         if (isRowSelected(index.row(), index.parent()))
           return;  // row already selected — preserve multi-selection
@@ -610,7 +612,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     }
     void setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 3)
+      if (index.isValid() && index.column() >= 1 && index.column() <= 4)
       {
         if (isRowSelected(index.row(), index.parent()))
         {
@@ -626,8 +628,16 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   };
   table->setSelectionModel(new ColumnGuardSelectionModel(table->model(), table));
 
-  // Store line edit pointers for reading results
+  // Store widget pointers for reading results
   std::vector<QLineEdit*> min_edits, max_edits, div_edits;
+  std::vector<QPushButton*> color_btns;
+  std::vector<QColor> colors;
+
+  auto setColorBtnStyle = [](QPushButton* btn, const QColor& c) {
+    btn->setStyleSheet(
+        QString("background-color: %1; border: 1px solid #888; min-width: 28px; max-width: 28px;")
+            .arg(c.name()));
+  };
 
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
@@ -640,25 +650,32 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     name_item->setForeground(sig.color);
     table->setItem(row, 0, name_item);
 
+    // Color button
+    colors.push_back(sig.color);
+    auto* color_btn = new QPushButton(&dlg);
+    setColorBtnStyle(color_btn, sig.color);
+    table->setCellWidget(row, 1, color_btn);
+    color_btns.push_back(color_btn);
+
     // Y Min line edit
     auto* min_edit = new QLineEdit(&dlg);
     min_edit->setValidator(new QDoubleValidator(&dlg));
     min_edit->setText(QString::number(sig.y_min, 'g', 6));
-    table->setCellWidget(row, 1, min_edit);
+    table->setCellWidget(row, 2, min_edit);
     min_edits.push_back(min_edit);
 
     // Y Max line edit
     auto* max_edit = new QLineEdit(&dlg);
     max_edit->setValidator(new QDoubleValidator(&dlg));
     max_edit->setText(QString::number(sig.y_max, 'g', 6));
-    table->setCellWidget(row, 2, max_edit);
+    table->setCellWidget(row, 3, max_edit);
     max_edits.push_back(max_edit);
 
     // Divisions line edit (0 = auto)
     auto* div_edit = new QLineEdit(&dlg);
     div_edit->setValidator(new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
     div_edit->setText(QString::number(sig.divisions));
-    table->setCellWidget(row, 3, div_edit);
+    table->setCellWidget(row, 4, div_edit);
     div_edits.push_back(div_edit);
   }
 
@@ -667,8 +684,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   // When a line edit value changes, apply to all selected rows in the same column
   auto editForCol = [&](int row, int col) -> QLineEdit* {
-    if (col == 1) return min_edits[row];
-    if (col == 2) return max_edits[row];
+    if (col == 2) return min_edits[row];
+    if (col == 3) return max_edits[row];
     return div_edits[row];
   };
   auto propagate = [&](int source_row, int col) {
@@ -689,11 +706,39 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
     connect(min_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagate, row]() { propagate(row, 1); });
-    connect(max_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagate, row]() { propagate(row, 2); });
-    connect(div_edits[row], &QLineEdit::textEdited,
+    connect(max_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagate, row]() { propagate(row, 3); });
+    connect(div_edits[row], &QLineEdit::textEdited,
+            &dlg, [&propagate, row]() { propagate(row, 4); });
+
+    // Color button: open picker and propagate to selected rows
+    connect(color_btns[row], &QPushButton::clicked, &dlg, [&, row]() {
+      QColor chosen = QColorDialog::getColor(colors[row], &dlg, "Signal Color");
+      if (!chosen.isValid())
+        return;
+      auto selected_rows = table->selectionModel()->selectedRows();
+      // If clicked row is selected, apply to all selected rows; otherwise just this row
+      bool row_is_selected = false;
+      for (const auto& mi : selected_rows)
+        if (mi.row() == row) { row_is_selected = true; break; }
+      if (row_is_selected && selected_rows.size() > 1)
+      {
+        for (const auto& mi : selected_rows)
+        {
+          int r = mi.row();
+          colors[r] = chosen;
+          setColorBtnStyle(color_btns[r], chosen);
+          table->item(r, 0)->setForeground(chosen);
+        }
+      }
+      else
+      {
+        colors[row] = chosen;
+        setColorBtnStyle(color_btns[row], chosen);
+        table->item(row, 0)->setForeground(chosen);
+      }
+    });
   }
 
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -702,7 +747,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   layout->addWidget(table);
   layout->addWidget(buttons);
-  dlg.resize(480, 50 + 30 * (int)row_to_idx.size() + 60);
+  dlg.resize(540, 50 + 30 * (int)row_to_idx.size() + 60);
 
   if (dlg.exec() != QDialog::Accepted)
     return;
@@ -711,6 +756,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
     int sig_idx = row_to_idx[row];
+    _signals[sig_idx].color = colors[row];
     bool ok_min = false, ok_max = false;
     double new_min = min_edits[row]->text().toDouble(&ok_min);
     double new_max = max_edits[row]->text().toDouble(&ok_max);
