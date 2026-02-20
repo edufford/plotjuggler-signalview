@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QSplitter>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <cmath>
 #include "plot_canvas.h"
@@ -82,29 +83,40 @@ public:
   explicit SignalNameColumn(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setDragIndex(int idx);
+  void setSelection(const std::set<int>& sel);
 
   static constexpr int kDefaultWidth = 70;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
   void dragIndexChanged(int index);
+  void editYRangeRequested(int index);
+  void clickSelect(int index, bool toggle);
+  void boxSelect(double y_top, double y_bottom, bool add);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
   void mousePressEvent(QMouseEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
+  void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
   int effectiveDragIndex() const;
   int hitTestSignal(const QPoint& pos) const;
   static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
+  std::set<int> _selected;
   int _drag_index = -1;
   int _external_drag_index = -1;
   bool _drag_moved = false;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
+  // Rubber band selection
+  bool _rubber_band_active = false;
+  bool _rubber_band_ctrl = false;
+  QPoint _rubber_band_origin;
+  QPoint _rubber_band_current;
 };
 
 // Signal value column: cursor readout values, vertically aligned with names.
@@ -117,24 +129,30 @@ public:
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
   void setDragIndex(int idx);
+  void setSelection(const std::set<int>& sel);
 
   static constexpr int kDefaultWidth = 70;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
   void dragIndexChanged(int index);
+  void editYRangeRequested(int index);
+  void clickSelect(int index, bool toggle);
+  void boxSelect(double y_top, double y_bottom, bool add);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
   void mousePressEvent(QMouseEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
+  void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
   int effectiveDragIndex() const;
   int hitTestSignal(const QPoint& pos) const;
   static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
+  std::set<int> _selected;
   std::vector<double> _cursor_values;
   std::vector<bool> _cursor_valid;
   int _drag_index = -1;
@@ -142,6 +160,11 @@ private:
   bool _drag_moved = false;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
+  // Rubber band selection
+  bool _rubber_band_active = false;
+  bool _rubber_band_ctrl = false;
+  QPoint _rubber_band_origin;
+  QPoint _rubber_band_current;
 };
 
 // Container: name column | value column in a splitter.
@@ -155,12 +178,16 @@ public:
   void setCursorValues(const std::vector<double>& values, const std::vector<bool>& valid);
   void setCanvasHeight(int h);
   void setDragIndex(int idx);
+  void setSelection(const std::set<int>& sel);
 
   static constexpr int kDefaultWidth = SignalNameColumn::kDefaultWidth +
                                        SignalValueColumn::kDefaultWidth + 3;
 
 signals:
   void bandOffsetChanged(int index, double new_center);
+  void editYRangeRequested(int index);
+  void clickSelect(int index, bool toggle);
+  void boxSelect(double y_top, double y_bottom, bool add);
 
 private:
   QSplitter* _splitter;
@@ -178,6 +205,9 @@ public:
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
+  const std::set<int>& selection() const { return _selected; }
+  void setSelection(const std::set<int>& sel);
+  void clearSelection();
 
   static constexpr int kDefaultWidth = 60;
 
@@ -188,6 +218,8 @@ signals:
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
   void dragIndexChanged(int index);
+  void selectionChanged();
+  void editYRangeRequested(int clicked_index);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -204,6 +236,7 @@ private:
   double axisX(double bar_x) const;
 
   std::vector<SignalEntry> _signals;
+  std::set<int> _selected;
   HitResult _drag_hit;
   bool _drag_moved = false;
   double _snap_amount = 0.01;
@@ -212,6 +245,11 @@ private:
   double _drag_start_bar_x = 1.0;
   double _drag_start_band_center = 0.0;
   double _drag_start_band_height = 0.0;
+  // Rubber band selection
+  bool _rubber_band_active = false;
+  bool _rubber_band_ctrl = false;
+  QPoint _rubber_band_origin;
+  QPoint _rubber_band_current;
 
   static constexpr int kEdgeGrabPixels = 8;
   static constexpr int kAxisPadLeft = 4;
@@ -229,6 +267,8 @@ public:
   void updateCursorValues(PJ::PlotDataMapRef* data, double cursor_time);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
+  const std::set<int>& selection() const;
+  void clearSelection();
 
 signals:
   void yRangeChanged(int index, double y_min, double y_max);
@@ -236,6 +276,7 @@ signals:
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
+  void editYRangeRequested(int clicked_index);
 
 private:
   QSplitter* _splitter;

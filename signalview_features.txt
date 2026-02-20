@@ -3,7 +3,7 @@ Signal View Plugin - Feature Behavior Reference
 
 Plugin type: PJ::ToolboxPlugin (FLOATING)
 Accessed via: PlotJuggler > Tools > Signal View
-Version: 0.5.0
+Version: 0.6.0
 
 
 TOOLBAR
@@ -115,25 +115,46 @@ Auto-fit:
   - Re-enabled by clicking "Reset Zoom".
 
 
+SIGNAL SELECTION
+----------------
+Signals can be selected in any Y-axis panel column:
+  - Click on a signal (name, value, or bar body): selects that signal.
+    If the signal is already selected, the selection is preserved
+    (enabling double-click without losing multi-selection).
+  - Ctrl+click: toggles the signal in/out of the selection.
+  - Click on empty area: clears the selection.
+  - Click + drag on empty area: rubber band selection. All signals whose
+    bands overlap the rubber band's vertical extent are selected on
+    release. Ctrl+drag adds to the existing selection.
+  - Selected signals get a subtle white highlight in the name and value columns.
+
+
 MOUSE INTERACTION: SIGNAL NAME COLUMN
 --------------------------------------
 - Click area: only the 15px text row at the top of each band (not the
   full band height).
-- Left click + drag: repositions the signal's band vertically.
+- Left click (no drag): selects the signal (see SIGNAL SELECTION above).
+- Left click + drag on signal: repositions the signal's band vertically.
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Clamped to [0, 1] normalized range.
   - Drag index is propagated to the value column so stacking stays
     consistent across all columns during the drag.
+- Left click + drag on empty area: rubber band selection.
+- Double click: opens the Y-range table dialog for the clicked signal
+  (plus any selected signals).
 
 
 MOUSE INTERACTION: SIGNAL VALUE COLUMN
 ---------------------------------------
 - Click area: only the 15px text row at the top of each band (not the
   full band height).
-- Left click + drag: repositions the signal's band vertically (same
-  behavior as the name column).
+- Left click (no drag): selects the signal (see SIGNAL SELECTION above).
+- Left click + drag on signal: repositions the signal's band vertically
+  (same behavior as the name column).
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Drag index is propagated to the name column.
+- Left click + drag on empty area: rubber band selection.
+- Double click: opens the Y-range table dialog (same as name column).
 
 
 MOUSE INTERACTION: Y-AXIS BAR COLUMN
@@ -141,12 +162,16 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
 - Click area: full vertical height of the band, plus 8px grab zones
   beyond the top and bottom edges.
 
+- Left click on BODY: selects the signal (see SIGNAL SELECTION above).
+
 - Left click + drag on BODY: repositions the signal's band vertically
   and the bar horizontally (2D movement).
   - Shows SizeAllCursor on hover and while dragging.
   - Horizontal movement is clamped to [0, 1] normalized bar_x range.
   - Drag index is propagated to name and value columns so stacking
     stays consistent across all columns during the drag.
+
+- Left click + drag on empty area: rubber band selection.
 
 - Left click + drag on TOP EDGE: resizes the band by moving the top edge.
   - Y min/max values remain the same; only band_center and band_height change.
@@ -159,10 +184,33 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
 
 - Right click on a band: removes that signal immediately.
 
-- Double click on a band: opens input dialogs to manually set Y min and Y max.
+- Double click on a band: opens the Y-range table dialog.
 
 - Mouse wheel on a band: zooms the Y range in/out (0.8x / 1.25x factor),
   centered on the current Y midpoint.
+
+
+Y-RANGE TABLE DIALOG
+--------------------
+Opened by double-clicking any signal in the name, value, or bar column.
+Shows a table with one row per signal (the clicked signal plus any that
+are currently selected).
+
+Columns:
+  - Signal: read-only name in the signal's color.
+  - Y Min: editable numeric text field (validated as double, 6 significant digits).
+  - Y Max: editable numeric text field (validated as double, 6 significant digits).
+
+All rows are selected by default. When a Y Min or Y Max value is changed
+in any row, the new value is automatically applied to the same column of
+all other selected rows in the table, enabling batch editing. Rows can be
+deselected in the table for individual editing.
+
+Clicking into a text field preserves the row selection if that row is
+already selected. If the row is not selected, the selection is cleared
+and only that row becomes selected.
+
+OK applies changes; Cancel discards. Changes are only applied if Y Max > Y Min.
 
 
 MOUSE INTERACTION: PLOT CANVAS

@@ -4,7 +4,6 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <cmath>
 #include <algorithm>
 
@@ -31,6 +30,12 @@ void SignalNameColumn::setDragIndex(int idx)
   update();
 }
 
+void SignalNameColumn::setSelection(const std::set<int>& sel)
+{
+  _selected = sel;
+  update();
+}
+
 int SignalNameColumn::effectiveDragIndex() const
 {
   return _drag_index >= 0 ? _drag_index : _external_drag_index;
@@ -50,6 +55,10 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
     double top = AxisLayout::bandTopY(sig, height());
     double row_y = top + offsets[i];
 
+    // Selection highlight
+    if (_selected.count(i))
+      painter.fillRect(QRectF(0, row_y, width(), kTextRowHeight), QColor(255, 255, 255, 20));
+
     // Signal name
     painter.setPen(sig.color);
     QFont name_font("sans-serif", 10, QFont::Bold);
@@ -59,6 +68,15 @@ void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
     QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 8);
     painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
                      Qt::AlignLeft | Qt::AlignVCenter, elided);
+  }
+
+  // Rubber band overlay
+  if (_rubber_band_active)
+  {
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    painter.fillRect(rb, QColor(100, 150, 255, 30));
+    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
+    painter.drawRect(rb);
   }
 }
 
@@ -87,11 +105,27 @@ void SignalNameColumn::mousePressEvent(QMouseEvent* event)
       _drag_moved = false;
       setCursor(Qt::ClosedHandCursor);
     }
+    else
+    {
+      // Empty space: start rubber band
+      _rubber_band_active = true;
+      _rubber_band_ctrl = event->modifiers() & Qt::ControlModifier;
+      _rubber_band_origin = event->pos();
+      _rubber_band_current = event->pos();
+      setCursor(Qt::CrossCursor);
+    }
   }
 }
 
 void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
 {
+  if (_rubber_band_active)
+  {
+    _rubber_band_current = event->pos();
+    update();
+    return;
+  }
+
   if (_drag_index < 0)
   {
     int hit = hitTestSignal(event->pos());
@@ -115,13 +149,37 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
   emit bandOffsetChanged(_drag_index, new_center);
 }
 
-void SignalNameColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
+void SignalNameColumn::mouseReleaseEvent(QMouseEvent* event)
 {
-  // Only preserve drag index if an actual drag occurred (not just a click)
-  if (_drag_index >= 0 && _drag_moved)
-    _external_drag_index = _drag_index;
+  if (_rubber_band_active)
+  {
+    _rubber_band_active = false;
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    if (rb.height() > 3)
+      emit boxSelect(rb.top(), rb.bottom(), _rubber_band_ctrl);
+    else
+      emit clickSelect(-1, false);  // click on empty = clear
+    update();
+    setCursor(Qt::ArrowCursor);
+    return;
+  }
+
+  if (_drag_index >= 0)
+  {
+    if (_drag_moved)
+      _external_drag_index = _drag_index;
+    else
+      emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
+  }
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
+}
+
+void SignalNameColumn::mouseDoubleClickEvent(QMouseEvent* event)
+{
+  int idx = hitTestSignal(event->pos());
+  if (idx >= 0)
+    emit editYRangeRequested(idx);
 }
 
 // ============================================================================
@@ -157,6 +215,12 @@ void SignalValueColumn::setDragIndex(int idx)
   update();
 }
 
+void SignalValueColumn::setSelection(const std::set<int>& sel)
+{
+  _selected = sel;
+  update();
+}
+
 int SignalValueColumn::effectiveDragIndex() const
 {
   return _drag_index >= 0 ? _drag_index : _external_drag_index;
@@ -176,6 +240,10 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
     double top = AxisLayout::bandTopY(sig, height());
     double row_y = top + offsets[i];
 
+    // Selection highlight
+    if (_selected.count(i))
+      painter.fillRect(QRectF(0, row_y, width(), kTextRowHeight), QColor(255, 255, 255, 20));
+
     // Cursor readout value
     if (i < (int)_cursor_valid.size())
     {
@@ -190,6 +258,15 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
       painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
                        Qt::AlignLeft | Qt::AlignVCenter, value_str);
     }
+  }
+
+  // Rubber band overlay
+  if (_rubber_band_active)
+  {
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    painter.fillRect(rb, QColor(100, 150, 255, 30));
+    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
+    painter.drawRect(rb);
   }
 }
 
@@ -218,11 +295,27 @@ void SignalValueColumn::mousePressEvent(QMouseEvent* event)
       _drag_moved = false;
       setCursor(Qt::ClosedHandCursor);
     }
+    else
+    {
+      // Empty space: start rubber band
+      _rubber_band_active = true;
+      _rubber_band_ctrl = event->modifiers() & Qt::ControlModifier;
+      _rubber_band_origin = event->pos();
+      _rubber_band_current = event->pos();
+      setCursor(Qt::CrossCursor);
+    }
   }
 }
 
 void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
 {
+  if (_rubber_band_active)
+  {
+    _rubber_band_current = event->pos();
+    update();
+    return;
+  }
+
   if (_drag_index < 0)
   {
     int hit = hitTestSignal(event->pos());
@@ -246,13 +339,37 @@ void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
   emit bandOffsetChanged(_drag_index, new_center);
 }
 
-void SignalValueColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
+void SignalValueColumn::mouseReleaseEvent(QMouseEvent* event)
 {
-  // Only preserve drag index if an actual drag occurred (not just a click)
-  if (_drag_index >= 0 && _drag_moved)
-    _external_drag_index = _drag_index;
+  if (_rubber_band_active)
+  {
+    _rubber_band_active = false;
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    if (rb.height() > 3)
+      emit boxSelect(rb.top(), rb.bottom(), _rubber_band_ctrl);
+    else
+      emit clickSelect(-1, false);  // click on empty = clear
+    update();
+    setCursor(Qt::ArrowCursor);
+    return;
+  }
+
+  if (_drag_index >= 0)
+  {
+    if (_drag_moved)
+      _external_drag_index = _drag_index;
+    else
+      emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
+  }
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
+}
+
+void SignalValueColumn::mouseDoubleClickEvent(QMouseEvent* event)
+{
+  int idx = hitTestSignal(event->pos());
+  if (idx >= 0)
+    emit editYRangeRequested(idx);
 }
 
 // ============================================================================
@@ -292,6 +409,22 @@ YAxisLabelColumn::YAxisLabelColumn(QWidget* parent)
           _value_col, &SignalValueColumn::setDragIndex);
   connect(_value_col, &SignalValueColumn::dragIndexChanged,
           _name_col, &SignalNameColumn::setDragIndex);
+
+  // Forward editYRangeRequested from sub-columns
+  connect(_name_col, &SignalNameColumn::editYRangeRequested,
+          this, &YAxisLabelColumn::editYRangeRequested);
+  connect(_value_col, &SignalValueColumn::editYRangeRequested,
+          this, &YAxisLabelColumn::editYRangeRequested);
+
+  // Forward selection signals from sub-columns
+  connect(_name_col, &SignalNameColumn::clickSelect,
+          this, &YAxisLabelColumn::clickSelect);
+  connect(_value_col, &SignalValueColumn::clickSelect,
+          this, &YAxisLabelColumn::clickSelect);
+  connect(_name_col, &SignalNameColumn::boxSelect,
+          this, &YAxisLabelColumn::boxSelect);
+  connect(_value_col, &SignalValueColumn::boxSelect,
+          this, &YAxisLabelColumn::boxSelect);
 }
 
 void YAxisLabelColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
@@ -310,6 +443,12 @@ void YAxisLabelColumn::setDragIndex(int idx)
 {
   _name_col->setDragIndex(idx);
   _value_col->setDragIndex(idx);
+}
+
+void YAxisLabelColumn::setSelection(const std::set<int>& sel)
+{
+  _name_col->setSelection(sel);
+  _value_col->setSelection(sel);
 }
 
 void YAxisLabelColumn::setCanvasHeight(int /*h*/)
@@ -332,6 +471,28 @@ YAxisBarColumn::YAxisBarColumn(QWidget* parent)
 void YAxisBarColumn::setSignalEntries(const std::vector<SignalEntry>& entries)
 {
   _signals = entries;
+  // Prune selected indices that are now out of range
+  for (auto it = _selected.begin(); it != _selected.end(); )
+  {
+    if (*it >= (int)entries.size())
+      it = _selected.erase(it);
+    else
+      ++it;
+  }
+  update();
+}
+
+void YAxisBarColumn::setSelection(const std::set<int>& sel)
+{
+  _selected = sel;
+  emit selectionChanged();
+  update();
+}
+
+void YAxisBarColumn::clearSelection()
+{
+  _selected.clear();
+  emit selectionChanged();
   update();
 }
 
@@ -424,6 +585,15 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
       painter.drawText(text_rect, Qt::AlignRight | Qt::AlignVCenter, label);
     }
   }
+
+  // Rubber band overlay
+  if (_rubber_band_active)
+  {
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    painter.fillRect(rb, QColor(100, 150, 255, 30));
+    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
+    painter.drawRect(rb);
+  }
 }
 
 // --- Mouse interaction ---
@@ -434,7 +604,40 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event)
   {
     _drag_hit = hitTest(event->pos());
     if (_drag_hit.index < 0)
+    {
+      // Empty space: start rubber band
+      _rubber_band_active = true;
+      _rubber_band_ctrl = event->modifiers() & Qt::ControlModifier;
+      _rubber_band_origin = event->pos();
+      _rubber_band_current = event->pos();
+      setCursor(Qt::CrossCursor);
       return;
+    }
+
+    // Update selection on body clicks
+    if (_drag_hit.zone == BODY)
+    {
+      if (event->modifiers() & Qt::ControlModifier)
+      {
+        // Ctrl+click: toggle
+        if (_selected.count(_drag_hit.index))
+          _selected.erase(_drag_hit.index);
+        else
+          _selected.insert(_drag_hit.index);
+        emit selectionChanged();
+        update();
+      }
+      else if (!_selected.count(_drag_hit.index))
+      {
+        // Not already selected: clear and select this one
+        _selected.clear();
+        _selected.insert(_drag_hit.index);
+        emit selectionChanged();
+        update();
+      }
+      // If already selected without Ctrl: don't change (preserves multi-selection
+      // for double-click and drag)
+    }
 
     _drag_start_global_x = event->globalPos().x();
     _drag_start_global_y = event->globalPos().y();
@@ -459,6 +662,13 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event)
 
 void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
 {
+  if (_rubber_band_active)
+  {
+    _rubber_band_current = event->pos();
+    update();
+    return;
+  }
+
   if (_drag_hit.index < 0)
   {
     auto hit = hitTest(event->pos());
@@ -529,6 +739,37 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
 
 void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 {
+  if (_rubber_band_active)
+  {
+    _rubber_band_active = false;
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    if (rb.height() > 3)
+    {
+      // Select signals whose bands overlap with the rubber band Y range
+      std::set<int> new_sel;
+      if (_rubber_band_ctrl)
+        new_sel = _selected;  // Ctrl: add to existing
+      for (int i = 0; i < (int)_signals.size(); i++)
+      {
+        double top = AxisLayout::bandTopY(_signals[i], height());
+        double bottom = AxisLayout::bandBottomY(_signals[i], height());
+        if (bottom >= rb.top() && top <= rb.bottom())
+          new_sel.insert(i);
+      }
+      _selected = new_sel;
+    }
+    else
+    {
+      // Tiny rubber band = click on empty: clear selection
+      if (!_rubber_band_ctrl)
+        _selected.clear();
+    }
+    emit selectionChanged();
+    update();
+    setCursor(Qt::ArrowCursor);
+    return;
+  }
+
   _drag_hit = { -1, NONE };
   // Don't emit dragIndexChanged(-1) — preserve "last moved" for stacking
   setCursor(Qt::ArrowCursor);
@@ -537,27 +778,8 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
 void YAxisBarColumn::mouseDoubleClickEvent(QMouseEvent* event)
 {
   auto hit = hitTest(event->pos());
-  if (hit.index < 0)
-    return;
-
-  const auto& sig = _signals[hit.index];
-  bool ok;
-  double new_min = QInputDialog::getDouble(
-      this, "Y Min",
-      QString("Min for %1:").arg(QString::fromStdString(sig.name)),
-      sig.y_min, -1e15, 1e15, 6, &ok);
-  if (!ok)
-    return;
-
-  double new_max = QInputDialog::getDouble(
-      this, "Y Max",
-      QString("Max for %1:").arg(QString::fromStdString(sig.name)),
-      sig.y_max, -1e15, 1e15, 6, &ok);
-  if (!ok)
-    return;
-
-  if (new_max > new_min)
-    emit yRangeChanged(hit.index, new_min, new_max);
+  if (hit.index >= 0)
+    emit editYRangeRequested(hit.index);
 }
 
 void YAxisBarColumn::wheelEvent(QWheelEvent* event)
@@ -611,9 +833,61 @@ YAxisPanel::YAxisPanel(QWidget* parent)
   connect(_bar_col, &YAxisBarColumn::barXChanged, this, &YAxisPanel::barXChanged);
   connect(_bar_col, &YAxisBarColumn::removeSignalRequested, this, &YAxisPanel::removeSignalRequested);
 
+  // Forward editYRangeRequested from both bar and label columns
+  connect(_bar_col, &YAxisBarColumn::editYRangeRequested,
+          this, &YAxisPanel::editYRangeRequested);
+  connect(_label_col, &YAxisLabelColumn::editYRangeRequested,
+          this, &YAxisPanel::editYRangeRequested);
+
   // Propagate bar column drag index to label columns (name + value)
   connect(_bar_col, &YAxisBarColumn::dragIndexChanged,
           _label_col, &YAxisLabelColumn::setDragIndex);
+
+  // Propagate selection from bar column to label columns
+  connect(_bar_col, &YAxisBarColumn::selectionChanged, this, [this]() {
+    _label_col->setSelection(_bar_col->selection());
+  });
+
+  // Handle click-select from label columns
+  connect(_label_col, &YAxisLabelColumn::clickSelect, this, [this](int index, bool toggle) {
+    std::set<int> sel = _bar_col->selection();
+    if (index < 0)
+    {
+      if (!toggle)
+        sel.clear();
+    }
+    else if (toggle)
+    {
+      if (sel.count(index))
+        sel.erase(index);
+      else
+        sel.insert(index);
+    }
+    else if (!sel.count(index))
+    {
+      sel.clear();
+      sel.insert(index);
+    }
+    // If already selected without toggle: don't change (preserves for double-click)
+    _bar_col->setSelection(sel);
+  });
+
+  // Handle box-select from label columns
+  connect(_label_col, &YAxisLabelColumn::boxSelect, this,
+          [this](double y_top, double y_bottom, bool add) {
+    std::set<int> sel;
+    if (add)
+      sel = _bar_col->selection();
+    int h = _bar_col->height();
+    for (int i = 0; i < (int)_signals.size(); i++)
+    {
+      double top = AxisLayout::bandTopY(_signals[i], h);
+      double bottom = AxisLayout::bandBottomY(_signals[i], h);
+      if (bottom >= y_top && top <= y_bottom)
+        sel.insert(i);
+    }
+    _bar_col->setSelection(sel);
+  });
 }
 
 void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries)
@@ -657,4 +931,14 @@ void YAxisPanel::setCanvasHeight(int h)
 void YAxisPanel::setSnapAmount(double snap)
 {
   _bar_col->setSnapAmount(snap);
+}
+
+const std::set<int>& YAxisPanel::selection() const
+{
+  return _bar_col->selection();
+}
+
+void YAxisPanel::clearSelection()
+{
+  _bar_col->clearSelection();
 }

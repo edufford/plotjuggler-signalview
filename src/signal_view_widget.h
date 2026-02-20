@@ -41,6 +41,7 @@ private slots:
   void onRemoveSignalByIndex(int index);
   void onCanvasResized();
   void onSnapComboChanged(int combo_index);
+  void onEditYRange(int clicked_index);
 
 private:
   double snapValue(double val) const;
