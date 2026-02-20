@@ -256,22 +256,7 @@ void SignalViewWidget::onAddSignal(double band_center)
   auto all_signals = _overlay_mgr->allAvailableSignals();
   QStringList available;
   for (const auto& name : all_signals)
-  {
-    // Skip signals already added
-    bool already_added = false;
-    for (const auto& sig : _signals)
-    {
-      if (sig.name == name)
-      {
-        already_added = true;
-        break;
-      }
-    }
-    if (!already_added)
-    {
-      available.append(QString::fromStdString(name));
-    }
-  }
+    available.append(QString::fromStdString(name));
 
   if (available.isEmpty())
     return;
