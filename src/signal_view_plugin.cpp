@@ -60,6 +60,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
     sig_elem.setAttribute("band_center", sig.band_center);
     sig_elem.setAttribute("band_height", sig.band_height);
     sig_elem.setAttribute("bar_x", sig.bar_x);
+    sig_elem.setAttribute("divisions", sig.divisions);
     parent_element.appendChild(sig_elem);
   }
 
@@ -120,6 +121,7 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     entry.band_center = sig_elem.attribute("band_center", "0.5").toDouble();
     entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
     entry.bar_x = sig_elem.attribute("bar_x", "1.0").toDouble();
+    entry.divisions = sig_elem.attribute("divisions", "8").toInt();
 
     // Don't check data existence here — data is loaded after plugins
     sig_entries.push_back(entry);

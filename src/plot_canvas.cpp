@@ -142,7 +142,7 @@ void PlotCanvas::drawGrid(QPainter& painter)
       continue;
 
     // Same tick count as the Y-axis bar column
-    int n_ticks = std::max(2, (int)(band_h / 35));
+    int n_ticks = (sig.divisions > 0) ? sig.divisions : std::clamp((int)(band_h / SignalEntry::kPixelsPerAutoTick), 2, SignalEntry::kMaxDivisions);
 
     painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
 

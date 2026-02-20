@@ -62,7 +62,8 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
        - A vertical axis line in the signal's color.
        - Horizontal grab handles at the top and bottom edges.
        - Tick marks and numeric value labels along the axis.
-       - Number of ticks auto-scales based on band height (min 2, ~1 per 35px).
+       - Number of ticks: uses the signal's divisions setting (default 8).
+         Setting divisions to 0 auto-scales based on band height (min 2, ~1 per 35px).
      - Background is transparent (no per-band fill).
      - Each bar has a horizontal position (bar_x) within the column.
        Bars default to the right edge (bar_x=1.0) and can be dragged
@@ -79,6 +80,7 @@ Bands are defined by:
   - band_center: normalized position [0,1] where 0=top, 1=bottom.
   - band_height: fraction of the plot area height.
   - bar_x: horizontal position of the Y-axis bar [0=left, 1=right], default 1.0.
+  - divisions: number of Y-axis tick divisions, default 8. 0 = auto-scale.
 
 When signals are added or removed, bands are auto-assigned:
   - 1 signal: centered at 0.5 with full height.
@@ -213,10 +215,13 @@ Columns:
   - Signal: read-only name in the signal's color.
   - Y Min: editable numeric text field (validated as double, 6 significant digits).
   - Y Max: editable numeric text field (validated as double, 6 significant digits).
+  - Divisions: editable integer field (validated 0–32, default 8).
+    0 means auto-scale based on band height. Values > 0 set a fixed number
+    of Y-axis tick divisions.
 
-All rows are selected by default. When a Y Min or Y Max value is changed
-in any row, the new value is automatically applied to the same column of
-all other selected rows in the table, enabling batch editing. Rows can be
+All rows are selected by default. When a value is changed in any editable
+column, the new value is automatically applied to the same column of all
+other selected rows in the table, enabling batch editing. Rows can be
 deselected in the table for individual editing.
 
 Clicking into a text field preserves the row selection if that row is
@@ -268,7 +273,8 @@ The plugin implements xmlSaveState / xmlLoadState for PlotJuggler layout files.
 
 Saved state includes:
   - Widget visibility (visible="0" or "1").
-  - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x.
+  - For each signal: name, color, y_min, y_max, band_center, band_height, bar_x,
+    divisions (only saved when > 0).
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount.

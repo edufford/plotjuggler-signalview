@@ -593,7 +593,7 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/)
     painter.drawLine(QPointF(ax - 10, bottom), QPointF(ax + 6, bottom));
 
     // Tick marks and value labels
-    int n_ticks = std::max(2, (int)(band_h / 35));
+    int n_ticks = (sig.divisions > 0) ? sig.divisions : std::clamp((int)(band_h / SignalEntry::kPixelsPerAutoTick), 2, SignalEntry::kMaxDivisions);
     painter.setFont(QFont("monospace", 7));
     painter.setPen(QColor(170, 170, 170));
 

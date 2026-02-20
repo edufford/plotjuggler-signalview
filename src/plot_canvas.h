@@ -17,6 +17,10 @@ struct SignalEntry
   double band_center = 0.5;
   double band_height = 1.0;  // fraction of canvas height
   double bar_x = 1.0;        // horizontal position of Y-axis bar [0=left, 1=right]
+  int divisions = 8;          // Y-axis tick divisions (0 = auto)
+
+  static constexpr int kMaxDivisions = 32;
+  static constexpr int kPixelsPerAutoTick = 32;
 };
 
 class PlotCanvas : public QWidget

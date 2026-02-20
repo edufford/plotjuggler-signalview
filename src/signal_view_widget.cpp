@@ -13,6 +13,7 @@
 #include <QTableWidget>
 #include <QLineEdit>
 #include <QDoubleValidator>
+#include <QIntValidator>
 #include <QHeaderView>
 #include <algorithm>
 #include <cmath>
@@ -465,8 +466,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   dlg.setWindowTitle("Edit Y Range");
   auto* layout = new QVBoxLayout(&dlg);
 
-  auto* table = new QTableWidget((int)row_to_idx.size(), 3, &dlg);
-  table->setHorizontalHeaderLabels({"Signal", "Y Min", "Y Max"});
+  auto* table = new QTableWidget((int)row_to_idx.size(), 4, &dlg);
+  table->setHorizontalHeaderLabels({"Signal", "Y Min", "Y Max", "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -482,7 +483,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     using QItemSelectionModel::QItemSelectionModel;
     void select(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && (index.column() == 1 || index.column() == 2))
+      if (index.isValid() && index.column() >= 1 && index.column() <= 3)
       {
         if (isRowSelected(index.row(), index.parent()))
           return;  // row already selected — preserve multi-selection
@@ -498,7 +499,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     }
     void setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
     {
-      if (index.isValid() && (index.column() == 1 || index.column() == 2))
+      if (index.isValid() && index.column() >= 1 && index.column() <= 3)
       {
         if (isRowSelected(index.row(), index.parent()))
         {
@@ -515,7 +516,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   table->setSelectionModel(new ColumnGuardSelectionModel(table->model(), table));
 
   // Store line edit pointers for reading results
-  std::vector<QLineEdit*> min_edits, max_edits;
+  std::vector<QLineEdit*> min_edits, max_edits, div_edits;
 
   for (int row = 0; row < (int)row_to_idx.size(); row++)
   {
@@ -541,22 +542,33 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     max_edit->setText(QString::number(sig.y_max, 'g', 6));
     table->setCellWidget(row, 2, max_edit);
     max_edits.push_back(max_edit);
+
+    // Divisions line edit (0 = auto)
+    auto* div_edit = new QLineEdit(&dlg);
+    div_edit->setValidator(new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
+    div_edit->setText(QString::number(sig.divisions));
+    table->setCellWidget(row, 3, div_edit);
+    div_edits.push_back(div_edit);
   }
 
   // Select all rows initially
   table->selectAll();
 
   // When a line edit value changes, apply to all selected rows in the same column
+  auto editForCol = [&](int row, int col) -> QLineEdit* {
+    if (col == 1) return min_edits[row];
+    if (col == 2) return max_edits[row];
+    return div_edits[row];
+  };
   auto propagate = [&](int source_row, int col) {
-    QLineEdit* source = (col == 1) ? min_edits[source_row] : max_edits[source_row];
-    QString text = source->text();
+    QString text = editForCol(source_row, col)->text();
     auto selected_rows = table->selectionModel()->selectedRows();
     for (const auto& mi : selected_rows)
     {
       int r = mi.row();
       if (r == source_row)
         continue;
-      QLineEdit* target = (col == 1) ? min_edits[r] : max_edits[r];
+      QLineEdit* target = editForCol(r, col);
       target->blockSignals(true);
       target->setText(text);
       target->blockSignals(false);
@@ -569,6 +581,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
             &dlg, [&propagate, row]() { propagate(row, 1); });
     connect(max_edits[row], &QLineEdit::textEdited,
             &dlg, [&propagate, row]() { propagate(row, 2); });
+    connect(div_edits[row], &QLineEdit::textEdited,
+            &dlg, [&propagate, row]() { propagate(row, 3); });
   }
 
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -577,7 +591,7 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
   layout->addWidget(table);
   layout->addWidget(buttons);
-  dlg.resize(400, 50 + 30 * (int)row_to_idx.size() + 60);
+  dlg.resize(480, 50 + 30 * (int)row_to_idx.size() + 60);
 
   if (dlg.exec() != QDialog::Accepted)
     return;
@@ -594,6 +608,10 @@ void SignalViewWidget::onEditYRange(int clicked_index)
       _signals[sig_idx].y_min = new_min;
       _signals[sig_idx].y_max = new_max;
     }
+    bool ok_div = false;
+    int new_div = div_edits[row]->text().toInt(&ok_div);
+    if (ok_div && new_div >= 0)
+      _signals[sig_idx].divisions = new_div;
   }
   refreshViews();
 }
@@ -627,6 +645,7 @@ void SignalViewWidget::onGroupSignals()
     _signals[i].y_min = _signals[topmost].y_min;
     _signals[i].y_max = _signals[topmost].y_max;
     _signals[i].bar_x = _signals[topmost].bar_x;
+    _signals[i].divisions = _signals[topmost].divisions;
   }
   refreshViews();
 }
