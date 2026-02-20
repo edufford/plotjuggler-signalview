@@ -94,14 +94,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(snap_label);
   toolbar->addWidget(_snap_combo);
   toolbar->addSeparator();
+  const QString toggle_style =
+      "QPushButton:checked { background: #ffdd00; color: #000; }";
   auto* btn_zoom = new QPushButton("H. Zoom", this);
   btn_zoom->setCheckable(true);
   btn_zoom->setToolTip("Toggle horizontal (time) zoom on scroll wheel");
+  btn_zoom->setStyleSheet(toggle_style);
   toolbar->addWidget(btn_zoom);
   toolbar->addSeparator();
   auto* btn_time_shift = new QPushButton("Time Shift", this);
   btn_time_shift->setCheckable(true);
   btn_time_shift->setToolTip("Drag to shift data layer time offsets");
+  btn_time_shift->setStyleSheet(toggle_style);
   toolbar->addWidget(btn_time_shift);
 
   auto* shift_layer_label = new QLabel("Layer:", this);
