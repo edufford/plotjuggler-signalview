@@ -38,6 +38,9 @@ void SignalNameColumn::setSelection(const std::set<int>& sel)
 
 int SignalNameColumn::effectiveDragIndex() const
 {
+  // During active multi-drag, use stored index to preserve previous stacking.
+  if (_drag_index >= 0 && _selected.size() > 1 && _selected.count(_drag_index))
+    return _external_drag_index;
   return _drag_index >= 0 ? _drag_index : _external_drag_index;
 }
 
@@ -136,7 +139,10 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event)
   if (!_drag_moved)
   {
     _drag_moved = true;
-    emit dragIndexChanged(_drag_index);
+    // Only update cross-column stacking for single-signal drags.
+    // Multi-drag preserves existing stacking order.
+    if (_selected.size() <= 1 || !_selected.count(_drag_index))
+      emit dragIndexChanged(_drag_index);
   }
 
   int dy = event->globalPos().y() - _drag_start_global_y;
@@ -167,7 +173,10 @@ void SignalNameColumn::mouseReleaseEvent(QMouseEvent* event)
   if (_drag_index >= 0)
   {
     if (_drag_moved)
-      _external_drag_index = _drag_index;
+    {
+      if (_selected.size() <= 1 || !_selected.count(_drag_index))
+        _external_drag_index = _drag_index;
+    }
     else
       emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
   }
@@ -223,6 +232,8 @@ void SignalValueColumn::setSelection(const std::set<int>& sel)
 
 int SignalValueColumn::effectiveDragIndex() const
 {
+  if (_drag_index >= 0 && _selected.size() > 1 && _selected.count(_drag_index))
+    return _external_drag_index;
   return _drag_index >= 0 ? _drag_index : _external_drag_index;
 }
 
@@ -326,7 +337,8 @@ void SignalValueColumn::mouseMoveEvent(QMouseEvent* event)
   if (!_drag_moved)
   {
     _drag_moved = true;
-    emit dragIndexChanged(_drag_index);
+    if (_selected.size() <= 1 || !_selected.count(_drag_index))
+      emit dragIndexChanged(_drag_index);
   }
 
   int dy = event->globalPos().y() - _drag_start_global_y;
@@ -357,7 +369,10 @@ void SignalValueColumn::mouseReleaseEvent(QMouseEvent* event)
   if (_drag_index >= 0)
   {
     if (_drag_moved)
-      _external_drag_index = _drag_index;
+    {
+      if (_selected.size() <= 1 || !_selected.count(_drag_index))
+        _external_drag_index = _drag_index;
+    }
     else
       emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
   }
@@ -691,7 +706,8 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event)
     if (std::abs(dy) > snap_px)
     {
       _drag_moved = true;
-      emit dragIndexChanged(_drag_hit.index);
+      if (_selected.size() <= 1 || !_selected.count(_drag_hit.index))
+        emit dragIndexChanged(_drag_hit.index);
     }
   }
   if (plot_h <= 0)
@@ -771,7 +787,6 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/)
   }
 
   _drag_hit = { -1, NONE };
-  // Don't emit dragIndexChanged(-1) — preserve "last moved" for stacking
   setCursor(Qt::ArrowCursor);
 }
 

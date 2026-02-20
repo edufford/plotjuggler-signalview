@@ -40,8 +40,9 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
      - Background is transparent (no per-band fill).
      - When multiple signals overlap vertically, names stack downward
        with no gap (15px row height). The highest signal claims the top
-       slot; the signal currently being dragged always stacks last among
-       signals at the same position.
+       slot; a single-signal drag demotes the dragged signal to stack
+       last among signals at the same position. Multi-signal drags
+       preserve the existing stacking order.
 
   2. Signal Value Column (middle)
      - Displays the cursor readout value for each signal in the signal's color.
