@@ -131,14 +131,27 @@ void PlotCanvas::drawGrid(QPainter& painter)
   if (plot_w <= 0 || plot_h <= 0)
     return;
 
-  painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
-
-  // Horizontal grid lines
-  int n_hlines = 5;
-  for (int i = 0; i <= n_hlines; i++)
+  // Per-signal horizontal grid lines aligned to each signal's Y-axis divisions
+  for (const auto& sig : _signals)
   {
-    double y = kMarginTop + plot_h * i / n_hlines;
-    painter.drawLine(QPointF(kMarginLeft, y), QPointF(width() - kMarginRight, y));
+    double band_top = kMarginTop + plot_h * (sig.band_center - sig.band_height * 0.5);
+    double band_bottom = kMarginTop + plot_h * (sig.band_center + sig.band_height * 0.5);
+    double band_h = band_bottom - band_top;
+
+    if (band_h < 4)
+      continue;
+
+    // Same tick count as the Y-axis bar column
+    int n_ticks = std::max(2, (int)(band_h / 35));
+
+    painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
+
+    for (int t = 0; t <= n_ticks; t++)
+    {
+      double frac = (double)t / n_ticks;
+      double y = band_bottom - frac * band_h;
+      painter.drawLine(QPointF(kMarginLeft, y), QPointF(width() - kMarginRight, y));
+    }
   }
 
   // Vertical grid lines — compute nice tick spacing

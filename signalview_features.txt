@@ -90,7 +90,9 @@ PLOT CANVAS
 Rendering:
   - Dark background (30,30,30).
   - Plot area bordered by a gray rectangle.
-  - Dotted grid lines: 5 horizontal, ~8 vertical with "nice" step spacing.
+  - Dotted grid lines: per-signal horizontal lines aligned to each signal's
+    Y-axis tick divisions (same count as the Y-axis bar column ticks), drawn
+    in gray (60,60,60). ~8 vertical with "nice" step spacing.
   - Signal traces rendered as antialiased QPainterPaths, clipped to plot area.
   - Traces outside the view range are culled, with boundary points preserved
     to avoid clipping artifacts.
