@@ -187,8 +187,12 @@ void SignalViewWidget::onAddSignal()
     }
   }
 
+  // Default band: kDefaultBandHeight, centered at top
+  double half = kDefaultBandHeight * 0.5;
+  entry.band_center = snapValue(half);
+  entry.band_height = kDefaultBandHeight;
+
   _signals.push_back(entry);
-  autoAssignBands();
   refreshViews();
 }
 

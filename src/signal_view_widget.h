@@ -67,6 +67,8 @@ private:
   std::map<int, double> _multi_drag_origins;      // band_center origins
   std::map<int, double> _multi_drag_bar_x_origins; // bar_x origins
 
+  static constexpr double kDefaultBandHeight = 0.20;
+
   // Predefined signal colors
   static const std::vector<QColor>& signalColors();
 };

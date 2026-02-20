@@ -10,7 +10,8 @@ TOOLBAR
 -------
 - "Add Signal" button: opens a dropdown listing all numeric signals from
   PlotJuggler's data source that have not yet been added. Sorted alphabetically.
-  Y range is auto-detected from data with 10% margin.
+  Y range is auto-detected from data with 10% margin. New signals are added
+  with 20% height bands at the top without changing existing signals.
 - "Remove Signal" button: opens a dropdown listing currently added signals.
   Selecting one removes it and re-assigns band positions for remaining signals.
 - "Group" button: groups all currently selected signals so they overlap.
@@ -82,10 +83,10 @@ Bands are defined by:
   - bar_x: horizontal position of the Y-axis bar [0=left, 1=right], default 1.0.
   - divisions: number of Y-axis tick divisions, default 8. 0 = auto-scale.
 
-When signals are added or removed, bands are auto-assigned:
-  - 1 signal: centered at 0.5 with full height.
-  - N signals: evenly spaced, each occupying 1/N of the height with no gap.
-  Auto-assigned positions are snapped to the current snap grid.
+When a signal is added, it gets a 20% height band at the top.
+Existing signals are not moved. When signals are removed, bands are
+auto-assigned evenly among the remaining signals. Positions are snapped
+to the current snap grid.
 
 Band positions are shared between the canvas and all Y-axis panel columns
 using the AxisLayout::bandTopY / bandBottomY helpers, which account for
