@@ -119,9 +119,9 @@ Auto-fit:
 SIGNAL SELECTION
 ----------------
 Signals can be selected in any Y-axis panel column:
-  - Click on a signal (name, value, or bar body): selects that signal.
-    If the signal is already selected, the selection is preserved
-    (enabling double-click without losing multi-selection).
+  - Click or drag on a signal (name, value, or bar body): selects that
+    signal on press. If the signal is already selected, the selection is
+    preserved (enabling double-click and multi-selection drag).
   - Ctrl+click: toggles the signal in/out of the selection.
   - Click on empty area: clears the selection.
   - Click + drag on empty area: rubber band selection. All signals whose
@@ -143,8 +143,8 @@ MOUSE INTERACTION: SIGNAL NAME COLUMN
 --------------------------------------
 - Click area: only the 15px text row at the top of each band (not the
   full band height).
-- Left click (no drag): selects the signal (see SIGNAL SELECTION above).
-- Left click + drag on signal: repositions the signal's band vertically.
+- Left click on signal: selects on press, drag repositions the signal's
+  band vertically (see SIGNAL SELECTION above).
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Clamped to [0, 1] normalized range.
   - Drag index is propagated to the value column so stacking stays
@@ -158,9 +158,8 @@ MOUSE INTERACTION: SIGNAL VALUE COLUMN
 ---------------------------------------
 - Click area: only the 15px text row at the top of each band (not the
   full band height).
-- Left click (no drag): selects the signal (see SIGNAL SELECTION above).
-- Left click + drag on signal: repositions the signal's band vertically
-  (same behavior as the name column).
+- Left click on signal: selects on press, drag repositions the signal's
+  band vertically (same behavior as the name column).
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Drag index is propagated to the name column.
 - Left click + drag on empty area: rubber band selection.

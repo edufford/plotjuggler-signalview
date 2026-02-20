@@ -38,10 +38,15 @@ void SignalNameColumn::setSelection(const std::set<int>& sel)
 
 int SignalNameColumn::effectiveDragIndex() const
 {
-  // During active multi-drag, use stored index to preserve previous stacking.
-  if (_drag_index >= 0 && _selected.size() > 1 && _selected.count(_drag_index))
-    return _external_drag_index;
-  return _drag_index >= 0 ? _drag_index : _external_drag_index;
+  // Only apply drag demotion after movement starts, not on initial press.
+  if (_drag_index >= 0 && _drag_moved)
+  {
+    // During active multi-drag, use stored index to preserve previous stacking.
+    if (_selected.size() > 1 && _selected.count(_drag_index))
+      return _external_drag_index;
+    return _drag_index;
+  }
+  return _external_drag_index;
 }
 
 void SignalNameColumn::paintEvent(QPaintEvent* /*event*/)
@@ -103,6 +108,12 @@ void SignalNameColumn::mousePressEvent(QMouseEvent* event)
     _drag_index = hitTestSignal(event->pos());
     if (_drag_index >= 0)
     {
+      // Select on press (so drag also selects, matching bar column)
+      if (event->modifiers() & Qt::ControlModifier)
+        emit clickSelect(_drag_index, true);
+      else if (!_selected.count(_drag_index))
+        emit clickSelect(_drag_index, false);
+
       _drag_start_global_y = event->globalPos().y();
       _drag_start_band_center = _signals[_drag_index].band_center;
       _drag_moved = false;
@@ -170,15 +181,10 @@ void SignalNameColumn::mouseReleaseEvent(QMouseEvent* event)
     return;
   }
 
-  if (_drag_index >= 0)
+  if (_drag_index >= 0 && _drag_moved)
   {
-    if (_drag_moved)
-    {
-      if (_selected.size() <= 1 || !_selected.count(_drag_index))
-        _external_drag_index = _drag_index;
-    }
-    else
-      emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
+    if (_selected.size() <= 1 || !_selected.count(_drag_index))
+      _external_drag_index = _drag_index;
   }
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
@@ -232,9 +238,13 @@ void SignalValueColumn::setSelection(const std::set<int>& sel)
 
 int SignalValueColumn::effectiveDragIndex() const
 {
-  if (_drag_index >= 0 && _selected.size() > 1 && _selected.count(_drag_index))
-    return _external_drag_index;
-  return _drag_index >= 0 ? _drag_index : _external_drag_index;
+  if (_drag_index >= 0 && _drag_moved)
+  {
+    if (_selected.size() > 1 && _selected.count(_drag_index))
+      return _external_drag_index;
+    return _drag_index;
+  }
+  return _external_drag_index;
 }
 
 void SignalValueColumn::paintEvent(QPaintEvent* /*event*/)
@@ -301,6 +311,11 @@ void SignalValueColumn::mousePressEvent(QMouseEvent* event)
     _drag_index = hitTestSignal(event->pos());
     if (_drag_index >= 0)
     {
+      if (event->modifiers() & Qt::ControlModifier)
+        emit clickSelect(_drag_index, true);
+      else if (!_selected.count(_drag_index))
+        emit clickSelect(_drag_index, false);
+
       _drag_start_global_y = event->globalPos().y();
       _drag_start_band_center = _signals[_drag_index].band_center;
       _drag_moved = false;
@@ -366,15 +381,10 @@ void SignalValueColumn::mouseReleaseEvent(QMouseEvent* event)
     return;
   }
 
-  if (_drag_index >= 0)
+  if (_drag_index >= 0 && _drag_moved)
   {
-    if (_drag_moved)
-    {
-      if (_selected.size() <= 1 || !_selected.count(_drag_index))
-        _external_drag_index = _drag_index;
-    }
-    else
-      emit clickSelect(_drag_index, event->modifiers() & Qt::ControlModifier);
+    if (_selected.size() <= 1 || !_selected.count(_drag_index))
+      _external_drag_index = _drag_index;
   }
   _drag_index = -1;
   setCursor(Qt::ArrowCursor);
