@@ -11,6 +11,98 @@
 #include <algorithm>
 #include <limits>
 
+namespace {
+QCursor makeZoomCursor()
+{
+  constexpr int sz = 32;
+  QPixmap pix(sz, sz);
+  pix.fill(Qt::transparent);
+
+  QPainter p(&pix);
+  p.setRenderHint(QPainter::Antialiasing);
+
+  // Arrow pointer at top-left (tip at 0,0)
+  QPainterPath arrow;
+  arrow.moveTo(0, 0);
+  arrow.lineTo(0, 18);
+  arrow.lineTo(5, 13);
+  arrow.lineTo(10, 13);
+  arrow.closeSubpath();
+  p.setPen(QPen(Qt::black, 1.0));
+  p.setBrush(Qt::white);
+  p.drawPath(arrow);
+
+  // Magnifying glass lens close to arrow
+  constexpr double cx = 17, cy = 17, r = 7;
+  p.setPen(QPen(Qt::white, 1.6));
+  p.setBrush(QColor(0, 0, 0, 140));
+  p.drawEllipse(QPointF(cx, cy), r, r);
+
+  // Short handle from lens edge toward bottom-right
+  p.setPen(QPen(Qt::white, 1.8));
+  double hx = cx + r * 0.707;
+  double hy = cy + r * 0.707;
+  p.drawLine(QPointF(hx, hy), QPointF(hx + 3, hy + 3));
+
+  // Horizontal double arrow inside the lens
+  p.setPen(QPen(Qt::white, 1.2));
+  double ay = cy;
+  double al = cx - 4, ar = cx + 4;
+  p.drawLine(QPointF(al, ay), QPointF(ar, ay));
+  // Left arrowhead
+  p.drawLine(QPointF(al, ay), QPointF(al + 2.2, ay - 1.8));
+  p.drawLine(QPointF(al, ay), QPointF(al + 2.2, ay + 1.8));
+  // Right arrowhead
+  p.drawLine(QPointF(ar, ay), QPointF(ar - 2.2, ay - 1.8));
+  p.drawLine(QPointF(ar, ay), QPointF(ar - 2.2, ay + 1.8));
+
+  p.end();
+  return QCursor(pix, 0, 0);  // hotspot at arrow tip
+}
+QCursor makeTimeShiftCursor()
+{
+  constexpr int sz = 24;
+  QPixmap pix(sz, sz);
+  pix.fill(Qt::transparent);
+
+  QPainter p(&pix);
+  p.setRenderHint(QPainter::Antialiasing);
+
+  // Sine wave in the upper portion
+  QPainterPath wave;
+  constexpr double wave_cx = 12, wave_cy = 8;
+  constexpr double wave_w = 9, wave_h = 5;
+  constexpr int steps = 20;
+  for (int i = 0; i <= steps; i++)
+  {
+    double t = (double)i / steps;
+    double x = wave_cx - wave_w + 2 * wave_w * t;
+    double y = wave_cy - wave_h * std::sin(t * 2 * M_PI);
+    if (i == 0)
+      wave.moveTo(x, y);
+    else
+      wave.lineTo(x, y);
+  }
+  p.setPen(QPen(Qt::white, 1.5));
+  p.drawPath(wave);
+
+  // Horizontal double arrow below the sine wave
+  constexpr double ay = 18;
+  constexpr double al = 3, ar = 21;
+  p.setPen(QPen(Qt::white, 1.4));
+  p.drawLine(QPointF(al, ay), QPointF(ar, ay));
+  // Left arrowhead
+  p.drawLine(QPointF(al, ay), QPointF(al + 3, ay - 2.5));
+  p.drawLine(QPointF(al, ay), QPointF(al + 3, ay + 2.5));
+  // Right arrowhead
+  p.drawLine(QPointF(ar, ay), QPointF(ar - 3, ay - 2.5));
+  p.drawLine(QPointF(ar, ay), QPointF(ar - 3, ay + 2.5));
+
+  p.end();
+  return QCursor(pix, 12, 12);
+}
+}  // namespace
+
 PlotCanvas::PlotCanvas(QWidget* parent)
     : QWidget(parent)
 {
@@ -157,11 +249,29 @@ void PlotCanvas::setScrollOffset(double offset)
 void PlotCanvas::setZoomMode(bool enabled)
 {
   _zoom_mode = enabled;
+  updateIdleCursor();
 }
 
 void PlotCanvas::setTimeShiftMode(bool enabled)
 {
   _time_shift_mode = enabled;
+  updateIdleCursor();
+}
+
+void PlotCanvas::updateIdleCursor()
+{
+  if (_time_shift_mode)
+  {
+    static QCursor shift_cursor = makeTimeShiftCursor();
+    setCursor(shift_cursor);
+  }
+  else if (_zoom_mode)
+  {
+    static QCursor zoom_cursor = makeZoomCursor();
+    setCursor(zoom_cursor);
+  }
+  else
+    setCursor(Qt::ArrowCursor);
 }
 
 void PlotCanvas::setSelectedLayers(const std::set<int>& layers)
@@ -793,11 +903,18 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event)
   else
   {
     // Show appropriate cursor hint
-    double cursor_x = timeToPixelX(_cursor_time);
-    if (std::abs(event->pos().x() - cursor_x) < 10)
-      setCursor(Qt::SizeHorCursor);
+    if (_time_shift_mode || _zoom_mode)
+    {
+      updateIdleCursor();
+    }
     else
-      setCursor(Qt::ArrowCursor);
+    {
+      double cursor_x = timeToPixelX(_cursor_time);
+      if (std::abs(event->pos().x() - cursor_x) < 10)
+        setCursor(Qt::SizeHorCursor);
+      else
+        setCursor(Qt::ArrowCursor);
+    }
   }
 }
 
@@ -809,7 +926,7 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
     {
       _time_shift_dragging = false;
       _time_shift_start_offsets.clear();
-      setCursor(Qt::ArrowCursor);
+      updateIdleCursor();
       return;
     }
     if (_zoom_selecting)
@@ -836,7 +953,7 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
   else if (event->button() == Qt::RightButton)
   {
     _panning = false;
-    setCursor(Qt::ArrowCursor);
+    updateIdleCursor();
   }
 }
 

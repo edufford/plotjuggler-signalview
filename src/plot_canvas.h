@@ -91,6 +91,7 @@ private:
   double valueToPixelY(double value, const SignalEntry& sig) const;
 
   void autoFitTimeRange();
+  void updateIdleCursor();
   void drawTimeAxis(class QPainter& painter);
   void drawSignals(class QPainter& painter);
   void drawCursor(class QPainter& painter);
