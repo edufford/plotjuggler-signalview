@@ -246,7 +246,7 @@ MOUSE INTERACTION: PLOT CANVAS
 - Left click + drag: drags the cursor along the time axis. Continuously
   updates cursor readout values in the signal value column.
 
-- Middle click + drag: pans the time axis. Disables auto-fit.
+- Right click + drag: pans the time axis. Disables auto-fit.
   - Shows ClosedHandCursor while panning.
 
 - Mouse wheel: zooms the time axis in/out (0.8x / 1.25x factor), centered

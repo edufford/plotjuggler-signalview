@@ -478,7 +478,7 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event)
     emit cursorMoved(_cursor_time);
     update();
   }
-  else if (event->button() == Qt::MiddleButton)
+  else if (event->button() == Qt::RightButton)
   {
     _panning = true;
     _pan_start = event->pos();
@@ -528,7 +528,7 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event)
   {
     _cursor_dragging = false;
   }
-  else if (event->button() == Qt::MiddleButton)
+  else if (event->button() == Qt::RightButton)
   {
     _panning = false;
     setCursor(Qt::ArrowCursor);
