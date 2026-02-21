@@ -5,8 +5,6 @@
 #include <QInputDialog>
 #include <QMenu>
 
-#include "overlay_manager.h"
-
 DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
   auto* outer = new QVBoxLayout(this);
   outer->setContentsMargins(4, 2, 4, 2);
@@ -24,14 +22,16 @@ DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
   setMaximumHeight(100);
 }
 
-void DataSetsPanel::refresh(const OverlayManager* mgr) {
+void DataSetsPanel::refresh(const std::shared_ptr<OverlayManager>& mgr) {
   // Clear existing rows
   for (auto& row : m_rows) {
     delete row.prefix_label->parentWidget();
   }
   m_rows.clear();
 
-  if (!mgr) return;
+  if (!mgr) {
+    return;
+  }
 
   for (const auto& layer : mgr->layers()) {
     auto* row_widget = new QWidget(this);
@@ -59,8 +59,9 @@ void DataSetsPanel::refresh(const OverlayManager* mgr) {
     // Time offset
     QString offset_str =
         QString("offset: %1s").arg(layer.time_offset, 0, 'f', 3);
-    if (layer.time_offset > 0)
+    if (layer.time_offset > 0) {
       offset_str = QString("offset: +%1s").arg(layer.time_offset, 0, 'f', 3);
+    }
     rw.offset_label = new QLabel(offset_str, row_widget);
     rw.offset_label->setStyleSheet("color: #000; font: 9pt monospace;");
     hl->addWidget(rw.offset_label);
@@ -71,8 +72,10 @@ void DataSetsPanel::refresh(const OverlayManager* mgr) {
   }
 }
 
-void DataSetsPanel::updateOffsets(const OverlayManager* mgr) {
-  if (!mgr) return;
+void DataSetsPanel::updateOffsets(const std::shared_ptr<OverlayManager>& mgr) {
+  if (!mgr) {
+    return;
+  }
 
   for (auto& row : m_rows) {
     double offset = mgr->timeOffset(row.layer_index);
@@ -96,7 +99,9 @@ void DataSetsPanel::contextMenuEvent(QContextMenuEvent* event) {
     }
   }
 
-  if (clicked_layer < 0) return;
+  if (clicked_layer < 0) {
+    return;
+  }
 
   QMenu menu(this);
 

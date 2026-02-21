@@ -4,9 +4,10 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <functional>
+#include <memory>
 #include <vector>
 
-class OverlayManager;
+#include "overlay_manager.h"
 
 /// Compact footer panel showing loaded data layers with their
 /// prefix numbers, display names, and time offsets.
@@ -17,10 +18,10 @@ class DataSetsPanel : public QWidget {
   explicit DataSetsPanel(QWidget* parent = nullptr);
 
   /// Rebuild the panel rows from the current OverlayManager state.
-  void refresh(const OverlayManager* mgr);
+  void refresh(const std::shared_ptr<OverlayManager>& mgr);
 
   /// Update just the time offset labels (called during drag).
-  void updateOffsets(const OverlayManager* mgr);
+  void updateOffsets(const std::shared_ptr<OverlayManager>& mgr);
 
  signals:
   /// User requested to load a new overlay file.

@@ -76,10 +76,11 @@ QCursor makeTimeShiftCursor() {
     double t = (double)i / steps;
     double x = wave_cx - wave_w + 2 * wave_w * t;
     double y = wave_cy - wave_h * std::sin(t * 2 * M_PI);
-    if (i == 0)
+    if (i == 0) {
       wave.moveTo(x, y);
-    else
+    } else {
       wave.lineTo(x, y);
+    }
   }
   p.setPen(QPen(Qt::white, 1.5));
   p.drawPath(wave);
@@ -159,7 +160,17 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   updateTimeEditTexts();
 }
 
-void PlotCanvas::setDataSource(OverlayManager* mgr) { m_overlay_mgr = mgr; }
+PlotCanvas::~PlotCanvas() {
+  // Disconnect before QWidget::~QWidget() destroys the child QLineEdits.
+  // Without this, their focusOut events fire editingFinished into our lambdas
+  // while the vtable has already been rewound to QWidget, causing UB.
+  disconnect(m_time_start_edit, nullptr, this, nullptr);
+  disconnect(m_time_end_edit, nullptr, this, nullptr);
+}
+
+void PlotCanvas::setDataSource(std::shared_ptr<OverlayManager> mgr) {
+  m_overlay_mgr = std::move(mgr);
+}
 
 void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries) {
   m_signals = entries;
@@ -167,8 +178,9 @@ void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries) {
   if (m_auto_fit) {
     autoFitTimeRange();
     // Snap cursor into data range if it's currently outside
-    if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max)
+    if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max) {
       m_cursor_time = m_view_t_min;
+    }
   }
   update();
   emit cursorMoved(m_cursor_time);
@@ -198,21 +210,27 @@ void PlotCanvas::resetZoom() {
 
 double PlotCanvas::timeToPixelX(double t) const {
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-  if (m_view_t_max <= m_view_t_min || plot_w <= 0) return MARGIN_LEFT;
+  if (m_view_t_max <= m_view_t_min || plot_w <= 0) {
+    return MARGIN_LEFT;
+  }
   return MARGIN_LEFT +
          (t - m_view_t_min) / (m_view_t_max - m_view_t_min) * plot_w;
 }
 
 double PlotCanvas::pixelXToTime(double px) const {
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-  if (plot_w <= 0) return m_view_t_min;
+  if (plot_w <= 0) {
+    return m_view_t_min;
+  }
   return m_view_t_min +
          (px - MARGIN_LEFT) / plot_w * (m_view_t_max - m_view_t_min);
 }
 
 double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const {
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  if (plot_h <= 0 || sig.y_max <= sig.y_min) return MARGIN_TOP + plot_h * 0.5;
+  if (plot_h <= 0 || sig.y_max <= sig.y_min) {
+    return MARGIN_TOP + plot_h * 0.5;
+  }
 
   // The signal's band occupies a portion of the canvas, shifted by scroll
   // offset
@@ -275,21 +293,27 @@ void PlotCanvas::repositionTimeEdits() {
 }
 
 void PlotCanvas::updateTimeEditTexts() {
-  if (!m_time_start_edit->hasFocus())
+  if (!m_time_start_edit->hasFocus()) {
     m_time_start_edit->setText(QString::number(m_view_t_min, 'g', 6));
-  if (!m_time_end_edit->hasFocus())
+  }
+  if (!m_time_end_edit->hasFocus()) {
     m_time_end_edit->setText(QString::number(m_view_t_max, 'g', 6));
+  }
 }
 
 void PlotCanvas::autoFitTimeRange() {
-  if (!m_overlay_mgr || m_signals.empty()) return;
+  if (!m_overlay_mgr || m_signals.empty()) {
+    return;
+  }
 
   double t_min = std::numeric_limits<double>::max();
   double t_max = std::numeric_limits<double>::lowest();
 
   for (const auto& sig : m_signals) {
     auto resolved = m_overlay_mgr->resolveSignal(sig.name);
-    if (!resolved || resolved->series->size() == 0) continue;
+    if (!resolved || resolved->series->size() == 0) {
+      continue;
+    }
 
     auto range = resolved->series->rangeX();
     if (range) {
@@ -310,7 +334,9 @@ void PlotCanvas::autoFitTimeRange() {
 void PlotCanvas::drawGrid(QPainter& painter) {
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  if (plot_w <= 0 || plot_h <= 0) return;
+  if (plot_w <= 0 || plot_h <= 0) {
+    return;
+  }
 
   // Per-signal horizontal grid lines aligned to each signal's Y-axis divisions
   for (const auto& sig : m_signals) {
@@ -322,7 +348,9 @@ void PlotCanvas::drawGrid(QPainter& painter) {
                                sig.band_height_norm * 0.5 - m_scroll_offset);
     double band_pixel_h = band_bottom - band_top;
 
-    if (band_pixel_h < 4) continue;
+    if (band_pixel_h < 4) {
+      continue;
+    }
 
     int n_ticks = sig.tickCount(band_pixel_h);
 
@@ -338,20 +366,23 @@ void PlotCanvas::drawGrid(QPainter& painter) {
 
   // Vertical grid lines — compute nice tick spacing
   double range = m_view_t_max - m_view_t_min;
-  if (range <= 0) return;
+  if (range <= 0) {
+    return;
+  }
 
   double raw_step = range / 8.0;
   double magnitude = std::pow(10.0, std::floor(std::log10(raw_step)));
   double residual = raw_step / magnitude;
   double nice_step;
-  if (residual <= 1.5)
+  if (residual <= 1.5) {
     nice_step = 1.0 * magnitude;
-  else if (residual <= 3.5)
+  } else if (residual <= 3.5) {
     nice_step = 2.0 * magnitude;
-  else if (residual <= 7.5)
+  } else if (residual <= 7.5) {
     nice_step = 5.0 * magnitude;
-  else
+  } else {
     nice_step = 10.0 * magnitude;
+  }
 
   double t_start = std::ceil(m_view_t_min / nice_step) * nice_step;
   for (double t = t_start; t <= m_view_t_max; t += nice_step) {
@@ -363,7 +394,9 @@ void PlotCanvas::drawGrid(QPainter& painter) {
 void PlotCanvas::drawTimeAxis(QPainter& painter) {
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-  if (plot_w <= 0) return;
+  if (plot_w <= 0) {
+    return;
+  }
 
   double axis_y = MARGIN_TOP + plot_h;
 
@@ -374,20 +407,23 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
 
   // Tick marks and labels
   double range = m_view_t_max - m_view_t_min;
-  if (range <= 0) return;
+  if (range <= 0) {
+    return;
+  }
 
   double raw_step = range / 8.0;
   double magnitude = std::pow(10.0, std::floor(std::log10(raw_step)));
   double residual = raw_step / magnitude;
   double nice_step;
-  if (residual <= 1.5)
+  if (residual <= 1.5) {
     nice_step = 1.0 * magnitude;
-  else if (residual <= 3.5)
+  } else if (residual <= 3.5) {
     nice_step = 2.0 * magnitude;
-  else if (residual <= 7.5)
+  } else if (residual <= 7.5) {
     nice_step = 5.0 * magnitude;
-  else
+  } else {
     nice_step = 10.0 * magnitude;
+  }
 
   int decimals = std::max(0, (int)std::ceil(-std::log10(nice_step)));
 
@@ -414,7 +450,9 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
 }
 
 void PlotCanvas::drawSignals(QPainter& painter) {
-  if (!m_overlay_mgr) return;
+  if (!m_overlay_mgr) {
+    return;
+  }
 
   painter.setRenderHint(QPainter::Antialiasing, true);
 
@@ -422,11 +460,15 @@ void PlotCanvas::drawSignals(QPainter& painter) {
 
   for (const auto& sig : m_signals) {
     auto resolved = m_overlay_mgr->resolveSignal(sig.name);
-    if (!resolved) continue;
+    if (!resolved) {
+      continue;
+    }
 
     const PJ::PlotData& series = *resolved->series;
     double t_offset = resolved->time_offset;
-    if (series.size() < 2) continue;
+    if (series.size() < 2) {
+      continue;
+    }
 
     painter.setPen(QPen(sig.color, sig.line_width, sig.line_style));
 
@@ -473,8 +515,12 @@ void PlotCanvas::drawSignals(QPainter& painter) {
       for (size_t i = start_idx; i < series.size(); i++) {
         const auto& pt = series[i];
         double t = pt.x + t_offset;
-        if (t < m_view_t_min) continue;
-        if (t > m_view_t_max) break;
+        if (t < m_view_t_min) {
+          continue;
+        }
+        if (t > m_view_t_max) {
+          break;
+        }
 
         double px = timeToPixelX(t);
         double py = valueToPixelY(pt.y, sig);
@@ -651,7 +697,9 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
 void PlotCanvas::drawCursor(QPainter& painter) {
   double x = timeToPixelX(m_cursor_time);
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  if (x < MARGIN_LEFT || x > width() - MARGIN_RIGHT) return;
+  if (x < MARGIN_LEFT || x > width() - MARGIN_RIGHT) {
+    return;
+  }
 
   painter.setPen(QPen(QColor(255, 255, 100, 200), 1, Qt::DashLine));
   painter.drawLine(QPointF(x, MARGIN_TOP), QPointF(x, MARGIN_TOP + plot_h));
@@ -672,8 +720,9 @@ void PlotCanvas::drawCursor(QPainter& painter) {
   QString time_str = QString::number(m_cursor_time, 'g', 6);
   QRectF text_rect(x + 7, MARGIN_TOP - 2, 80, 14);
   // Flip to the left side if too close to the right edge
-  if (x + 7 + 80 > width() - MARGIN_RIGHT)
+  if (x + 7 + 80 > width() - MARGIN_RIGHT) {
     text_rect = QRectF(x - 87, MARGIN_TOP - 2, 80, 14);
+  }
   painter.drawText(text_rect,
                    (text_rect.left() < x ? Qt::AlignRight : Qt::AlignLeft) |
                        Qt::AlignVCenter,
@@ -729,8 +778,9 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
         m_cursor_needs_data = false;
         if (m_auto_fit) {
           autoFitTimeRange();
-          if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max)
+          if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max) {
             m_cursor_time = m_view_t_min;
+          }
         }
         emit cursorMoved(m_cursor_time);
         update();
@@ -793,7 +843,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       if (m_overlay_mgr) {
         double dx_pixels = event->pos().x() - m_time_shift_start.x();
         double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-        if (plot_w <= 0) return;
+        if (plot_w <= 0) {
+          return;
+        }
         double dt = dx_pixels / plot_w * (m_view_t_max - m_view_t_min);
         for (auto& [layer_idx, start_offset] : m_time_shift_start_offsets) {
           m_overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
@@ -815,7 +867,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
     case DragState::Panning: {
       double dx_pixels = event->pos().x() - m_pan_start.x();
       double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-      if (plot_w <= 0) return;
+      if (plot_w <= 0) {
+        return;
+      }
       double dt = -dx_pixels / plot_w * (m_pan_t_max_start - m_pan_t_min_start);
       m_view_t_min = m_pan_t_min_start + dt;
       m_view_t_max = m_pan_t_max_start + dt;
@@ -831,10 +885,11 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
         updateIdleCursor();
       } else {
         double cursor_x = timeToPixelX(m_cursor_time);
-        if (std::abs(event->pos().x() - cursor_x) < 10)
+        if (std::abs(event->pos().x() - cursor_x) < 10) {
           setCursor(Qt::SizeHorCursor);
-        else
+        } else {
           setCursor(Qt::ArrowCursor);
+        }
       }
       return;
   }
@@ -882,7 +937,9 @@ void PlotCanvas::wheelEvent(QWheelEvent* event) {
 
   // Zoom mode: time-axis zoom centered on mouse position
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-  if (plot_w <= 0) return;
+  if (plot_w <= 0) {
+    return;
+  }
 
   double mouse_t = pixelXToTime(event->position().x());
   double factor = (event->angleDelta().y() > 0) ? 0.8 : 1.25;

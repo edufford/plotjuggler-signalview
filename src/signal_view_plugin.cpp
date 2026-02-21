@@ -7,28 +7,21 @@
 
 SignalViewPlugin::SignalViewPlugin() = default;
 
-SignalViewPlugin::~SignalViewPlugin() {
-  if (m_widget) {
-    delete m_widget;
-    m_widget = nullptr;
-  }
-}
+SignalViewPlugin::~SignalViewPlugin() = default;
 
 void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data,
                             PJ::TransformsMap& transform_map) {
   m_plot_data = &src_data;
   m_transforms = &transform_map;
 
-  m_widget = new SignalViewWidget(m_plot_data);
-  connect(m_widget, &QWidget::destroyed, this,
-          [this]() { m_widget = nullptr; });
-  connect(m_widget, &SignalViewWidget::closeRequested, this,
+  m_widget = std::make_unique<SignalViewWidget>(m_plot_data);
+  connect(m_widget.get(), &SignalViewWidget::closeRequested, this,
           &SignalViewPlugin::closed);
 }
 
 std::pair<QWidget*, PJ::ToolboxPlugin::WidgetType>
 SignalViewPlugin::providedWidget() const {
-  return {m_widget, PJ::ToolboxPlugin::FLOATING};
+  return {m_widget.get(), PJ::ToolboxPlugin::FLOATING};
 }
 
 bool SignalViewPlugin::onShowWidget() {
@@ -43,7 +36,9 @@ bool SignalViewPlugin::onShowWidget() {
 
 bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
                                     QDomElement& parent_element) const {
-  if (!m_widget) return false;
+  if (!m_widget) {
+    return false;
+  }
 
   QDomElement widget_elem = doc.createElement("widget");
   widget_elem.setAttribute("visible", m_widget->isVisible() ? "1" : "0");
@@ -80,7 +75,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
   parent_element.appendChild(settings_elem);
 
   // Overlay layers (including base layer time offset)
-  auto* overlay_mgr = m_widget->overlayManager();
+  auto overlay_mgr = m_widget->overlayManager();
   if (overlay_mgr) {
     for (const auto& layer : overlay_mgr->layers()) {
       QDomElement layer_elem = doc.createElement("overlay");
@@ -88,9 +83,10 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
       layer_elem.setAttribute("display_name",
                               QString::fromStdString(layer.display_name));
       layer_elem.setAttribute("time_offset", layer.time_offset);
-      if (!layer.file_path.empty())
+      if (!layer.file_path.empty()) {
         layer_elem.setAttribute("file",
                                 QString::fromStdString(layer.file_path));
+      }
       parent_element.appendChild(layer_elem);
     }
   }
@@ -118,7 +114,9 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
 }
 
 bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
-  if (!m_widget) return false;
+  if (!m_widget) {
+    return false;
+  }
 
   auto& sig_entries = m_widget->signalEntriesMutable();
   sig_entries.clear();
@@ -178,24 +176,27 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
   QDomElement layout_elem = parent_element.firstChildElement("layout");
   if (!layout_elem.isNull()) {
     if (layout_elem.hasAttribute("panel_w") &&
-        layout_elem.hasAttribute("canvas_w"))
+        layout_elem.hasAttribute("canvas_w")) {
       m_widget->mainSplitter()->setSizes(
           {layout_elem.attribute("panel_w").toInt(),
            layout_elem.attribute("canvas_w").toInt()});
+    }
     if (layout_elem.hasAttribute("label_w") &&
-        layout_elem.hasAttribute("bar_w"))
+        layout_elem.hasAttribute("bar_w")) {
       m_widget->yAxisPanel()->setSplitterSizes(
           {layout_elem.attribute("label_w").toInt(),
            layout_elem.attribute("bar_w").toInt()});
+    }
     if (layout_elem.hasAttribute("name_w") &&
-        layout_elem.hasAttribute("value_w"))
+        layout_elem.hasAttribute("value_w")) {
       m_widget->yAxisPanel()->setLabelSplitterSizes(
           {layout_elem.attribute("name_w").toInt(),
            layout_elem.attribute("value_w").toInt()});
+    }
   }
 
   // Restore overlay layers
-  auto* overlay_mgr = m_widget->overlayManager();
+  auto overlay_mgr = m_widget->overlayManager();
   if (overlay_mgr) {
     QDomElement overlay_elem = parent_element.firstChildElement("overlay");
     while (!overlay_elem.isNull()) {
@@ -212,7 +213,9 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
           overlay_mgr->setTimeOffset(new_layer, time_offset);
           if (!display_name.isEmpty()) {
             auto* layer = overlay_mgr->layerByIndex(new_layer);
-            if (layer) layer->display_name = display_name.toStdString();
+            if (layer) {
+              layer->display_name = display_name.toStdString();
+            }
           }
         }
       } else {
@@ -220,7 +223,9 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
         overlay_mgr->setTimeOffset(layer_index, time_offset);
         if (!display_name.isEmpty()) {
           auto* layer = overlay_mgr->layerByIndex(layer_index);
-          if (layer) layer->display_name = display_name.toStdString();
+          if (layer) {
+            layer->display_name = display_name.toStdString();
+          }
         }
       }
 
@@ -237,8 +242,10 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
   QDomElement widget_elem = parent_element.firstChildElement("widget");
   if (!widget_elem.isNull() && widget_elem.attribute("visible", "0") == "1") {
     if (auto* stack = qobject_cast<QStackedWidget*>(m_widget->parentWidget())) {
-      int idx = stack->indexOf(m_widget);
-      if (idx >= 0) stack->setCurrentIndex(idx);
+      int idx = stack->indexOf(m_widget.get());
+      if (idx >= 0) {
+        stack->setCurrentIndex(idx);
+      }
     }
     onShowWidget();
   }

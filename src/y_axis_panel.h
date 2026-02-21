@@ -7,9 +7,8 @@
 #include <set>
 #include <vector>
 
+#include "overlay_manager.h"
 #include "plot_canvas.h"
-
-class OverlayManager;
 
 // Shared band-position helpers used by all column widgets.
 namespace AxisLayout {
@@ -37,16 +36,22 @@ inline std::vector<double> textRowYOffsets(
     const std::vector<SignalEntry>& entries, int widget_height, int row_height,
     double scroll_offset = 0.0) {
   std::vector<double> y_offsets(entries.size(), 0.0);
-  if (entries.empty()) return y_offsets;
+  if (entries.empty()) {
+    return y_offsets;
+  }
 
   // Process signals from top to bottom; earlier-added (lower index) first at
   // same Y
   std::vector<size_t> order(entries.size());
-  for (size_t i = 0; i < entries.size(); i++) order[i] = i;
+  for (size_t i = 0; i < entries.size(); i++) {
+    order[i] = i;
+  }
   std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
     double ya = bandTopY(entries[a], widget_height, scroll_offset);
     double yb = bandTopY(entries[b], widget_height, scroll_offset);
-    if (std::abs(ya - yb) < 1.0) return a < b;
+    if (std::abs(ya - yb) < 1.0) {
+      return a < b;
+    }
     return ya < yb;
   });
 
@@ -267,7 +272,8 @@ class YAxisPanel : public QWidget {
  public:
   explicit YAxisPanel(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
-  void updateCursorValues(OverlayManager* overlay_mgr, double cursor_time);
+  void updateCursorValues(const std::shared_ptr<OverlayManager>& overlay_mgr,
+                          double cursor_time);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
   void setScrollOffset(double offset);

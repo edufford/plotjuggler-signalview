@@ -4,14 +4,15 @@
 #include <QWidget>
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "PlotJuggler/plotdata.h"
+#include "overlay_manager.h"
 
 class QLineEdit;
-class OverlayManager;
 
 enum class MarkerStyle : int {
   None = 0,
@@ -57,8 +58,9 @@ class PlotCanvas : public QWidget {
 
  public:
   explicit PlotCanvas(QWidget* parent = nullptr);
+  ~PlotCanvas() override;
 
-  void setDataSource(OverlayManager* mgr);
+  void setDataSource(std::shared_ptr<OverlayManager> mgr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
 
   double cursorTime() const { return m_cursor_time; }
@@ -115,7 +117,8 @@ class PlotCanvas : public QWidget {
                                      double t_offset, size_t start_idx,
                                      bool downsample) const;
 
-  OverlayManager* m_overlay_mgr = nullptr;
+  // Shared with SignalViewWidget; set via setDataSource().
+  std::shared_ptr<OverlayManager> m_overlay_mgr;
   std::vector<SignalEntry> m_signals;
 
   // View range (time axis)
