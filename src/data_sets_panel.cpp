@@ -12,10 +12,10 @@ DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
   outer->setContentsMargins(4, 2, 4, 2);
   outer->setSpacing(0);
 
-  _rows_layout = new QVBoxLayout();
-  _rows_layout->setContentsMargins(0, 0, 0, 0);
-  _rows_layout->setSpacing(1);
-  outer->addLayout(_rows_layout);
+  m_rows_layout = new QVBoxLayout();
+  m_rows_layout->setContentsMargins(0, 0, 0, 0);
+  m_rows_layout->setSpacing(1);
+  outer->addLayout(m_rows_layout);
   outer->addStretch();
 
   setStyleSheet(
@@ -26,10 +26,10 @@ DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
 
 void DataSetsPanel::refresh(const OverlayManager* mgr) {
   // Clear existing rows
-  for (auto& row : _rows) {
+  for (auto& row : m_rows) {
     delete row.prefix_label->parentWidget();
   }
-  _rows.clear();
+  m_rows.clear();
 
   if (!mgr) return;
 
@@ -66,15 +66,15 @@ void DataSetsPanel::refresh(const OverlayManager* mgr) {
     hl->addWidget(rw.offset_label);
 
     row_widget->setProperty("layer_index", layer.index);
-    _rows_layout->addWidget(row_widget);
-    _rows.push_back(rw);
+    m_rows_layout->addWidget(row_widget);
+    m_rows.push_back(rw);
   }
 }
 
 void DataSetsPanel::updateOffsets(const OverlayManager* mgr) {
   if (!mgr) return;
 
-  for (auto& row : _rows) {
+  for (auto& row : m_rows) {
     double offset = mgr->timeOffset(row.layer_index);
     QString offset_str = QString("offset: %1%2s")
                              .arg(offset >= 0 ? "+" : "")
@@ -86,7 +86,7 @@ void DataSetsPanel::updateOffsets(const OverlayManager* mgr) {
 void DataSetsPanel::contextMenuEvent(QContextMenuEvent* event) {
   // Find which row was right-clicked
   int clicked_layer = -1;
-  for (const auto& row : _rows) {
+  for (const auto& row : m_rows) {
     QWidget* row_widget = row.prefix_label->parentWidget();
     QRect geom = row_widget->geometry();
     // Translate to panel coordinates
@@ -107,7 +107,7 @@ void DataSetsPanel::contextMenuEvent(QContextMenuEvent* event) {
   auto* rename_action = menu.addAction("Rename...");
   connect(rename_action, &QAction::triggered, this, [this, clicked_layer]() {
     // Find current name
-    for (const auto& row : _rows) {
+    for (const auto& row : m_rows) {
       if (row.layer_index == clicked_layer) {
         bool ok;
         QString new_name = QInputDialog::getText(
@@ -123,7 +123,7 @@ void DataSetsPanel::contextMenuEvent(QContextMenuEvent* event) {
   });
 
   // Only allow removing overlay layers (not the PJ base layer)
-  if (clicked_layer > 1 || (clicked_layer == 1 && _rows.size() > 1)) {
+  if (clicked_layer > 1 || (clicked_layer == 1 && m_rows.size() > 1)) {
     auto* remove_action = menu.addAction("Remove Overlay");
     connect(remove_action, &QAction::triggered, this, [this, clicked_layer]() {
       emit removeOverlayRequested(clicked_layer);

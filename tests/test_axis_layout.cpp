@@ -12,8 +12,8 @@ static SignalEntry makeEntry(double center, double height) {
   return e;
 }
 
-static constexpr int kTop = PlotCanvas::kMarginTop;     // 10
-static constexpr int kBot = PlotCanvas::kMarginBottom;  // 40
+static constexpr int TOP = PlotCanvas::MARGIN_TOP;     // 10
+static constexpr int BOT = PlotCanvas::MARGIN_BOTTOM;  // 40
 
 // --- bandTopY ---
 
@@ -54,7 +54,7 @@ TEST(BandGeometry, HeightEqualsExpected) {
   auto e = makeEntry(0.3, 0.4);
   double top = AxisLayout::bandTopY(e, 600);
   double bot = AxisLayout::bandBottomY(e, 600);
-  double plot_h = 600.0 - kTop - kBot;
+  double plot_h = 600.0 - TOP - BOT;
   EXPECT_NEAR(bot - top, plot_h * 0.4, 1e-10);
 }
 

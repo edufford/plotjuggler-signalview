@@ -30,7 +30,7 @@ class SignalViewPlugin : public PJ::ToolboxPlugin {
   bool xmlLoadState(const QDomElement& parent_element) override;
 
  private:
-  SignalViewWidget* _widget = nullptr;
-  PJ::PlotDataMapRef* _plot_data = nullptr;
-  PJ::TransformsMap* _transforms = nullptr;
+  SignalViewWidget* m_widget = nullptr;
+  PJ::PlotDataMapRef* m_plot_data = nullptr;
+  PJ::TransformsMap* m_transforms = nullptr;
 };

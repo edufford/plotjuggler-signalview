@@ -46,13 +46,13 @@ class OverlayManager {
   bool removeOverlay(int layer_index);
 
   /// Get all layers (read-only).
-  const std::vector<OverlayLayer>& layers() const { return _layers; }
+  const std::vector<OverlayLayer>& layers() const { return m_layers; }
 
   /// Get a mutable layer by index.
   OverlayLayer* layerByIndex(int index);
 
   /// Number of layers currently loaded.
-  int layerCount() const { return static_cast<int>(_layers.size()); }
+  int layerCount() const { return static_cast<int>(m_layers.size()); }
 
   /// Whether there are any overlay layers (layers beyond a single base).
   bool hasOverlays() const;
@@ -91,6 +91,6 @@ class OverlayManager {
   /// Assign the next available layer index.
   int nextLayerIndex() const;
 
-  PJ::PlotDataMapRef* _base_data = nullptr;
-  std::vector<OverlayLayer> _layers;
+  PJ::PlotDataMapRef* m_base_data = nullptr;
+  std::vector<OverlayLayer> m_layers;
 };

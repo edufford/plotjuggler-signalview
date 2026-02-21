@@ -82,6 +82,11 @@ To output JUnit XML results (used by CI for test reporting):
 JUNIT_OUTPUT=test-results.xml ./test.sh
 ```
 
+## Coding Conventions
+
+- Google C++ formatting (`clang-format -style=Google`)
+- Qt naming conventions: `m_` member prefix, `UPPER_CASE` constants, `camelCase` functions, `PascalCase` classes
+
 ## Project Structure
 
 ```

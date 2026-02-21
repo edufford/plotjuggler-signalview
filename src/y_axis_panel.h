@@ -16,15 +16,15 @@ namespace AxisLayout {
 inline double bandTopY(const SignalEntry& sig, int widget_height,
                        double scroll_offset = 0.0) {
   double plot_h =
-      widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-  return PlotCanvas::kMarginTop +
+      widget_height - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
+  return PlotCanvas::MARGIN_TOP +
          plot_h * (sig.band_center - sig.band_height * 0.5 - scroll_offset);
 }
 inline double bandBottomY(const SignalEntry& sig, int widget_height,
                           double scroll_offset = 0.0) {
   double plot_h =
-      widget_height - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-  return PlotCanvas::kMarginTop +
+      widget_height - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
+  return PlotCanvas::MARGIN_TOP +
          plot_h * (sig.band_center + sig.band_height * 0.5 - scroll_offset);
 }
 // Returns the pixel Y offset for each signal's text row, ensuring no
@@ -107,28 +107,28 @@ class SignalColumnBase : public QWidget {
   int hitTestSignal(const QPoint& pos) const;
   int effectiveDragIndex() const;
 
-  static constexpr int kTextRowHeight = 15;
-  std::vector<SignalEntry> _signals;
-  std::set<int> _selected;
-  double _scroll_offset = 0.0;
+  static constexpr int TEXT_ROW_HEIGHT = 15;
+  std::vector<SignalEntry> m_signals;
+  std::set<int> m_selected;
+  double m_scroll_offset = 0.0;
 
  private:
-  int _drag_index = -1;
-  int _external_drag_index = -1;
-  bool _drag_moved = false;
-  int _drag_start_global_y = 0;
-  double _drag_start_band_center = 0.0;
-  bool _rubber_band_active = false;
-  bool _rubber_band_ctrl = false;
-  QPoint _rubber_band_origin;
-  QPoint _rubber_band_current;
+  int m_drag_index = -1;
+  int m_external_drag_index = -1;
+  bool m_drag_moved = false;
+  int m_drag_start_global_y = 0;
+  double m_drag_start_band_center = 0.0;
+  bool m_rubber_band_active = false;
+  bool m_rubber_band_ctrl = false;
+  QPoint m_rubber_band_origin;
+  QPoint m_rubber_band_current;
 };
 
 // Signal name column: colored dot + signal name, draggable to reposition.
 class SignalNameColumn : public SignalColumnBase {
  public:
   explicit SignalNameColumn(QWidget* parent = nullptr);
-  static constexpr int kDefaultWidth = 70;
+  static constexpr int DEFAULT_WIDTH = 70;
 
  protected:
   void paintContent(QPainter& painter,
@@ -142,15 +142,15 @@ class SignalValueColumn : public SignalColumnBase {
   void setSignalEntries(const std::vector<SignalEntry>& entries) override;
   void setCursorValues(const std::vector<double>& values,
                        const std::vector<bool>& valid);
-  static constexpr int kDefaultWidth = 70;
+  static constexpr int DEFAULT_WIDTH = 70;
 
  protected:
   void paintContent(QPainter& painter,
                     const std::vector<double>& row_offsets) override;
 
  private:
-  std::vector<double> _cursor_values;
-  std::vector<bool> _cursor_valid;
+  std::vector<double> m_cursor_values;
+  std::vector<bool> m_cursor_valid;
 };
 
 // Container: name column | value column in a splitter.
@@ -167,11 +167,11 @@ class YAxisLabelColumn : public QWidget {
   void setSelection(const std::set<int>& sel);
   void setScrollOffset(double offset);
 
-  static constexpr int kDefaultWidth =
-      SignalNameColumn::kDefaultWidth + SignalValueColumn::kDefaultWidth + 3;
+  static constexpr int DEFAULT_WIDTH =
+      SignalNameColumn::DEFAULT_WIDTH + SignalValueColumn::DEFAULT_WIDTH + 3;
 
-  QList<int> splitterSizes() const { return _splitter->sizes(); }
-  void setSplitterSizes(const QList<int>& sizes) { _splitter->setSizes(sizes); }
+  QList<int> splitterSizes() const { return m_splitter->sizes(); }
+  void setSplitterSizes(const QList<int>& sizes) { m_splitter->setSizes(sizes); }
 
  signals:
   void bandOffsetChanged(int index, double new_center);
@@ -182,9 +182,9 @@ class YAxisLabelColumn : public QWidget {
   void verticalScrollRequested(double delta);
 
  private:
-  QSplitter* _splitter;
-  SignalNameColumn* _name_col;
-  SignalValueColumn* _value_col;
+  QSplitter* m_splitter;
+  SignalNameColumn* m_name_col;
+  SignalValueColumn* m_value_col;
 };
 
 // Y-axis bars with tick marks, edge grab handles, drag interaction.
@@ -196,14 +196,14 @@ class YAxisBarColumn : public QWidget {
   void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setCanvasHeight(int h);
   void setSnapAmount(double snap);
-  const std::set<int>& selection() const { return _selected; }
+  const std::set<int>& selection() const { return m_selected; }
   void setSelection(const std::set<int>& sel);
   void clearSelection();
   void selectAll();
   void setScrollOffset(double offset);
-  double scrollOffset() const { return _scroll_offset; }
+  double scrollOffset() const { return m_scroll_offset; }
 
-  static constexpr int kDefaultWidth = 60;
+  static constexpr int DEFAULT_WIDTH = 60;
 
  signals:
   void yRangeChanged(int index, double y_min, double y_max);
@@ -234,26 +234,26 @@ class YAxisBarColumn : public QWidget {
   HitResult hitTest(const QPoint& pos) const;
   double axisX(double bar_x) const;
 
-  std::vector<SignalEntry> _signals;
-  std::set<int> _selected;
-  double _scroll_offset = 0.0;
-  HitResult _drag_hit;
-  bool _drag_moved = false;
-  double _snap_amount = 0.01;
-  int _drag_start_global_x = 0;
-  int _drag_start_global_y = 0;
-  double _drag_start_bar_x = 1.0;
-  double _drag_start_band_center = 0.0;
-  double _drag_start_band_height = 0.0;
+  std::vector<SignalEntry> m_signals;
+  std::set<int> m_selected;
+  double m_scroll_offset = 0.0;
+  HitResult m_drag_hit;
+  bool m_drag_moved = false;
+  double m_snap_amount = 0.01;
+  int m_drag_start_global_x = 0;
+  int m_drag_start_global_y = 0;
+  double m_drag_start_bar_x = 1.0;
+  double m_drag_start_band_center = 0.0;
+  double m_drag_start_band_height = 0.0;
   // Rubber band selection
-  bool _rubber_band_active = false;
-  bool _rubber_band_ctrl = false;
-  QPoint _rubber_band_origin;
-  QPoint _rubber_band_current;
+  bool m_rubber_band_active = false;
+  bool m_rubber_band_ctrl = false;
+  QPoint m_rubber_band_origin;
+  QPoint m_rubber_band_current;
 
-  static constexpr int kEdgeGrabPixels = 8;
-  static constexpr int kAxisPadLeft = 4;
-  static constexpr int kAxisPadRight = 10;
+  static constexpr int EDGE_GRAB_PIXELS = 8;
+  static constexpr int AXIS_PAD_LEFT = 4;
+  static constexpr int AXIS_PAD_RIGHT = 10;
 };
 
 // Top-level container: label column | bar column in a splitter.
@@ -272,11 +272,11 @@ class YAxisPanel : public QWidget {
   void selectAll();
 
   // Splitter size accessors for layout save/restore
-  QList<int> splitterSizes() const { return _splitter->sizes(); }
-  void setSplitterSizes(const QList<int>& sizes) { _splitter->setSizes(sizes); }
-  QList<int> labelSplitterSizes() const { return _label_col->splitterSizes(); }
+  QList<int> splitterSizes() const { return m_splitter->sizes(); }
+  void setSplitterSizes(const QList<int>& sizes) { m_splitter->setSizes(sizes); }
+  QList<int> labelSplitterSizes() const { return m_label_col->splitterSizes(); }
   void setLabelSplitterSizes(const QList<int>& sizes) {
-    _label_col->setSplitterSizes(sizes);
+    m_label_col->setSplitterSizes(sizes);
   }
 
  signals:
@@ -291,8 +291,8 @@ class YAxisPanel : public QWidget {
   void verticalScrollRequested(double delta);
 
  private:
-  QSplitter* _splitter;
-  YAxisLabelColumn* _label_col;
-  YAxisBarColumn* _bar_col;
-  std::vector<SignalEntry> _signals;
+  QSplitter* m_splitter;
+  YAxisLabelColumn* m_label_col;
+  YAxisBarColumn* m_bar_col;
+  std::vector<SignalEntry> m_signals;
 };

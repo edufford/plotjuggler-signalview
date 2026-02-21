@@ -6,36 +6,36 @@
 
 #include "plot_canvas.h"
 
-static constexpr int kW = 400;
-static constexpr int kH = 300;
+static constexpr int W = 400;
+static constexpr int H = 300;
 
 // Pixel X for a given time value in a 400-wide widget with view range [0, 10].
 static int timeToPixelX(double t) {
-  double plot_w = kW - PlotCanvas::kMarginLeft - PlotCanvas::kMarginRight;
-  return PlotCanvas::kMarginLeft + (int)(t / 10.0 * plot_w);
+  double plot_w = W - PlotCanvas::MARGIN_LEFT - PlotCanvas::MARGIN_RIGHT;
+  return PlotCanvas::MARGIN_LEFT + (int)(t / 10.0 * plot_w);
 }
 
 class PlotCanvasUITest : public ::testing::Test {
  protected:
   void SetUp() override {
-    canvas_ = new PlotCanvas;
-    canvas_->resize(kW, kH);
-    canvas_->setViewRange(0.0, 10.0);
-    canvas_->show();
-    ASSERT_TRUE(QTest::qWaitForWindowExposed(canvas_));
+    m_canvas = new PlotCanvas;
+    m_canvas->resize(W, H);
+    m_canvas->setViewRange(0.0, 10.0);
+    m_canvas->show();
+    ASSERT_TRUE(QTest::qWaitForWindowExposed(m_canvas));
   }
 
-  void TearDown() override { delete canvas_; }
+  void TearDown() override { delete m_canvas; }
 
-  PlotCanvas* canvas_ = nullptr;
+  PlotCanvas* m_canvas = nullptr;
 };
 
 // Left-clicking on the canvas sets the cursor time near the clicked position.
 TEST_F(PlotCanvasUITest, LeftClickSetsCursorTime) {
-  QSignalSpy spy(canvas_, &PlotCanvas::cursorMoved);
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
   int click_x = timeToPixelX(5.0);
-  int click_y = kH / 2;
-  QTest::mouseClick(canvas_, Qt::LeftButton, Qt::NoModifier,
+  int click_y = H / 2;
+  QTest::mouseClick(m_canvas, Qt::LeftButton, Qt::NoModifier,
                     QPoint(click_x, click_y));
   ASSERT_GE(spy.count(), 1);
   double t = spy.last().at(0).toDouble();
@@ -44,18 +44,18 @@ TEST_F(PlotCanvasUITest, LeftClickSetsCursorTime) {
 
 // Dragging horizontally after a left press updates cursor time continuously.
 TEST_F(PlotCanvasUITest, CursorDragUpdatesTime) {
-  QSignalSpy spy(canvas_, &PlotCanvas::cursorMoved);
-  int y = kH / 2;
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
+  int y = H / 2;
   QPoint start(timeToPixelX(3.0), y);
   QPoint end(timeToPixelX(7.0), y);
 
-  QTest::mousePress(canvas_, Qt::LeftButton, Qt::NoModifier, start);
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
   // Use explicit event: QTest::mouseMove relies on QCursor::setPos which is
   // nondeterministic under xvfb.
-  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
                    Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-  QApplication::sendEvent(canvas_, &move);
-  QTest::mouseRelease(canvas_, Qt::LeftButton, Qt::NoModifier, end);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 2);
   double t_first = spy.first().at(0).toDouble();
@@ -66,16 +66,16 @@ TEST_F(PlotCanvasUITest, CursorDragUpdatesTime) {
 
 // Right-click drag pans the view range horizontally.
 TEST_F(PlotCanvasUITest, RightClickPanShiftsViewRange) {
-  QSignalSpy spy(canvas_, &PlotCanvas::viewRangeChanged);
-  int y = kH / 2;
+  QSignalSpy spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  int y = H / 2;
   QPoint start(200, y);
   QPoint end(250, y);
 
-  QTest::mousePress(canvas_, Qt::RightButton, Qt::NoModifier, start);
-  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
                    Qt::RightButton, Qt::RightButton, Qt::NoModifier);
-  QApplication::sendEvent(canvas_, &move);
-  QTest::mouseRelease(canvas_, Qt::RightButton, Qt::NoModifier, end);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);
   double new_min = spy.last().at(0).toDouble();
@@ -87,17 +87,17 @@ TEST_F(PlotCanvasUITest, RightClickPanShiftsViewRange) {
 
 // In zoom mode, a left-drag rubber band narrows the view range.
 TEST_F(PlotCanvasUITest, ZoomRubberBandSetsViewRange) {
-  canvas_->setZoomMode(true);
-  QSignalSpy spy(canvas_, &PlotCanvas::viewRangeChanged);
-  int y = kH / 2;
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  int y = H / 2;
   QPoint start(timeToPixelX(2.0), y);
   QPoint end(timeToPixelX(8.0), y);
 
-  QTest::mousePress(canvas_, Qt::LeftButton, Qt::NoModifier, start);
-  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
                    Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-  QApplication::sendEvent(canvas_, &move);
-  QTest::mouseRelease(canvas_, Qt::LeftButton, Qt::NoModifier, end);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);
   double new_min = spy.last().at(0).toDouble();
@@ -108,12 +108,12 @@ TEST_F(PlotCanvasUITest, ZoomRubberBandSetsViewRange) {
 
 // In normal mode, a wheel event emits verticalScrollRequested.
 TEST_F(PlotCanvasUITest, WheelInNormalModeEmitsVerticalScroll) {
-  QSignalSpy spy(canvas_, &PlotCanvas::verticalScrollRequested);
-  QPoint center(kW / 2, kH / 2);
-  QWheelEvent event(center, canvas_->mapToGlobal(center), QPoint(0, 0),
+  QSignalSpy spy(m_canvas, &PlotCanvas::verticalScrollRequested);
+  QPoint center(W / 2, H / 2);
+  QWheelEvent event(center, m_canvas->mapToGlobal(center), QPoint(0, 0),
                     QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
                     Qt::NoScrollPhase, false);
-  QApplication::sendEvent(canvas_, &event);
+  QApplication::sendEvent(m_canvas, &event);
   ASSERT_EQ(spy.count(), 1);
   double delta = spy.first().at(0).toDouble();
   EXPECT_LT(delta, 0.0);  // scroll up = negative delta
@@ -121,13 +121,13 @@ TEST_F(PlotCanvasUITest, WheelInNormalModeEmitsVerticalScroll) {
 
 // In zoom mode, a wheel event changes the view range (zoom).
 TEST_F(PlotCanvasUITest, WheelInZoomModeChangesViewRange) {
-  canvas_->setZoomMode(true);
-  QSignalSpy spy(canvas_, &PlotCanvas::viewRangeChanged);
-  QPoint center(kW / 2, kH / 2);
-  QWheelEvent event(center, canvas_->mapToGlobal(center), QPoint(0, 0),
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  QPoint center(W / 2, H / 2);
+  QWheelEvent event(center, m_canvas->mapToGlobal(center), QPoint(0, 0),
                     QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
                     Qt::NoScrollPhase, false);
-  QApplication::sendEvent(canvas_, &event);
+  QApplication::sendEvent(m_canvas, &event);
   ASSERT_EQ(spy.count(), 1);
   double new_min = spy.first().at(0).toDouble();
   double new_max = spy.first().at(1).toDouble();
