@@ -42,7 +42,6 @@ cd /d "%BUILD_DIR%"
 cmake .. -G "Visual Studio 18 2026" -A x64 -T v142 ^
     -DPJ_INSTALL_DIR="%PJ_INSTALL_DIR%" ^
     -DCMAKE_PREFIX_PATH="%QT_DIR%;%PJ_INSTALL_DIR%" ^
-    -DCMAKE_BUILD_TYPE=Release ^
     -DBUILD_TESTING=OFF
 
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
