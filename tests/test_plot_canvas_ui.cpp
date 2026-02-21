@@ -50,7 +50,11 @@ TEST_F(PlotCanvasUITest, CursorDragUpdatesTime) {
   QPoint end(timeToPixelX(7.0), y);
 
   QTest::mousePress(canvas_, Qt::LeftButton, Qt::NoModifier, start);
-  QTest::mouseMove(canvas_, end);
+  // Use explicit event: QTest::mouseMove relies on QCursor::setPos which is
+  // nondeterministic under xvfb.
+  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(canvas_, &move);
   QTest::mouseRelease(canvas_, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 2);
@@ -68,7 +72,9 @@ TEST_F(PlotCanvasUITest, RightClickPanShiftsViewRange) {
   QPoint end(250, y);
 
   QTest::mousePress(canvas_, Qt::RightButton, Qt::NoModifier, start);
-  QTest::mouseMove(canvas_, end);
+  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(canvas_, &move);
   QTest::mouseRelease(canvas_, Qt::RightButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);
@@ -88,7 +94,9 @@ TEST_F(PlotCanvasUITest, ZoomRubberBandSetsViewRange) {
   QPoint end(timeToPixelX(8.0), y);
 
   QTest::mousePress(canvas_, Qt::LeftButton, Qt::NoModifier, start);
-  QTest::mouseMove(canvas_, end);
+  QMouseEvent move(QEvent::MouseMove, end, canvas_->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(canvas_, &move);
   QTest::mouseRelease(canvas_, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);

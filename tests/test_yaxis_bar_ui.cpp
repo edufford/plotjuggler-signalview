@@ -101,7 +101,11 @@ TEST_F(YAxisBarUITest, DragBarBodyEmitsBandOffsetChanged) {
   QPoint end(ax, cy + 50);
 
   QTest::mousePress(bar_, Qt::LeftButton, Qt::NoModifier, start);
-  QTest::mouseMove(bar_, end);
+  // Use explicit event: QTest::mouseMove relies on QCursor::setPos which is
+  // nondeterministic under xvfb.
+  QMouseEvent move(QEvent::MouseMove, end, bar_->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(bar_, &move);
   QTest::mouseRelease(bar_, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);
@@ -121,7 +125,9 @@ TEST_F(YAxisBarUITest, DragTopEdgeEmitsBandResized) {
   QPoint end(ax, top_y + 30);
 
   QTest::mousePress(bar_, Qt::LeftButton, Qt::NoModifier, start);
-  QTest::mouseMove(bar_, end);
+  QMouseEvent move2(QEvent::MouseMove, end, bar_->mapToGlobal(end),
+                    Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(bar_, &move2);
   QTest::mouseRelease(bar_, Qt::LeftButton, Qt::NoModifier, end);
 
   ASSERT_GE(spy.count(), 1);
