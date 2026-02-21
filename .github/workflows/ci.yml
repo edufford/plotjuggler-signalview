@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [dev_ai, main]
+  pull_request:
+    branches: [dev_ai, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      PJ_INSTALL_DIR: ${{ github.workspace }}/plotjuggler-install
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install plugin dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qtbase5-dev cmake libfmt-dev xvfb
+
+      - name: Cache PlotJuggler
+        id: cache-pj
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PJ_INSTALL_DIR }}
+          key: plotjuggler-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Install PlotJuggler build dependencies
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y \
+            libqt5svg5-dev libqt5opengl5-dev libqt5websockets5-dev \
+            libcurl4-openssl-dev
+
+      - name: Build PlotJuggler
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/facontidavide/PlotJuggler.git /tmp/PlotJuggler
+          cd /tmp/PlotJuggler
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_INSTALL_PREFIX=$PJ_INSTALL_DIR \
+            -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          make install
+
+      - name: Run tests
+        run: xvfb-run ./test.sh
