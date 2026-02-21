@@ -52,5 +52,5 @@ jobs:
 
       # xvfb-run launches tests inside a virtual X display so Qt can
       # instantiate widgets without a physical screen.
-      - name: Run tests
+      - name: Build and run tests
         run: xvfb-run ./test.sh
