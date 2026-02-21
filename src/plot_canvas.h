@@ -104,35 +104,37 @@ class PlotCanvas : public QWidget {
   double m_view_t_max = 10.0;
   bool m_auto_fit = true;
 
+  // Interaction mode (set externally by toolbar toggles)
+  enum class InteractionMode { Normal, Zoom, TimeShift };
+  InteractionMode m_mode = InteractionMode::Normal;
+
+  // Active drag state (mutually exclusive; only one active at a time)
+  enum class DragState { None, CursorDrag, Panning, ZoomSelect, TimeShiftDrag };
+  DragState m_drag_state = DragState::None;
+
   // Vertical scroll
   double m_scroll_offset = 0.0;
-  bool m_zoom_mode = false;
 
   // Cursor
   double m_cursor_time = 0.0;
-  bool m_cursor_dragging = false;
   bool m_cursor_needs_data =
       false;  // set when signals change, cleared when data found
 
   // Pan state
-  bool m_panning = false;
   QPoint m_pan_start;
   double m_pan_t_min_start = 0.0;
   double m_pan_t_max_start = 0.0;
 
   // Zoom-select (rubber band) state
-  bool m_zoom_selecting = false;
   double m_zoom_select_start_x = 0.0;    // pixel X of press
   double m_zoom_select_current_x = 0.0;  // pixel X of current drag
 
   // Time shift state
-  bool m_time_shift_mode = false;
-  bool m_time_shift_dragging = false;
   QPoint m_time_shift_start;
   std::set<int> m_selected_layers;
   int m_default_shift_layer = 1;
   std::map<int, double>
-      mm_time_shift_start_offsets;  // original offsets at drag start
+      m_time_shift_start_offsets;  // original offsets at drag start
 
   // Time range edit fields
   QLineEdit* m_time_start_edit;
