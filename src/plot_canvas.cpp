@@ -789,8 +789,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
         double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
         if (plot_w <= 0) return;
         double dt = dx_pixels / plot_w * (m_view_t_max - m_view_t_min);
-        for (auto& [layer_idx, start_offset] : m_time_shift_start_offsets)
+        for (auto& [layer_idx, start_offset] : m_time_shift_start_offsets) {
           m_overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
+        }
         emit timeShiftChanged();
         update();
       }
