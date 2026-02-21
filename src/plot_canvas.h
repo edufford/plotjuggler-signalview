@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QWidget>
+#include <algorithm>
 #include <map>
 #include <set>
 #include <string>
@@ -29,16 +30,26 @@ struct SignalEntry {
   double y_max = 1.0;
   // Vertical position of this signal's band in normalized [0,1] space.
   // 0 = top of canvas, 1 = bottom. Each signal is assigned a band.
-  double band_center = 0.5;
-  double band_height = 1.0;  // fraction of canvas height
-  double bar_x = 1.0;  // horizontal position of Y-axis bar [0=left, 1=right]
-  int divisions = 8;   // Y-axis tick divisions (0 = auto)
+  double band_center_norm = 0.5;
+  double band_height_norm = 1.0;  // fraction of canvas height
+  double bar_x_norm =
+      1.0;            // horizontal position of Y-axis bar [0=left, 1=right]
+  int divisions = 8;  // Y-axis tick divisions (0 = auto)
   Qt::PenStyle line_style = Qt::SolidLine;
   double line_width = 1.5;
   MarkerStyle marker_style = MarkerStyle::None;
 
   static constexpr int MAX_DIVISIONS = 32;
   static constexpr int PIXELS_PER_AUTO_TICK = 32;
+
+  // Returns the number of Y-axis tick divisions for this signal given the
+  // band's pixel height. Uses sig.divisions if set, otherwise auto-scales.
+  int tickCount(double band_pixel_h) const {
+    return (divisions > 0)
+               ? divisions
+               : std::clamp((int)(band_pixel_h / PIXELS_PER_AUTO_TICK), 2,
+                            MAX_DIVISIONS);
+  }
 };
 
 class PlotCanvas : public QWidget {

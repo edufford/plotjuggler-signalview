@@ -199,7 +199,8 @@ void PlotCanvas::resetZoom() {
 double PlotCanvas::timeToPixelX(double t) const {
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
   if (m_view_t_max <= m_view_t_min || plot_w <= 0) return MARGIN_LEFT;
-  return MARGIN_LEFT + (t - m_view_t_min) / (m_view_t_max - m_view_t_min) * plot_w;
+  return MARGIN_LEFT +
+         (t - m_view_t_min) / (m_view_t_max - m_view_t_min) * plot_w;
 }
 
 double PlotCanvas::pixelXToTime(double px) const {
@@ -216,17 +217,17 @@ double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const {
   // The signal's band occupies a portion of the canvas, shifted by scroll
   // offset
   double band_top =
-      MARGIN_TOP +
-      plot_h * (sig.band_center - sig.band_height * 0.5 - m_scroll_offset);
+      MARGIN_TOP + plot_h * (sig.band_center_norm - sig.band_height_norm * 0.5 -
+                             m_scroll_offset);
   double band_bottom =
-      MARGIN_TOP +
-      plot_h * (sig.band_center + sig.band_height * 0.5 - m_scroll_offset);
-  double band_h = band_bottom - band_top;
+      MARGIN_TOP + plot_h * (sig.band_center_norm + sig.band_height_norm * 0.5 -
+                             m_scroll_offset);
+  double band_pixel_h = band_bottom - band_top;
 
   // Map value within [y_min, y_max] to pixel within [band_bottom, band_top] (Y
   // inverted)
   double normalized = (value - sig.y_min) / (sig.y_max - sig.y_min);
-  return band_bottom - normalized * band_h;
+  return band_bottom - normalized * band_pixel_h;
 }
 
 void PlotCanvas::setScrollOffset(double offset) {
@@ -270,7 +271,7 @@ void PlotCanvas::repositionTimeEdits() {
   int y = height() - field_h - 1;
   m_time_start_edit->setGeometry(MARGIN_LEFT, y, field_w, field_h);
   m_time_end_edit->setGeometry(width() - MARGIN_RIGHT - field_w, y, field_w,
-                              field_h);
+                               field_h);
 }
 
 void PlotCanvas::updateTimeEditTexts() {
@@ -314,27 +315,22 @@ void PlotCanvas::drawGrid(QPainter& painter) {
   // Per-signal horizontal grid lines aligned to each signal's Y-axis divisions
   for (const auto& sig : m_signals) {
     double band_top =
-        MARGIN_TOP +
-        plot_h * (sig.band_center - sig.band_height * 0.5 - m_scroll_offset);
+        MARGIN_TOP + plot_h * (sig.band_center_norm -
+                               sig.band_height_norm * 0.5 - m_scroll_offset);
     double band_bottom =
-        MARGIN_TOP +
-        plot_h * (sig.band_center + sig.band_height * 0.5 - m_scroll_offset);
-    double band_h = band_bottom - band_top;
+        MARGIN_TOP + plot_h * (sig.band_center_norm +
+                               sig.band_height_norm * 0.5 - m_scroll_offset);
+    double band_pixel_h = band_bottom - band_top;
 
-    if (band_h < 4) continue;
+    if (band_pixel_h < 4) continue;
 
-    // Same tick count as the Y-axis bar column
-    int n_ticks =
-        (sig.divisions > 0)
-            ? sig.divisions
-            : std::clamp((int)(band_h / SignalEntry::PIXELS_PER_AUTO_TICK), 2,
-                         SignalEntry::MAX_DIVISIONS);
+    int n_ticks = sig.tickCount(band_pixel_h);
 
     painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
-      double y = band_bottom - frac * band_h;
+      double y = band_bottom - frac * band_pixel_h;
       painter.drawLine(QPointF(MARGIN_LEFT, y),
                        QPointF(width() - MARGIN_RIGHT, y));
     }

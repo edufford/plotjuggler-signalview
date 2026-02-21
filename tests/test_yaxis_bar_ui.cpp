@@ -12,19 +12,21 @@ static constexpr int AXIS_PAD_LEFT = 4;
 static constexpr int AXIS_PAD_RIGHT = 10;
 
 // Helper: create a signal entry at the given band position.
-static SignalEntry makeEntry(double center, double height, double bar_x = 1.0) {
+static SignalEntry makeEntry(double center, double height,
+                             double bar_x_norm = 1.0) {
   SignalEntry e;
   e.name = "test";
   e.color = QColor(Qt::red);
-  e.band_center = center;
-  e.band_height = height;
-  e.bar_x = bar_x;
+  e.band_center_norm = center;
+  e.band_height_norm = height;
+  e.bar_x_norm = bar_x_norm;
   return e;
 }
 
-// Pixel X of the Y-axis bar for a given bar_x in a 60-wide widget.
-static int barPixelX(double bar_x) {
-  return AXIS_PAD_LEFT + (int)(bar_x * (W - AXIS_PAD_LEFT - AXIS_PAD_RIGHT));
+// Pixel X of the Y-axis bar for a given bar_x_norm in a 60-wide widget.
+static int barPixelX(double bar_x_norm) {
+  return AXIS_PAD_LEFT +
+         (int)(bar_x_norm * (W - AXIS_PAD_LEFT - AXIS_PAD_RIGHT));
 }
 
 // Pixel Y of the band center for a given entry in a 500-high widget.

@@ -40,7 +40,7 @@ class SignalViewWidget : public QWidget {
   void closeRequested();
 
  private slots:
-  void onAddSignal(double band_center = -1.0);
+  void onAddSignal(double band_center_norm = -1.0);
   void onRemoveSignal();
   void onResetZoom();
   void onCursorMoved(double time);
@@ -86,8 +86,8 @@ class SignalViewWidget : public QWidget {
 
   // Multi-drag state: original positions captured at drag start
   int m_multi_drag_index = -1;
-  std::map<int, double> m_multi_drag_origins;        // band_center origins
-  std::map<int, double> m_multi_drag_bar_x_origins;  // bar_x origins
+  std::map<int, double> m_multi_drag_origins;        // band_center_norm origins
+  std::map<int, double> m_multi_drag_bar_x_origins;  // bar_x_norm origins
 
   static constexpr double DEFAULT_BAND_HEIGHT = 0.20;
 

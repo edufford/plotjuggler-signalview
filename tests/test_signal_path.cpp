@@ -18,7 +18,8 @@ static constexpr double PIXEL_TOL = 1.0;
 
 // view [0, 10] → plot_w=370, plot_h=250
 // pixelX(time)  = MARGIN_LEFT + (time/10)*370 = 10 + 37*time
-// For sig y_min=0, y_max=1, band_center=0.5, band_height=1.0, scroll=0:
+// For sig y_min=0, y_max=1, band_center_norm=0.5, band_height_norm=1.0,
+// scroll=0:
 //   band_top=10, band_bottom=260 → pixelY(value) = 260 - value*250
 static double pixelX(double time) {
   return PlotCanvas::MARGIN_LEFT +
@@ -60,8 +61,8 @@ class PlotCanvasPathTest : public ::testing::Test {
     SignalEntry sig;
     sig.y_min = 0.0;
     sig.y_max = 1.0;
-    sig.band_center = 0.5;
-    sig.band_height = 1.0;
+    sig.band_center_norm = 0.5;
+    sig.band_height_norm = 1.0;
     return sig;
   }
 
@@ -201,16 +202,16 @@ TEST_F(PlotCanvasPathTest, DownsampledMatchesFullResPerColumnYRange) {
   //   t=8.0   → col 306  (isolated)
   //   t=9.0   → col 343  (isolated)
   auto series = makeSeries({
-      {0.0,   0.0},
-      {1.0,   0.3},
-      {2.0,   0.5},
+      {0.0, 0.0},
+      {1.0, 0.3},
+      {2.0, 0.5},
       {2.005, 0.9},
-      {4.0,   0.1},
-      {6.0,   0.7},
+      {4.0, 0.1},
+      {6.0, 0.7},
       {6.003, 0.2},
       {6.006, 0.6},
-      {8.0,   0.4},
-      {9.0,   0.8},
+      {8.0, 0.4},
+      {9.0, 0.8},
   });
 
   auto path_full = buildPath(makeSig(), series, 0.0, 0, false);
@@ -242,11 +243,14 @@ TEST_F(PlotCanvasPathTest, DownsampledMatchesFullResPerColumnYRange) {
   // Every column in the full-res path must appear in the downsampled path with
   // a matching Y range (within one pixel).
   for (const auto& [col, range] : full_ranges) {
-    ASSERT_TRUE(ds_ranges.count(col)) << "column " << col << " missing from downsampled path";
+    ASSERT_TRUE(ds_ranges.count(col))
+        << "column " << col << " missing from downsampled path";
     const auto& [full_min_y, full_max_y] = range;
     const auto& [ds_min_y, ds_max_y] = ds_ranges[col];
-    EXPECT_NEAR(ds_min_y, full_min_y, PIXEL_TOL) << "min_y mismatch at column " << col;
-    EXPECT_NEAR(ds_max_y, full_max_y, PIXEL_TOL) << "max_y mismatch at column " << col;
+    EXPECT_NEAR(ds_min_y, full_min_y, PIXEL_TOL)
+        << "min_y mismatch at column " << col;
+    EXPECT_NEAR(ds_max_y, full_max_y, PIXEL_TOL)
+        << "max_y mismatch at column " << col;
   }
 }
 

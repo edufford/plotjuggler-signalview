@@ -20,7 +20,8 @@ void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data,
   m_transforms = &transform_map;
 
   m_widget = new SignalViewWidget(m_plot_data);
-  connect(m_widget, &QWidget::destroyed, this, [this]() { m_widget = nullptr; });
+  connect(m_widget, &QWidget::destroyed, this,
+          [this]() { m_widget = nullptr; });
   connect(m_widget, &SignalViewWidget::closeRequested, this,
           &SignalViewPlugin::closed);
 }
@@ -55,9 +56,9 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
     sig_elem.setAttribute("color", sig.color.name());
     sig_elem.setAttribute("y_min", sig.y_min);
     sig_elem.setAttribute("y_max", sig.y_max);
-    sig_elem.setAttribute("band_center", sig.band_center);
-    sig_elem.setAttribute("band_height", sig.band_height);
-    sig_elem.setAttribute("bar_x", sig.bar_x);
+    sig_elem.setAttribute("band_center_norm", sig.band_center_norm);
+    sig_elem.setAttribute("band_height_norm", sig.band_height_norm);
+    sig_elem.setAttribute("bar_x_norm", sig.bar_x_norm);
     sig_elem.setAttribute("divisions", sig.divisions);
     sig_elem.setAttribute("line_style", (int)sig.line_style);
     sig_elem.setAttribute("line_width", sig.line_width);
@@ -129,9 +130,11 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
     entry.color = QColor(sig_elem.attribute("color", "#00b4ff"));
     entry.y_min = sig_elem.attribute("y_min", "0").toDouble();
     entry.y_max = sig_elem.attribute("y_max", "1").toDouble();
-    entry.band_center = sig_elem.attribute("band_center", "0.5").toDouble();
-    entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
-    entry.bar_x = sig_elem.attribute("bar_x", "1.0").toDouble();
+    entry.band_center_norm =
+        sig_elem.attribute("band_center_norm", "0.5").toDouble();
+    entry.band_height_norm =
+        sig_elem.attribute("band_height_norm", "1.0").toDouble();
+    entry.bar_x_norm = sig_elem.attribute("bar_x_norm", "1.0").toDouble();
     entry.divisions = sig_elem.attribute("divisions", "8").toInt();
     entry.line_style =
         (Qt::PenStyle)sig_elem
