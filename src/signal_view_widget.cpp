@@ -159,6 +159,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   main_layout->addWidget(toolbar);
 
   // Main content: Y-axis panel | Plot canvas in a splitter
+  // nullptr parent: ownership transferred to m_main_splitter via addWidget().
   m_y_axis_panel = new YAxisPanel(nullptr);
   m_canvas = new PlotCanvas(nullptr);
   m_canvas->setDataSource(m_overlay_mgr);

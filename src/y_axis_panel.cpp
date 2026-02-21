@@ -266,6 +266,7 @@ void SignalValueColumn::paintContent(QPainter& painter,
 // ============================================================================
 
 YAxisLabelColumn::YAxisLabelColumn(QWidget* parent) : QWidget(parent) {
+  // nullptr parent: ownership transferred to m_splitter via addWidget().
   m_name_col = new SignalNameColumn(nullptr);
   m_value_col = new SignalValueColumn(nullptr);
 
@@ -696,6 +697,7 @@ void YAxisBarColumn::wheelEvent(QWheelEvent* event) {
 // ============================================================================
 
 YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
+  // nullptr parent: ownership transferred to m_splitter via addWidget().
   m_label_col = new YAxisLabelColumn(nullptr);
   m_bar_col = new YAxisBarColumn(nullptr);
 

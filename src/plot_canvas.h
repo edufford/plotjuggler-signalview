@@ -116,6 +116,7 @@ class PlotCanvas : public QWidget {
                                      double t_offset, size_t start_idx,
                                      bool downsample) const;
 
+  // Shared with SignalViewWidget; set via setDataSource().
   std::shared_ptr<OverlayManager> m_overlay_mgr;
   std::vector<SignalEntry> m_signals;
 

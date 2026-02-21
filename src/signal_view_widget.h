@@ -71,12 +71,17 @@ class SignalViewWidget : public QWidget {
   void updateSelectedLayers();
   void updateShiftLayerCombo();
 
+  // Non-owning: external PlotJuggler data, lifetime exceeds this widget.
   PJ::PlotDataMapRef* m_data;
+
+  // C++-owned: shared with PlotCanvas and other consumers.
   std::shared_ptr<OverlayManager> m_overlay_mgr;
+
   std::vector<SignalEntry> m_signals;
   double m_snap_amount = 0.01;
   double m_scroll_offset = 0.0;
 
+  // Qt parent-child owned (parent = this or a splitter/layout).
   PlotCanvas* m_canvas;
   YAxisPanel* m_y_axis_panel;
   QSplitter* m_main_splitter;

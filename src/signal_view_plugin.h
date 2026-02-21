@@ -31,7 +31,10 @@ class SignalViewPlugin : public PJ::ToolboxPlugin {
   bool xmlLoadState(const QDomElement& parent_element) override;
 
  private:
+  // C++-owned.
   std::unique_ptr<SignalViewWidget> m_widget;
+
+  // Non-owning: external PlotJuggler data, lifetime exceeds this plugin.
   PJ::PlotDataMapRef* m_plot_data = nullptr;
   PJ::TransformsMap* m_transforms = nullptr;
 };
