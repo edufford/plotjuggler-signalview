@@ -5,6 +5,7 @@
 #include <QSplitter>
 #include <QWidget>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "PlotJuggler/plotdata.h"
@@ -23,7 +24,7 @@ class SignalViewWidget : public QWidget {
   PlotCanvas* canvas() { return m_canvas; }
   YAxisPanel* yAxisPanel() { return m_y_axis_panel; }
   QSplitter* mainSplitter() { return m_main_splitter; }
-  OverlayManager* overlayManager() { return m_overlay_mgr; }
+  std::shared_ptr<OverlayManager> overlayManager() { return m_overlay_mgr; }
 
   const std::vector<SignalEntry>& signalEntries() const { return m_signals; }
 
@@ -71,7 +72,7 @@ class SignalViewWidget : public QWidget {
   void updateShiftLayerCombo();
 
   PJ::PlotDataMapRef* m_data;
-  OverlayManager* m_overlay_mgr;
+  std::shared_ptr<OverlayManager> m_overlay_mgr;
   std::vector<SignalEntry> m_signals;
   double m_snap_amount = 0.01;
   double m_scroll_offset = 0.0;

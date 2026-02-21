@@ -5,7 +5,6 @@
 #include <QInputDialog>
 #include <QMenu>
 
-#include "overlay_manager.h"
 
 DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
   auto* outer = new QVBoxLayout(this);
@@ -24,7 +23,7 @@ DataSetsPanel::DataSetsPanel(QWidget* parent) : QWidget(parent) {
   setMaximumHeight(100);
 }
 
-void DataSetsPanel::refresh(const OverlayManager* mgr) {
+void DataSetsPanel::refresh(const std::shared_ptr<OverlayManager>& mgr) {
   // Clear existing rows
   for (auto& row : m_rows) {
     delete row.prefix_label->parentWidget();
@@ -71,7 +70,7 @@ void DataSetsPanel::refresh(const OverlayManager* mgr) {
   }
 }
 
-void DataSetsPanel::updateOffsets(const OverlayManager* mgr) {
+void DataSetsPanel::updateOffsets(const std::shared_ptr<OverlayManager>& mgr) {
   if (!mgr) return;
 
   for (auto& row : m_rows) {

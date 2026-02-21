@@ -75,7 +75,7 @@ const std::vector<QColor>& SignalViewWidget::signalColors() {
 
 SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
     : QWidget(parent), m_data(data) {
-  m_overlay_mgr = new OverlayManager();
+  m_overlay_mgr = std::make_shared<OverlayManager>();
   m_overlay_mgr->setBaseData(m_data);
 
   setWindowTitle("Signal View");

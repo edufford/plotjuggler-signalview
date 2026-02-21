@@ -159,7 +159,9 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   updateTimeEditTexts();
 }
 
-void PlotCanvas::setDataSource(OverlayManager* mgr) { m_overlay_mgr = mgr; }
+void PlotCanvas::setDataSource(std::shared_ptr<OverlayManager> mgr) {
+  m_overlay_mgr = std::move(mgr);
+}
 
 void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries) {
   m_signals = entries;

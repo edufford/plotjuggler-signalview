@@ -770,8 +770,8 @@ void YAxisPanel::setSignalEntries(const std::vector<SignalEntry>& entries) {
   m_bar_col->setSignalEntries(entries);
 }
 
-void YAxisPanel::updateCursorValues(OverlayManager* overlay_mgr,
-                                    double cursor_time) {
+void YAxisPanel::updateCursorValues(
+    const std::shared_ptr<OverlayManager>& overlay_mgr, double cursor_time) {
   if (!overlay_mgr) return;
 
   std::vector<double> values(m_signals.size(), 0.0);
