@@ -126,31 +126,31 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
         "}");
   };
 
-  _time_start_edit = new QLineEdit(this);
-  _time_end_edit = new QLineEdit(this);
-  setupTimeEdit(_time_start_edit);
-  setupTimeEdit(_time_end_edit);
-  _time_end_edit->setAlignment(Qt::AlignRight);
+  m_time_start_edit = new QLineEdit(this);
+  m_time_end_edit = new QLineEdit(this);
+  setupTimeEdit(m_time_start_edit);
+  setupTimeEdit(m_time_end_edit);
+  m_time_end_edit->setAlignment(Qt::AlignRight);
 
-  connect(_time_start_edit, &QLineEdit::editingFinished, this, [this]() {
+  connect(m_time_start_edit, &QLineEdit::editingFinished, this, [this]() {
     bool ok;
-    double val = _time_start_edit->text().toDouble(&ok);
-    if (ok && val < _view_t_max) {
-      _view_t_min = val;
-      _auto_fit = false;
-      emit viewRangeChanged(_view_t_min, _view_t_max);
+    double val = m_time_start_edit->text().toDouble(&ok);
+    if (ok && val < m_view_t_max) {
+      m_view_t_min = val;
+      m_auto_fit = false;
+      emit viewRangeChanged(m_view_t_min, m_view_t_max);
       update();
     }
     updateTimeEditTexts();
   });
 
-  connect(_time_end_edit, &QLineEdit::editingFinished, this, [this]() {
+  connect(m_time_end_edit, &QLineEdit::editingFinished, this, [this]() {
     bool ok;
-    double val = _time_end_edit->text().toDouble(&ok);
-    if (ok && val > _view_t_min) {
-      _view_t_max = val;
-      _auto_fit = false;
-      emit viewRangeChanged(_view_t_min, _view_t_max);
+    double val = m_time_end_edit->text().toDouble(&ok);
+    if (ok && val > m_view_t_min) {
+      m_view_t_max = val;
+      m_auto_fit = false;
+      emit viewRangeChanged(m_view_t_min, m_view_t_max);
       update();
     }
     updateTimeEditTexts();
@@ -159,68 +159,68 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   updateTimeEditTexts();
 }
 
-void PlotCanvas::setDataSource(OverlayManager* mgr) { _overlay_mgr = mgr; }
+void PlotCanvas::setDataSource(OverlayManager* mgr) { m_overlay_mgr = mgr; }
 
 void PlotCanvas::setSignalEntries(const std::vector<SignalEntry>& entries) {
-  _signals = entries;
-  _cursor_needs_data = true;
-  if (_auto_fit) {
+  m_signals = entries;
+  m_cursor_needs_data = true;
+  if (m_auto_fit) {
     autoFitTimeRange();
     // Snap cursor into data range if it's currently outside
-    if (_cursor_time < _view_t_min || _cursor_time > _view_t_max)
-      _cursor_time = _view_t_min;
+    if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max)
+      m_cursor_time = m_view_t_min;
   }
   update();
-  emit cursorMoved(_cursor_time);
+  emit cursorMoved(m_cursor_time);
 }
 
 void PlotCanvas::setCursorTime(double t) {
-  _cursor_time = t;
+  m_cursor_time = t;
   update();
 }
 
 void PlotCanvas::setViewRange(double t_min, double t_max) {
-  _view_t_min = t_min;
-  _view_t_max = t_max;
-  _auto_fit = false;
+  m_view_t_min = t_min;
+  m_view_t_max = t_max;
+  m_auto_fit = false;
   updateTimeEditTexts();
   update();
 }
 
 void PlotCanvas::resetZoom() {
-  _auto_fit = true;
+  m_auto_fit = true;
   autoFitTimeRange();
   update();
-  emit viewRangeChanged(_view_t_min, _view_t_max);
+  emit viewRangeChanged(m_view_t_min, m_view_t_max);
 }
 
 // --- Coordinate transforms ---
 
 double PlotCanvas::timeToPixelX(double t) const {
-  double plot_w = width() - kMarginLeft - kMarginRight;
-  if (_view_t_max <= _view_t_min || plot_w <= 0) return kMarginLeft;
-  return kMarginLeft + (t - _view_t_min) / (_view_t_max - _view_t_min) * plot_w;
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  if (m_view_t_max <= m_view_t_min || plot_w <= 0) return MARGIN_LEFT;
+  return MARGIN_LEFT + (t - m_view_t_min) / (m_view_t_max - m_view_t_min) * plot_w;
 }
 
 double PlotCanvas::pixelXToTime(double px) const {
-  double plot_w = width() - kMarginLeft - kMarginRight;
-  if (plot_w <= 0) return _view_t_min;
-  return _view_t_min +
-         (px - kMarginLeft) / plot_w * (_view_t_max - _view_t_min);
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  if (plot_w <= 0) return m_view_t_min;
+  return m_view_t_min +
+         (px - MARGIN_LEFT) / plot_w * (m_view_t_max - m_view_t_min);
 }
 
 double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const {
-  double plot_h = height() - kMarginTop - kMarginBottom;
-  if (plot_h <= 0 || sig.y_max <= sig.y_min) return kMarginTop + plot_h * 0.5;
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
+  if (plot_h <= 0 || sig.y_max <= sig.y_min) return MARGIN_TOP + plot_h * 0.5;
 
   // The signal's band occupies a portion of the canvas, shifted by scroll
   // offset
   double band_top =
-      kMarginTop +
-      plot_h * (sig.band_center - sig.band_height * 0.5 - _scroll_offset);
+      MARGIN_TOP +
+      plot_h * (sig.band_center - sig.band_height * 0.5 - m_scroll_offset);
   double band_bottom =
-      kMarginTop +
-      plot_h * (sig.band_center + sig.band_height * 0.5 - _scroll_offset);
+      MARGIN_TOP +
+      plot_h * (sig.band_center + sig.band_height * 0.5 - m_scroll_offset);
   double band_h = band_bottom - band_top;
 
   // Map value within [y_min, y_max] to pixel within [band_bottom, band_top] (Y
@@ -230,25 +230,25 @@ double PlotCanvas::valueToPixelY(double value, const SignalEntry& sig) const {
 }
 
 void PlotCanvas::setScrollOffset(double offset) {
-  _scroll_offset = offset;
+  m_scroll_offset = offset;
   update();
 }
 
 void PlotCanvas::setZoomMode(bool enabled) {
-  _zoom_mode = enabled;
+  m_zoom_mode = enabled;
   updateIdleCursor();
 }
 
 void PlotCanvas::setTimeShiftMode(bool enabled) {
-  _time_shift_mode = enabled;
+  m_time_shift_mode = enabled;
   updateIdleCursor();
 }
 
 void PlotCanvas::updateIdleCursor() {
-  if (_time_shift_mode) {
+  if (m_time_shift_mode) {
     static QCursor shift_cursor = makeTimeShiftCursor();
     setCursor(shift_cursor);
-  } else if (_zoom_mode) {
+  } else if (m_zoom_mode) {
     static QCursor zoom_cursor = makeZoomCursor();
     setCursor(zoom_cursor);
   } else
@@ -256,37 +256,37 @@ void PlotCanvas::updateIdleCursor() {
 }
 
 void PlotCanvas::setSelectedLayers(const std::set<int>& layers) {
-  _selected_layers = layers;
+  m_selected_layers = layers;
 }
 
 void PlotCanvas::setDefaultShiftLayer(int layer_index) {
-  _default_shift_layer = layer_index;
+  m_default_shift_layer = layer_index;
 }
 
 void PlotCanvas::repositionTimeEdits() {
   const int field_w = 80;
   const int field_h = 16;
   int y = height() - field_h - 1;
-  _time_start_edit->setGeometry(kMarginLeft, y, field_w, field_h);
-  _time_end_edit->setGeometry(width() - kMarginRight - field_w, y, field_w,
+  m_time_start_edit->setGeometry(MARGIN_LEFT, y, field_w, field_h);
+  m_time_end_edit->setGeometry(width() - MARGIN_RIGHT - field_w, y, field_w,
                               field_h);
 }
 
 void PlotCanvas::updateTimeEditTexts() {
-  if (!_time_start_edit->hasFocus())
-    _time_start_edit->setText(QString::number(_view_t_min, 'g', 6));
-  if (!_time_end_edit->hasFocus())
-    _time_end_edit->setText(QString::number(_view_t_max, 'g', 6));
+  if (!m_time_start_edit->hasFocus())
+    m_time_start_edit->setText(QString::number(m_view_t_min, 'g', 6));
+  if (!m_time_end_edit->hasFocus())
+    m_time_end_edit->setText(QString::number(m_view_t_max, 'g', 6));
 }
 
 void PlotCanvas::autoFitTimeRange() {
-  if (!_overlay_mgr || _signals.empty()) return;
+  if (!m_overlay_mgr || m_signals.empty()) return;
 
   double t_min = std::numeric_limits<double>::max();
   double t_max = std::numeric_limits<double>::lowest();
 
-  for (const auto& sig : _signals) {
-    auto resolved = _overlay_mgr->resolveSignal(sig.name);
+  for (const auto& sig : m_signals) {
+    auto resolved = m_overlay_mgr->resolveSignal(sig.name);
     if (!resolved || resolved->series->size() == 0) continue;
 
     auto range = resolved->series->rangeX();
@@ -297,8 +297,8 @@ void PlotCanvas::autoFitTimeRange() {
   }
 
   if (t_min < t_max) {
-    _view_t_min = t_min;
-    _view_t_max = t_max;
+    m_view_t_min = t_min;
+    m_view_t_max = t_max;
   }
   updateTimeEditTexts();
 }
@@ -306,18 +306,18 @@ void PlotCanvas::autoFitTimeRange() {
 // --- Drawing ---
 
 void PlotCanvas::drawGrid(QPainter& painter) {
-  double plot_w = width() - kMarginLeft - kMarginRight;
-  double plot_h = height() - kMarginTop - kMarginBottom;
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
   if (plot_w <= 0 || plot_h <= 0) return;
 
   // Per-signal horizontal grid lines aligned to each signal's Y-axis divisions
-  for (const auto& sig : _signals) {
+  for (const auto& sig : m_signals) {
     double band_top =
-        kMarginTop +
-        plot_h * (sig.band_center - sig.band_height * 0.5 - _scroll_offset);
+        MARGIN_TOP +
+        plot_h * (sig.band_center - sig.band_height * 0.5 - m_scroll_offset);
     double band_bottom =
-        kMarginTop +
-        plot_h * (sig.band_center + sig.band_height * 0.5 - _scroll_offset);
+        MARGIN_TOP +
+        plot_h * (sig.band_center + sig.band_height * 0.5 - m_scroll_offset);
     double band_h = band_bottom - band_top;
 
     if (band_h < 4) continue;
@@ -326,21 +326,21 @@ void PlotCanvas::drawGrid(QPainter& painter) {
     int n_ticks =
         (sig.divisions > 0)
             ? sig.divisions
-            : std::clamp((int)(band_h / SignalEntry::kPixelsPerAutoTick), 2,
-                         SignalEntry::kMaxDivisions);
+            : std::clamp((int)(band_h / SignalEntry::PIXELS_PER_AUTO_TICK), 2,
+                         SignalEntry::MAX_DIVISIONS);
 
     painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
       double y = band_bottom - frac * band_h;
-      painter.drawLine(QPointF(kMarginLeft, y),
-                       QPointF(width() - kMarginRight, y));
+      painter.drawLine(QPointF(MARGIN_LEFT, y),
+                       QPointF(width() - MARGIN_RIGHT, y));
     }
   }
 
   // Vertical grid lines — compute nice tick spacing
-  double range = _view_t_max - _view_t_min;
+  double range = m_view_t_max - m_view_t_min;
   if (range <= 0) return;
 
   double raw_step = range / 8.0;
@@ -356,27 +356,27 @@ void PlotCanvas::drawGrid(QPainter& painter) {
   else
     nice_step = 10.0 * magnitude;
 
-  double t_start = std::ceil(_view_t_min / nice_step) * nice_step;
-  for (double t = t_start; t <= _view_t_max; t += nice_step) {
+  double t_start = std::ceil(m_view_t_min / nice_step) * nice_step;
+  for (double t = t_start; t <= m_view_t_max; t += nice_step) {
     double x = timeToPixelX(t);
-    painter.drawLine(QPointF(x, kMarginTop), QPointF(x, kMarginTop + plot_h));
+    painter.drawLine(QPointF(x, MARGIN_TOP), QPointF(x, MARGIN_TOP + plot_h));
   }
 }
 
 void PlotCanvas::drawTimeAxis(QPainter& painter) {
-  double plot_h = height() - kMarginTop - kMarginBottom;
-  double plot_w = width() - kMarginLeft - kMarginRight;
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
   if (plot_w <= 0) return;
 
-  double axis_y = kMarginTop + plot_h;
+  double axis_y = MARGIN_TOP + plot_h;
 
   // Axis line
   painter.setPen(QPen(QColor(180, 180, 180), 1));
-  painter.drawLine(QPointF(kMarginLeft, axis_y),
-                   QPointF(width() - kMarginRight, axis_y));
+  painter.drawLine(QPointF(MARGIN_LEFT, axis_y),
+                   QPointF(width() - MARGIN_RIGHT, axis_y));
 
   // Tick marks and labels
-  double range = _view_t_max - _view_t_min;
+  double range = m_view_t_max - m_view_t_min;
   if (range <= 0) return;
 
   double raw_step = range / 8.0;
@@ -397,8 +397,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
   painter.setFont(QFont("monospace", 8));
   painter.setPen(QColor(180, 180, 180));
 
-  double t_start = std::ceil(_view_t_min / nice_step) * nice_step;
-  for (double t = t_start; t <= _view_t_max; t += nice_step) {
+  double t_start = std::ceil(m_view_t_min / nice_step) * nice_step;
+  for (double t = t_start; t <= m_view_t_max; t += nice_step) {
     double x = timeToPixelX(t);
     painter.drawLine(QPointF(x, axis_y), QPointF(x, axis_y + 5));
 
@@ -408,8 +408,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
   }
 
   // Axis label — centered between the time edit fields
-  int label_left = kMarginLeft + 84;
-  int label_right = width() - kMarginRight - 84;
+  int label_left = MARGIN_LEFT + 84;
+  int label_right = width() - MARGIN_RIGHT - 84;
   if (label_right > label_left) {
     QRectF label_rect(label_left, height() - 18, label_right - label_left, 18);
     painter.drawText(label_rect, Qt::AlignCenter, "Time (s)");
@@ -417,14 +417,14 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
 }
 
 void PlotCanvas::drawSignals(QPainter& painter) {
-  if (!_overlay_mgr) return;
+  if (!m_overlay_mgr) return;
 
   painter.setRenderHint(QPainter::Antialiasing, true);
 
-  const double plot_w = width() - kMarginLeft - kMarginRight;
+  const double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
 
-  for (const auto& sig : _signals) {
-    auto resolved = _overlay_mgr->resolveSignal(sig.name);
+  for (const auto& sig : m_signals) {
+    auto resolved = m_overlay_mgr->resolveSignal(sig.name);
     if (!resolved) continue;
 
     const PJ::PlotData& series = *resolved->series;
@@ -434,8 +434,8 @@ void PlotCanvas::drawSignals(QPainter& painter) {
     painter.setPen(QPen(sig.color, sig.line_width, sig.line_style));
 
     // Binary search for the first point at or after view_t_min (in local time)
-    double local_t_min = _view_t_min - t_offset;
-    double local_t_max = _view_t_max - t_offset;
+    double local_t_min = m_view_t_min - t_offset;
+    double local_t_max = m_view_t_max - t_offset;
     auto lb = std::lower_bound(
         series.begin(), series.end(), PJ::PlotData::Point(local_t_min, 0.0),
         [](const auto& a, const auto& b) { return a.x < b.x; });
@@ -470,7 +470,7 @@ void PlotCanvas::drawSignals(QPainter& painter) {
         const auto& pt = series[i];
         double t = pt.x + t_offset;
 
-        if (t > _view_t_max) {
+        if (t > m_view_t_max) {
           // Flush current column
           if (prev_px_col >= 0 && !first) {
             double cpx = (double)prev_px_col;
@@ -563,7 +563,7 @@ void PlotCanvas::drawSignals(QPainter& painter) {
         const auto& pt = series[i];
         double t = pt.x + t_offset;
 
-        if (t > _view_t_max && !first) {
+        if (t > m_view_t_max && !first) {
           double px = timeToPixelX(t);
           double py = valueToPixelY(pt.y, sig);
           path.lineTo(px, path.currentPosition().y());
@@ -605,8 +605,8 @@ void PlotCanvas::drawSignals(QPainter& painter) {
       for (size_t i = start_idx; i < series.size(); i++) {
         const auto& pt = series[i];
         double t = pt.x + t_offset;
-        if (t < _view_t_min) continue;
-        if (t > _view_t_max) break;
+        if (t < m_view_t_min) continue;
+        if (t > m_view_t_max) break;
 
         double px = timeToPixelX(t);
         double py = valueToPixelY(pt.y, sig);
@@ -642,18 +642,18 @@ void PlotCanvas::drawSignals(QPainter& painter) {
 }
 
 void PlotCanvas::drawCursor(QPainter& painter) {
-  double x = timeToPixelX(_cursor_time);
-  double plot_h = height() - kMarginTop - kMarginBottom;
-  if (x < kMarginLeft || x > width() - kMarginRight) return;
+  double x = timeToPixelX(m_cursor_time);
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
+  if (x < MARGIN_LEFT || x > width() - MARGIN_RIGHT) return;
 
   painter.setPen(QPen(QColor(255, 255, 100, 200), 1, Qt::DashLine));
-  painter.drawLine(QPointF(x, kMarginTop), QPointF(x, kMarginTop + plot_h));
+  painter.drawLine(QPointF(x, MARGIN_TOP), QPointF(x, MARGIN_TOP + plot_h));
 
   // Draw a small triangle handle at the top
   QPainterPath handle;
-  handle.moveTo(x - 5, kMarginTop);
-  handle.lineTo(x + 5, kMarginTop);
-  handle.lineTo(x, kMarginTop + 8);
+  handle.moveTo(x - 5, MARGIN_TOP);
+  handle.lineTo(x + 5, MARGIN_TOP);
+  handle.lineTo(x, MARGIN_TOP + 8);
   handle.closeSubpath();
   painter.setBrush(QColor(255, 255, 100, 200));
   painter.setPen(Qt::NoPen);
@@ -662,11 +662,11 @@ void PlotCanvas::drawCursor(QPainter& painter) {
   // Time label next to the triangle
   painter.setPen(QColor(255, 255, 100, 200));
   painter.setFont(QFont("monospace", 8));
-  QString time_str = QString::number(_cursor_time, 'g', 6);
-  QRectF text_rect(x + 7, kMarginTop - 2, 80, 14);
+  QString time_str = QString::number(m_cursor_time, 'g', 6);
+  QRectF text_rect(x + 7, MARGIN_TOP - 2, 80, 14);
   // Flip to the left side if too close to the right edge
-  if (x + 7 + 80 > width() - kMarginRight)
-    text_rect = QRectF(x - 87, kMarginTop - 2, 80, 14);
+  if (x + 7 + 80 > width() - MARGIN_RIGHT)
+    text_rect = QRectF(x - 87, MARGIN_TOP - 2, 80, 14);
   painter.drawText(text_rect,
                    (text_rect.left() < x ? Qt::AlignRight : Qt::AlignLeft) |
                        Qt::AlignVCenter,
@@ -680,33 +680,33 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   painter.fillRect(rect(), QColor(30, 30, 30));
 
   // Plot area border
-  double plot_w = width() - kMarginLeft - kMarginRight;
-  double plot_h = height() - kMarginTop - kMarginBottom;
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
   painter.setPen(QPen(QColor(80, 80, 80), 1));
-  painter.drawRect(QRectF(kMarginLeft, kMarginTop, plot_w, plot_h));
+  painter.drawRect(QRectF(MARGIN_LEFT, MARGIN_TOP, plot_w, plot_h));
 
   // Clip to plot area for signals
   painter.save();
-  painter.setClipRect(QRectF(kMarginLeft, kMarginTop, plot_w, plot_h));
+  painter.setClipRect(QRectF(MARGIN_LEFT, MARGIN_TOP, plot_w, plot_h));
   drawGrid(painter);
   drawSignals(painter);
   drawCursor(painter);
 
   // Zoom rubber band overlay
-  if (_zoom_selecting) {
-    double x1 = std::max(_zoom_select_start_x, (double)kMarginLeft);
-    double x2 = std::max(_zoom_select_current_x, (double)kMarginLeft);
-    x1 = std::min(x1, (double)(width() - kMarginRight));
-    x2 = std::min(x2, (double)(width() - kMarginRight));
+  if (m_zoom_selecting) {
+    double x1 = std::max(m_zoom_select_start_x, (double)MARGIN_LEFT);
+    double x2 = std::max(m_zoom_select_current_x, (double)MARGIN_LEFT);
+    x1 = std::min(x1, (double)(width() - MARGIN_RIGHT));
+    x2 = std::min(x2, (double)(width() - MARGIN_RIGHT));
     double left = std::min(x1, x2);
     double right = std::max(x1, x2);
-    painter.fillRect(QRectF(left, kMarginTop, right - left, plot_h),
+    painter.fillRect(QRectF(left, MARGIN_TOP, right - left, plot_h),
                      QColor(255, 255, 100, 40));
     painter.setPen(QPen(QColor(255, 255, 100, 160), 1));
-    painter.drawLine(QPointF(left, kMarginTop),
-                     QPointF(left, kMarginTop + plot_h));
-    painter.drawLine(QPointF(right, kMarginTop),
-                     QPointF(right, kMarginTop + plot_h));
+    painter.drawLine(QPointF(left, MARGIN_TOP),
+                     QPointF(left, MARGIN_TOP + plot_h));
+    painter.drawLine(QPointF(right, MARGIN_TOP),
+                     QPointF(right, MARGIN_TOP + plot_h));
   }
 
   painter.restore();
@@ -715,17 +715,17 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
 
   // Detect when signal data first becomes available (e.g. after layout
   // restore where data loads after the plugin state is restored).
-  if (_cursor_needs_data && _overlay_mgr && !_signals.empty()) {
-    for (const auto& sig : _signals) {
-      auto resolved = _overlay_mgr->resolveSignal(sig.name);
+  if (m_cursor_needs_data && m_overlay_mgr && !m_signals.empty()) {
+    for (const auto& sig : m_signals) {
+      auto resolved = m_overlay_mgr->resolveSignal(sig.name);
       if (resolved && resolved->series->size() > 0) {
-        _cursor_needs_data = false;
-        if (_auto_fit) {
+        m_cursor_needs_data = false;
+        if (m_auto_fit) {
           autoFitTimeRange();
-          if (_cursor_time < _view_t_min || _cursor_time > _view_t_max)
-            _cursor_time = _view_t_min;
+          if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max)
+            m_cursor_time = m_view_t_min;
         }
-        emit cursorMoved(_cursor_time);
+        emit cursorMoved(m_cursor_time);
         update();
         break;
       }
@@ -737,94 +737,94 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
 
 void PlotCanvas::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
-    if (_time_shift_mode && _overlay_mgr) {
+    if (m_time_shift_mode && m_overlay_mgr) {
       // Start time shift drag
-      _time_shift_dragging = true;
-      _time_shift_start = event->pos();
+      m_time_shift_dragging = true;
+      m_time_shift_start = event->pos();
       // Capture current offsets for target layers
-      _time_shift_start_offsets.clear();
-      std::set<int> targets = _selected_layers.empty()
-                                  ? std::set<int>{_default_shift_layer}
-                                  : _selected_layers;
+      mm_time_shift_start_offsets.clear();
+      std::set<int> targets = m_selected_layers.empty()
+                                  ? std::set<int>{m_default_shift_layer}
+                                  : m_selected_layers;
       for (int layer_idx : targets)
-        _time_shift_start_offsets[layer_idx] =
-            _overlay_mgr->timeOffset(layer_idx);
+        mm_time_shift_start_offsets[layer_idx] =
+            m_overlay_mgr->timeOffset(layer_idx);
       setCursor(Qt::SizeHorCursor);
       return;
     }
-    if (_zoom_mode) {
+    if (m_zoom_mode) {
       // Start rubber-band zoom selection
-      _zoom_selecting = true;
-      _zoom_select_start_x = event->pos().x();
-      _zoom_select_current_x = event->pos().x();
+      m_zoom_selecting = true;
+      m_zoom_select_start_x = event->pos().x();
+      m_zoom_select_current_x = event->pos().x();
       update();
       return;
     }
     // Check if clicking near the cursor
-    double cursor_x = timeToPixelX(_cursor_time);
+    double cursor_x = timeToPixelX(m_cursor_time);
     if (std::abs(event->pos().x() - cursor_x) < 10 ||
-        event->pos().y() < kMarginTop + 10) {
-      _cursor_dragging = true;
-      _cursor_time = pixelXToTime(event->pos().x());
-      _cursor_time = std::clamp(_cursor_time, _view_t_min, _view_t_max);
-      emit cursorMoved(_cursor_time);
+        event->pos().y() < MARGIN_TOP + 10) {
+      m_cursor_dragging = true;
+      m_cursor_time = pixelXToTime(event->pos().x());
+      m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+      emit cursorMoved(m_cursor_time);
       update();
       return;
     }
     // Otherwise start cursor drag from click position
-    _cursor_dragging = true;
-    _cursor_time = pixelXToTime(event->pos().x());
-    _cursor_time = std::clamp(_cursor_time, _view_t_min, _view_t_max);
-    emit cursorMoved(_cursor_time);
+    m_cursor_dragging = true;
+    m_cursor_time = pixelXToTime(event->pos().x());
+    m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+    emit cursorMoved(m_cursor_time);
     update();
   } else if (event->button() == Qt::RightButton) {
-    _panning = true;
-    _pan_start = event->pos();
-    _pan_t_min_start = _view_t_min;
-    _pan_t_max_start = _view_t_max;
+    m_panning = true;
+    m_pan_start = event->pos();
+    m_pan_t_min_start = m_view_t_min;
+    m_pan_t_max_start = m_view_t_max;
     setCursor(Qt::ClosedHandCursor);
   }
 }
 
 void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
-  if (_time_shift_dragging && _overlay_mgr) {
-    double dx_pixels = event->pos().x() - _time_shift_start.x();
-    double plot_w = width() - kMarginLeft - kMarginRight;
+  if (m_time_shift_dragging && m_overlay_mgr) {
+    double dx_pixels = event->pos().x() - m_time_shift_start.x();
+    double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
     if (plot_w <= 0) return;
-    double dt = dx_pixels / plot_w * (_view_t_max - _view_t_min);
-    for (auto& [layer_idx, start_offset] : _time_shift_start_offsets)
-      _overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
+    double dt = dx_pixels / plot_w * (m_view_t_max - m_view_t_min);
+    for (auto& [layer_idx, start_offset] : mm_time_shift_start_offsets)
+      m_overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
     emit timeShiftChanged();
     update();
     return;
   }
-  if (_zoom_selecting) {
-    _zoom_select_current_x = event->pos().x();
+  if (m_zoom_selecting) {
+    m_zoom_select_current_x = event->pos().x();
     update();
     return;
   }
-  if (_cursor_dragging) {
-    _cursor_time = pixelXToTime(event->pos().x());
-    _cursor_time = std::clamp(_cursor_time, _view_t_min, _view_t_max);
-    emit cursorMoved(_cursor_time);
+  if (m_cursor_dragging) {
+    m_cursor_time = pixelXToTime(event->pos().x());
+    m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+    emit cursorMoved(m_cursor_time);
     update();
-  } else if (_panning) {
-    double dx_pixels = event->pos().x() - _pan_start.x();
-    double plot_w = width() - kMarginLeft - kMarginRight;
+  } else if (m_panning) {
+    double dx_pixels = event->pos().x() - m_pan_start.x();
+    double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
     if (plot_w <= 0) return;
-    double dt = -dx_pixels / plot_w * (_pan_t_max_start - _pan_t_min_start);
-    _view_t_min = _pan_t_min_start + dt;
-    _view_t_max = _pan_t_max_start + dt;
-    _auto_fit = false;
+    double dt = -dx_pixels / plot_w * (m_pan_t_max_start - m_pan_t_min_start);
+    m_view_t_min = m_pan_t_min_start + dt;
+    m_view_t_max = m_pan_t_max_start + dt;
+    m_auto_fit = false;
     updateTimeEditTexts();
-    emit viewRangeChanged(_view_t_min, _view_t_max);
+    emit viewRangeChanged(m_view_t_min, m_view_t_max);
     update();
   } else {
     // Show appropriate cursor hint
-    if (_time_shift_mode || _zoom_mode) {
+    if (m_time_shift_mode || m_zoom_mode) {
       updateIdleCursor();
     } else {
-      double cursor_x = timeToPixelX(_cursor_time);
+      double cursor_x = timeToPixelX(m_cursor_time);
       if (std::abs(event->pos().x() - cursor_x) < 10)
         setCursor(Qt::SizeHorCursor);
       else
@@ -835,38 +835,38 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
 
 void PlotCanvas::mouseReleaseEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
-    if (_time_shift_dragging) {
-      _time_shift_dragging = false;
-      _time_shift_start_offsets.clear();
+    if (m_time_shift_dragging) {
+      m_time_shift_dragging = false;
+      mm_time_shift_start_offsets.clear();
       updateIdleCursor();
       return;
     }
-    if (_zoom_selecting) {
-      _zoom_selecting = false;
-      double t1 = pixelXToTime(_zoom_select_start_x);
+    if (m_zoom_selecting) {
+      m_zoom_selecting = false;
+      double t1 = pixelXToTime(m_zoom_select_start_x);
       double t2 = pixelXToTime(event->pos().x());
       double new_min = std::min(t1, t2);
       double new_max = std::max(t1, t2);
       // Only zoom if the selection spans a meaningful range
       if (new_max - new_min > 1e-9) {
-        _view_t_min = new_min;
-        _view_t_max = new_max;
-        _auto_fit = false;
+        m_view_t_min = new_min;
+        m_view_t_max = new_max;
+        m_auto_fit = false;
         updateTimeEditTexts();
-        emit viewRangeChanged(_view_t_min, _view_t_max);
+        emit viewRangeChanged(m_view_t_min, m_view_t_max);
       }
       update();
       return;
     }
-    _cursor_dragging = false;
+    m_cursor_dragging = false;
   } else if (event->button() == Qt::RightButton) {
-    _panning = false;
+    m_panning = false;
     updateIdleCursor();
   }
 }
 
 void PlotCanvas::wheelEvent(QWheelEvent* event) {
-  if (!_zoom_mode) {
+  if (!m_zoom_mode) {
     // Default: vertical scroll
     double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
     emit verticalScrollRequested(delta);
@@ -874,21 +874,21 @@ void PlotCanvas::wheelEvent(QWheelEvent* event) {
   }
 
   // Zoom mode: time-axis zoom centered on mouse position
-  double plot_w = width() - kMarginLeft - kMarginRight;
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
   if (plot_w <= 0) return;
 
   double mouse_t = pixelXToTime(event->position().x());
   double factor = (event->angleDelta().y() > 0) ? 0.8 : 1.25;
 
-  double new_min = mouse_t + (_view_t_min - mouse_t) * factor;
-  double new_max = mouse_t + (_view_t_max - mouse_t) * factor;
+  double new_min = mouse_t + (m_view_t_min - mouse_t) * factor;
+  double new_max = mouse_t + (m_view_t_max - mouse_t) * factor;
 
   if (new_max - new_min > 1e-9) {
-    _view_t_min = new_min;
-    _view_t_max = new_max;
-    _auto_fit = false;
+    m_view_t_min = new_min;
+    m_view_t_max = new_max;
+    m_auto_fit = false;
     updateTimeEditTexts();
-    emit viewRangeChanged(_view_t_min, _view_t_max);
+    emit viewRangeChanged(m_view_t_min, m_view_t_max);
     update();
   }
 }

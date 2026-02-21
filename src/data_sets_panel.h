@@ -45,6 +45,6 @@ class DataSetsPanel : public QWidget {
     QLabel* offset_label = nullptr;
   };
 
-  QVBoxLayout* _rows_layout = nullptr;
-  std::vector<RowWidgets> _rows;
+  QVBoxLayout* m_rows_layout = nullptr;
+  std::vector<RowWidgets> m_rows;
 };

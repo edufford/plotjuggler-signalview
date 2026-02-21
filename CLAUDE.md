@@ -47,9 +47,12 @@ SignalViewPlugin          Plugin entry point (PJ::ToolboxPlugin), XML state save
 
 ## Coding Conventions
 
-- Google C++ style (enforced via `clang-format -style=Google`)
-- Private members prefixed with `_` (e.g., `_signals`, `_overlay_mgr`)
-- Constants use `kCamelCase` (e.g., `kMarginLeft`, `kDefaultWidth`)
+- Google C++ formatting (enforced via `clang-format -style=Google`)
+- Qt naming conventions:
+  - Member variables prefixed with `m_` (e.g., `m_signals`, `m_overlay_mgr`)
+  - Constants use `UPPER_CASE` (e.g., `MARGIN_LEFT`, `DEFAULT_WIDTH`)
+  - Functions use `camelCase` (e.g., `refreshViews`, `onEditYRange`)
+  - Classes use `PascalCase` (e.g., `PlotCanvas`, `SignalEntry`)
 - Headers use `#pragma once`
 - Qt: `Q_OBJECT` macro, signals/slots, `CMAKE_AUTOMOC` enabled
 

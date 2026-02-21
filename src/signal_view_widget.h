@@ -20,17 +20,17 @@ class SignalViewWidget : public QWidget {
   explicit SignalViewWidget(PJ::PlotDataMapRef* data,
                             QWidget* parent = nullptr);
 
-  PlotCanvas* canvas() { return _canvas; }
-  YAxisPanel* yAxisPanel() { return _y_axis_panel; }
-  QSplitter* mainSplitter() { return _main_splitter; }
-  OverlayManager* overlayManager() { return _overlay_mgr; }
+  PlotCanvas* canvas() { return m_canvas; }
+  YAxisPanel* yAxisPanel() { return m_y_axis_panel; }
+  QSplitter* mainSplitter() { return m_main_splitter; }
+  OverlayManager* overlayManager() { return m_overlay_mgr; }
 
-  const std::vector<SignalEntry>& signalEntries() const { return _signals; }
+  const std::vector<SignalEntry>& signalEntries() const { return m_signals; }
 
   // Serialization helpers
-  std::vector<SignalEntry>& signalEntriesMutable() { return _signals; }
-  double cursorTime() const { return _canvas->cursorTime(); }
-  double snapAmount() const { return _snap_amount; }
+  std::vector<SignalEntry>& signalEntriesMutable() { return m_signals; }
+  double cursorTime() const { return m_canvas->cursorTime(); }
+  double snapAmount() const { return m_snap_amount; }
   void setSnapAmount(double amount);
   void setSnapIndex(int index);
   void refreshOverlayUI();  // call after programmatic overlay changes (e.g. XML
@@ -70,26 +70,26 @@ class SignalViewWidget : public QWidget {
   void updateSelectedLayers();
   void updateShiftLayerCombo();
 
-  PJ::PlotDataMapRef* _data;
-  OverlayManager* _overlay_mgr;
-  std::vector<SignalEntry> _signals;
-  double _snap_amount = 0.01;
-  double _scroll_offset = 0.0;
+  PJ::PlotDataMapRef* m_data;
+  OverlayManager* m_overlay_mgr;
+  std::vector<SignalEntry> m_signals;
+  double m_snap_amount = 0.01;
+  double m_scroll_offset = 0.0;
 
-  PlotCanvas* _canvas;
-  YAxisPanel* _y_axis_panel;
-  QSplitter* _main_splitter;
-  QComboBox* _snap_combo;
-  QComboBox* _shift_layer_combo;
-  QScrollBar* _scrollbar;
-  DataSetsPanel* _data_sets_panel;
+  PlotCanvas* m_canvas;
+  YAxisPanel* m_y_axis_panel;
+  QSplitter* m_main_splitter;
+  QComboBox* m_snap_combo;
+  QComboBox* m_shift_layer_combo;
+  QScrollBar* m_scrollbar;
+  DataSetsPanel* m_data_sets_panel;
 
   // Multi-drag state: original positions captured at drag start
-  int _multi_drag_index = -1;
-  std::map<int, double> _multi_drag_origins;        // band_center origins
-  std::map<int, double> _multi_drag_bar_x_origins;  // bar_x origins
+  int m_multi_drag_index = -1;
+  std::map<int, double> m_multi_drag_origins;        // band_center origins
+  std::map<int, double> m_multi_drag_bar_x_origins;  // bar_x origins
 
-  static constexpr double kDefaultBandHeight = 0.20;
+  static constexpr double DEFAULT_BAND_HEIGHT = 0.20;
 
   // Predefined signal colors
   static const std::vector<QColor>& signalColors();

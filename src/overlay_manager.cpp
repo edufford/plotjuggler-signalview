@@ -9,10 +9,10 @@
 OverlayManager::OverlayManager() = default;
 
 void OverlayManager::setBaseData(PJ::PlotDataMapRef* data) {
-  _base_data = data;
+  m_base_data = data;
 
   // If there's already a base layer entry, update its pointer
-  for (auto& layer : _layers) {
+  for (auto& layer : m_layers) {
     if (layer.file_path.empty() && !layer.owned_data) {
       layer.data = data;
       return;
@@ -26,15 +26,15 @@ void OverlayManager::setBaseData(PJ::PlotDataMapRef* data) {
     base.index = 1;
     base.display_name = "PJ Data";
     base.data = data;
-    _layers.insert(_layers.begin(), std::move(base));
+    m_layers.insert(m_layers.begin(), std::move(base));
 
     // Re-number if needed
-    for (int i = 0; i < (int)_layers.size(); i++) _layers[i].index = i + 1;
+    for (int i = 0; i < (int)m_layers.size(); i++) m_layers[i].index = i + 1;
   }
 }
 
 bool OverlayManager::hasBaseLayer() const {
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (layer.file_path.empty() && !layer.owned_data) return true;
   }
   return false;
@@ -52,25 +52,25 @@ int OverlayManager::loadOverlayFile(const std::string& file_path) {
   layer.file_path = file_path;
   layer.owned_data = std::move(data);
   layer.data = layer.owned_data.get();
-  _layers.push_back(std::move(layer));
+  m_layers.push_back(std::move(layer));
 
   return new_index;
 }
 
 bool OverlayManager::removeOverlay(int layer_index) {
   auto it = std::find_if(
-      _layers.begin(), _layers.end(),
+      m_layers.begin(), m_layers.end(),
       [layer_index](const OverlayLayer& l) { return l.index == layer_index; });
-  if (it == _layers.end()) return false;
+  if (it == m_layers.end()) return false;
   // Don't allow removing the PJ base layer
   if (!it->owned_data) return false;
 
-  _layers.erase(it);
+  m_layers.erase(it);
   return true;
 }
 
 OverlayLayer* OverlayManager::layerByIndex(int index) {
-  for (auto& layer : _layers) {
+  for (auto& layer : m_layers) {
     if (layer.index == index) return &layer;
   }
   return nullptr;
@@ -78,7 +78,7 @@ OverlayLayer* OverlayManager::layerByIndex(int index) {
 
 bool OverlayManager::hasOverlays() const {
   int overlay_count = 0;
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (layer.owned_data) overlay_count++;
   }
   return overlay_count > 0;
@@ -93,7 +93,7 @@ std::optional<ResolvedSignal> OverlayManager::resolveSignal(
     parsed.layer = 1;
   }
 
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (layer.index != parsed.layer || !layer.data) continue;
 
     auto it = layer.data->numeric.find(parsed.raw_name);
@@ -110,9 +110,9 @@ std::optional<ResolvedSignal> OverlayManager::resolveSignal(
 
 std::vector<std::string> OverlayManager::allAvailableSignals() const {
   std::vector<std::string> result;
-  bool use_prefix = _layers.size() > 1;
+  bool use_prefix = m_layers.size() > 1;
 
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (!layer.data) continue;
     for (const auto& [name, _] : layer.data->numeric) {
       if (use_prefix)
@@ -128,7 +128,7 @@ std::vector<std::string> OverlayManager::allAvailableSignals() const {
 std::vector<std::string> OverlayManager::findMatchingSignals(
     int layer_index, const std::vector<std::string>& raw_names) const {
   std::vector<std::string> matches;
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (layer.index != layer_index || !layer.data) continue;
     for (const auto& raw : raw_names) {
       if (layer.data->numeric.count(raw))
@@ -139,14 +139,14 @@ std::vector<std::string> OverlayManager::findMatchingSignals(
 }
 
 double OverlayManager::timeOffset(int layer_index) const {
-  for (const auto& layer : _layers) {
+  for (const auto& layer : m_layers) {
     if (layer.index == layer_index) return layer.time_offset;
   }
   return 0.0;
 }
 
 void OverlayManager::setTimeOffset(int layer_index, double offset) {
-  for (auto& layer : _layers) {
+  for (auto& layer : m_layers) {
     if (layer.index == layer_index) {
       layer.time_offset = offset;
       return;
@@ -284,6 +284,6 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
 
 int OverlayManager::nextLayerIndex() const {
   int max_idx = 0;
-  for (const auto& layer : _layers) max_idx = std::max(max_idx, layer.index);
+  for (const auto& layer : m_layers) max_idx = std::max(max_idx, layer.index);
   return max_idx + 1;
 }
