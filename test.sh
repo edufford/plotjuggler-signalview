@@ -34,4 +34,8 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 cmake "$SCRIPT_DIR" -DPJ_INSTALL_DIR="$PJ_INSTALL_DIR" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 make -j"$(nproc)"
-ctest --output-on-failure
+JUNIT_ARG=""
+if [ -n "$JUNIT_OUTPUT" ]; then
+  JUNIT_ARG="--output-junit $JUNIT_OUTPUT"
+fi
+ctest --output-on-failure $JUNIT_ARG

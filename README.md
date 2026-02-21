@@ -1,5 +1,7 @@
 # PlotJuggler Signal View
 
+![CI](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci.yml/badge.svg?branch=dev_ai)
+
 An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/facontidavide/PlotJuggler). Displays time series data as step-wise (staircase) traces with individually positionable Y-axis bars, multi-file overlay comparison, and time shifting.
 
 ![Signal View screenshot](images/plotjuggler-signalviewer-sample.jpg)
@@ -72,7 +74,13 @@ Run the unit tests with:
 ./test.sh
 ```
 
-This builds with Google Test and runs all test suites via CTest. Tests cover name parsing, overlay manager logic, axis layout calculations, and CSV parsing.
+This builds with Google Test and runs all test suites via CTest. Tests cover name parsing, overlay manager logic, axis layout calculations, CSV parsing, and UI widget interactions.
+
+To output JUnit XML results (used by CI for test reporting):
+
+```bash
+JUNIT_OUTPUT=test-results.xml ./test.sh
+```
 
 ## Project Structure
 

@@ -53,4 +53,10 @@ jobs:
       # xvfb-run launches tests inside a virtual X display so Qt can
       # instantiate widgets without a physical screen.
       - name: Build and run tests
-        run: xvfb-run ./test.sh
+        run: xvfb-run env JUNIT_OUTPUT=${{ github.workspace }}/test-results.xml ./test.sh
+
+      - name: Publish test results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: ${{ github.workspace }}/test-results.xml
