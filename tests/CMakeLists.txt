@@ -101,3 +101,12 @@ add_executable(test_signal_name_ui
 target_include_directories(test_signal_name_ui PRIVATE ${TEST_INCLUDE_DIRS})
 target_link_libraries(test_signal_name_ui PRIVATE ${UI_TEST_LINK_LIBS})
 add_test(NAME SignalNameUI COMMAND test_signal_name_ui)
+
+# Test 8: PlotCanvas::buildSignalPath (full-res and downsampled path building)
+add_executable(test_signal_path
+    test_signal_path.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_signal_path PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_signal_path PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME SignalPath COMMAND test_signal_path)

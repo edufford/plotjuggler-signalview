@@ -82,6 +82,8 @@ class PlotCanvas : public QWidget {
   void resizeEvent(QResizeEvent* event) override;
 
  private:
+  friend class PlotCanvasPathTest;  // for unit testing buildSignalPath
+
   // Map time value to pixel X
   double timeToPixelX(double t) const;
   // Map pixel X to time value
