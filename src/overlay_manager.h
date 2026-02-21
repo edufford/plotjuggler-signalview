@@ -7,6 +7,10 @@
 
 #include "PlotJuggler/plotdata.h"
 
+namespace CsvUtil {
+char detectDelimiter(const std::string& line);
+}
+
 struct OverlayLayer {
   int index = 0;             // 1-based layer number
   std::string display_name;  // "PJ Data" or filename

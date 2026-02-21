@@ -190,7 +190,7 @@ std::string OverlayManager::rawName(const std::string& prefixed_name) {
 
 // --- CSV parser ---
 
-static char detectDelimiter(const std::string& line) {
+char CsvUtil::detectDelimiter(const std::string& line) {
   // Count occurrences of common delimiters
   int commas = 0, tabs = 0, semicolons = 0;
   for (char c : line) {
@@ -218,7 +218,7 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
   if (!std::getline(file, header_line)) return nullptr;
 
   // Detect delimiter from header
-  char delim = detectDelimiter(header_line);
+  char delim = CsvUtil::detectDelimiter(header_line);
 
   // Parse header to get column names
   std::vector<std::string> col_names;

@@ -32,5 +32,6 @@ fi
 echo "Using PlotJuggler at: $PJ_INSTALL_DIR"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
-cmake "$SCRIPT_DIR" -DPJ_INSTALL_DIR="$PJ_INSTALL_DIR" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+cmake "$SCRIPT_DIR" -DPJ_INSTALL_DIR="$PJ_INSTALL_DIR" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 make -j"$(nproc)"
+ctest --output-on-failure

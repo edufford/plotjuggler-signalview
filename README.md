@@ -64,6 +64,16 @@ Then go to **Tools > Signal View** to open the plugin.
 4. Toggle **Time Shift** and drag on the canvas to align data layers
 5. Toggle **H. Zoom** and drag to zoom into a time range
 
+## Testing
+
+Run the unit tests with:
+
+```bash
+./test.sh
+```
+
+This builds with Google Test and runs all test suites via CTest. Tests cover name parsing, overlay manager logic, axis layout calculations, and CSV parsing.
+
 ## Project Structure
 
 ```

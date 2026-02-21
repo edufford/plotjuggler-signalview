@@ -55,3 +55,9 @@ target_compile_definitions(SignalViewPlugin PRIVATE QT_PLUGIN)
 install(TARGETS SignalViewPlugin
     DESTINATION ${PJ_INSTALL_DIR}/lib/plotjuggler/plugins
 )
+
+option(BUILD_TESTING "Build unit tests" OFF)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
