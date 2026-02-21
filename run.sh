@@ -28,4 +28,4 @@ if [ -z "$PJ_BIN" ] || [ ! -f "$PJ_BIN" ]; then
   exit 1
 fi
 
-"$PJ_BIN" --plugin_folders "$BUILD_DIR" "$@"
+"$PJ_BIN" --plugin_folders "$BUILD_DIR" -n "$@"
