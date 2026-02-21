@@ -82,6 +82,8 @@ class PlotCanvas : public QWidget {
   void resizeEvent(QResizeEvent* event) override;
 
  private:
+  friend class PlotCanvasPathTest;  // for unit testing buildSignalPath
+
   // Map time value to pixel X
   double timeToPixelX(double t) const;
   // Map pixel X to time value
@@ -95,6 +97,12 @@ class PlotCanvas : public QWidget {
   void drawSignals(class QPainter& painter);
   void drawCursor(class QPainter& painter);
   void drawGrid(class QPainter& painter);
+  // Builds a step-wise QPainterPath for one signal over the current view.
+  // Uses per-pixel min/max downsampling when downsample=true.
+  class QPainterPath buildSignalPath(const SignalEntry& sig,
+                                     const PJ::PlotData& series,
+                                     double t_offset, size_t start_idx,
+                                     bool downsample) const;
 
   OverlayManager* m_overlay_mgr = nullptr;
   std::vector<SignalEntry> m_signals;
