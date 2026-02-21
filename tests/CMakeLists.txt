@@ -57,3 +57,47 @@ target_compile_definitions(test_csv_parser PRIVATE
 add_test(NAME CsvParser COMMAND test_csv_parser)
 
 file(COPY fixtures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# --- UI interaction tests (QTest + gtest, custom main for QApplication) ---
+
+set(UI_WIDGET_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/plot_canvas.cpp
+    ${CMAKE_SOURCE_DIR}/src/y_axis_panel.cpp
+    ${CMAKE_SOURCE_DIR}/src/overlay_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/data_sets_panel.cpp
+)
+set(UI_TEST_LINK_LIBS
+    ${PJ_INSTALL_DIR}/lib/libplotjuggler_base.a
+    fmt::fmt
+    Qt5::Core
+    Qt5::Widgets
+    Qt5::Test
+    GTest::gtest
+)
+
+# Test 5: PlotCanvas mouse interaction
+add_executable(test_plot_canvas_ui
+    test_plot_canvas_ui.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_plot_canvas_ui PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_plot_canvas_ui PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME PlotCanvasUI COMMAND test_plot_canvas_ui)
+
+# Test 6: YAxisBarColumn mouse interaction
+add_executable(test_yaxis_bar_ui
+    test_yaxis_bar_ui.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_yaxis_bar_ui PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_yaxis_bar_ui PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME YAxisBarUI COMMAND test_yaxis_bar_ui)
+
+# Test 7: SignalNameColumn mouse interaction
+add_executable(test_signal_name_ui
+    test_signal_name_ui.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_signal_name_ui PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_signal_name_ui PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME SignalNameUI COMMAND test_signal_name_ui)
