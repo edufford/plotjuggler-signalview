@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [dev_ai, main]
 
+# Required by mikepenz/action-junit-report to publish test results
+permissions:
+  checks: write
+  contents: read
+
 jobs:
   test:
     name: Build and Test
