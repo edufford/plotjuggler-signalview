@@ -20,6 +20,12 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - CMake 3.16+
 - fmt library
 
+On Ubuntu/Debian:
+
+```bash
+sudo apt install qtbase5-dev cmake libfmt-dev
+```
+
 ## Building
 
 If `plotjuggler` is on your PATH, the build script auto-detects the install prefix:

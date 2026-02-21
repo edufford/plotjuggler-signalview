@@ -19,7 +19,7 @@ if(NOT PJ_INSTALL_DIR)
     message(FATAL_ERROR "Set PJ_INSTALL_DIR or CMAKE_PREFIX_PATH to the PlotJuggler install prefix")
 endif()
 
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets Svg Concurrent Xml)
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Concurrent Xml)
 find_package(fmt REQUIRED)
 
 add_library(SignalViewPlugin SHARED
@@ -47,7 +47,6 @@ target_link_libraries(SignalViewPlugin PRIVATE
     Qt5::Core
     Qt5::Widgets
     Qt5::Xml
-    Qt5::Svg
     Qt5::Concurrent
 )
 
