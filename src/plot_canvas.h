@@ -1,18 +1,18 @@
 #pragma once
 
-#include <QWidget>
 #include <QColor>
-#include <vector>
-#include <string>
-#include <set>
+#include <QWidget>
 #include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "PlotJuggler/plotdata.h"
 
 class QLineEdit;
 class OverlayManager;
 
-enum class MarkerStyle : int
-{
+enum class MarkerStyle : int {
   None = 0,
   FilledCircle,
   OpenCircle,
@@ -22,8 +22,7 @@ enum class MarkerStyle : int
   OpenTriangle,
 };
 
-struct SignalEntry
-{
+struct SignalEntry {
   std::string name;
   QColor color;
   double y_min = 0.0;
@@ -32,8 +31,8 @@ struct SignalEntry
   // 0 = top of canvas, 1 = bottom. Each signal is assigned a band.
   double band_center = 0.5;
   double band_height = 1.0;  // fraction of canvas height
-  double bar_x = 1.0;        // horizontal position of Y-axis bar [0=left, 1=right]
-  int divisions = 8;          // Y-axis tick divisions (0 = auto)
+  double bar_x = 1.0;  // horizontal position of Y-axis bar [0=left, 1=right]
+  int divisions = 8;   // Y-axis tick divisions (0 = auto)
   Qt::PenStyle line_style = Qt::SolidLine;
   double line_width = 1.5;
   MarkerStyle marker_style = MarkerStyle::None;
@@ -42,11 +41,10 @@ struct SignalEntry
   static constexpr int kPixelsPerAutoTick = 32;
 };
 
-class PlotCanvas : public QWidget
-{
+class PlotCanvas : public QWidget {
   Q_OBJECT
 
-public:
+ public:
   explicit PlotCanvas(QWidget* parent = nullptr);
 
   void setDataSource(OverlayManager* mgr);
@@ -67,14 +65,15 @@ public:
   void setSelectedLayers(const std::set<int>& layers);
   void setDefaultShiftLayer(int layer_index);
 
-signals:
+ signals:
   void cursorMoved(double time);
   void viewRangeChanged(double t_min, double t_max);
   void canvasResized(int new_height);
   void verticalScrollRequested(double delta);
-  void timeShiftChanged();  // emitted when a layer's time offset is modified by drag
+  void
+  timeShiftChanged();  // emitted when a layer's time offset is modified by drag
 
-protected:
+ protected:
   void paintEvent(QPaintEvent* event) override;
   void mousePressEvent(QMouseEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
@@ -82,7 +81,7 @@ protected:
   void wheelEvent(QWheelEvent* event) override;
   void resizeEvent(QResizeEvent* event) override;
 
-private:
+ private:
   // Map time value to pixel X
   double timeToPixelX(double t) const;
   // Map pixel X to time value
@@ -112,7 +111,8 @@ private:
   // Cursor
   double _cursor_time = 0.0;
   bool _cursor_dragging = false;
-  bool _cursor_needs_data = false;  // set when signals change, cleared when data found
+  bool _cursor_needs_data =
+      false;  // set when signals change, cleared when data found
 
   // Pan state
   bool _panning = false;
@@ -122,8 +122,8 @@ private:
 
   // Zoom-select (rubber band) state
   bool _zoom_selecting = false;
-  double _zoom_select_start_x = 0.0;   // pixel X of press
-  double _zoom_select_current_x = 0.0; // pixel X of current drag
+  double _zoom_select_start_x = 0.0;    // pixel X of press
+  double _zoom_select_current_x = 0.0;  // pixel X of current drag
 
   // Time shift state
   bool _time_shift_mode = false;
@@ -131,7 +131,8 @@ private:
   QPoint _time_shift_start;
   std::set<int> _selected_layers;
   int _default_shift_layer = 1;
-  std::map<int, double> _time_shift_start_offsets;  // original offsets at drag start
+  std::map<int, double>
+      _time_shift_start_offsets;  // original offsets at drag start
 
   // Time range edit fields
   QLineEdit* _time_start_edit;
@@ -139,7 +140,7 @@ private:
   void repositionTimeEdits();
   void updateTimeEditTexts();
 
-public:
+ public:
   // Layout constants — public so YAxisPanel can align with the plot area
   static constexpr int kMarginLeft = 10;
   static constexpr int kMarginRight = 20;

@@ -1,20 +1,19 @@
 #pragma once
 
-#include <QWidget>
 #include <QLabel>
 #include <QVBoxLayout>
-#include <vector>
+#include <QWidget>
 #include <functional>
+#include <vector>
 
 class OverlayManager;
 
 /// Compact footer panel showing loaded data layers with their
 /// prefix numbers, display names, and time offsets.
-class DataSetsPanel : public QWidget
-{
+class DataSetsPanel : public QWidget {
   Q_OBJECT
 
-public:
+ public:
   explicit DataSetsPanel(QWidget* parent = nullptr);
 
   /// Rebuild the panel rows from the current OverlayManager state.
@@ -23,7 +22,7 @@ public:
   /// Update just the time offset labels (called during drag).
   void updateOffsets(const OverlayManager* mgr);
 
-signals:
+ signals:
   /// User requested to load a new overlay file.
   void loadOverlayRequested();
 
@@ -36,11 +35,10 @@ signals:
   /// User renamed a layer's display name.
   void layerRenamed(int layer_index, const QString& new_name);
 
-private:
+ private:
   void contextMenuEvent(QContextMenuEvent* event) override;
 
-  struct RowWidgets
-  {
+  struct RowWidgets {
     int layer_index = 0;
     QLabel* prefix_label = nullptr;
     QLabel* name_label = nullptr;

@@ -1,23 +1,24 @@
 #pragma once
 
-#include <QWidget>
 #include <QComboBox>
 #include <QScrollBar>
 #include <QSplitter>
-#include <vector>
+#include <QWidget>
 #include <map>
+#include <vector>
+
+#include "PlotJuggler/plotdata.h"
+#include "data_sets_panel.h"
+#include "overlay_manager.h"
 #include "plot_canvas.h"
 #include "y_axis_panel.h"
-#include "overlay_manager.h"
-#include "data_sets_panel.h"
-#include "PlotJuggler/plotdata.h"
 
-class SignalViewWidget : public QWidget
-{
+class SignalViewWidget : public QWidget {
   Q_OBJECT
 
-public:
-  explicit SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent = nullptr);
+ public:
+  explicit SignalViewWidget(PJ::PlotDataMapRef* data,
+                            QWidget* parent = nullptr);
 
   PlotCanvas* canvas() { return _canvas; }
   YAxisPanel* yAxisPanel() { return _y_axis_panel; }
@@ -32,12 +33,13 @@ public:
   double snapAmount() const { return _snap_amount; }
   void setSnapAmount(double amount);
   void setSnapIndex(int index);
-  void refreshOverlayUI();  // call after programmatic overlay changes (e.g. XML restore)
+  void refreshOverlayUI();  // call after programmatic overlay changes (e.g. XML
+                            // restore)
 
-signals:
+ signals:
   void closeRequested();
 
-private slots:
+ private slots:
   void onAddSignal(double band_center = -1.0);
   void onRemoveSignal();
   void onResetZoom();
@@ -59,7 +61,7 @@ private slots:
   void onStyleLayer(int layer_index);
   void onLayerRenamed(int layer_index, const QString& name);
 
-private:
+ private:
   double snapValue(double val) const;
   void refreshViews();
   void autoAssignBands();
@@ -84,8 +86,8 @@ private:
 
   // Multi-drag state: original positions captured at drag start
   int _multi_drag_index = -1;
-  std::map<int, double> _multi_drag_origins;      // band_center origins
-  std::map<int, double> _multi_drag_bar_x_origins; // bar_x origins
+  std::map<int, double> _multi_drag_origins;        // band_center origins
+  std::map<int, double> _multi_drag_bar_x_origins;  // bar_x origins
 
   static constexpr double kDefaultBandHeight = 0.20;
 

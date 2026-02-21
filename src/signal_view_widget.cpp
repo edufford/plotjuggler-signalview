@@ -1,33 +1,32 @@
 #include "signal_view_widget.h"
 
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QPushButton>
-#include <QLabel>
-#include <QSplitter>
-#include <QToolBar>
-#include <QInputDialog>
-#include <QStringList>
+#include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QTableWidget>
-#include <QListWidget>
-#include <QLineEdit>
 #include <QDoubleValidator>
-#include <QIntValidator>
-#include <QHeaderView>
-#include <QShortcut>
-#include <QColorDialog>
 #include <QFileDialog>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QInputDialog>
+#include <QIntValidator>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QShortcut>
+#include <QSplitter>
+#include <QStringList>
+#include <QTableWidget>
+#include <QToolBar>
+#include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
 static constexpr const char* kPluginVersion = "0.9.0";
 
-const std::vector<QColor>& SignalViewWidget::signalColors()
-{
+const std::vector<QColor>& SignalViewWidget::signalColors() {
   static const std::vector<QColor> colors = {
       QColor(0, 180, 255),    // Cyan-blue
       QColor(255, 100, 50),   // Orange-red
@@ -42,8 +41,7 @@ const std::vector<QColor>& SignalViewWidget::signalColors()
 }
 
 SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
-    : QWidget(parent), _data(data)
-{
+    : QWidget(parent), _data(data) {
   _overlay_mgr = new OverlayManager();
   _overlay_mgr->setBaseData(_data);
 
@@ -68,17 +66,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* snap_label = new QLabel("Snap:", this);
   snap_label->setStyleSheet("color: #ccc; font-size: 9px; padding: 0 2px;");
   _snap_combo = new QComboBox(this);
-  _snap_combo->addItem("Off",    0.0);
-  _snap_combo->addItem("0.002",  0.002);
-  _snap_combo->addItem("0.005",  0.005);
-  _snap_combo->addItem("0.01",   0.01);
-  _snap_combo->addItem("0.02",   0.02);
-  _snap_combo->addItem("0.05",   0.05);
-  _snap_combo->addItem("0.10",   0.10);
-  _snap_combo->addItem("0.20",   0.20);
+  _snap_combo->addItem("Off", 0.0);
+  _snap_combo->addItem("0.002", 0.002);
+  _snap_combo->addItem("0.005", 0.005);
+  _snap_combo->addItem("0.01", 0.01);
+  _snap_combo->addItem("0.02", 0.02);
+  _snap_combo->addItem("0.05", 0.05);
+  _snap_combo->addItem("0.10", 0.10);
+  _snap_combo->addItem("0.20", 0.20);
   _snap_combo->setCurrentIndex(3);  // default 0.01
 
-  auto* version_label = new QLabel(QString("Signal View v%1").arg(kPluginVersion), this);
+  auto* version_label =
+      new QLabel(QString("Signal View v%1").arg(kPluginVersion), this);
   version_label->setStyleSheet("color: #888; font-size: 9px; padding: 0 6px;");
 
   toolbar->addWidget(version_label);
@@ -109,10 +108,12 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_time_shift);
 
   auto* shift_layer_label = new QLabel("Layer:", this);
-  shift_layer_label->setStyleSheet("color: #ccc; font-size: 9px; padding: 0 2px;");
+  shift_layer_label->setStyleSheet(
+      "color: #ccc; font-size: 9px; padding: 0 2px;");
   toolbar->addWidget(shift_layer_label);
   _shift_layer_combo = new QComboBox(this);
-  _shift_layer_combo->setToolTip("Default layer to shift when no signals are selected");
+  _shift_layer_combo->setToolTip(
+      "Default layer to shift when no signals are selected");
   toolbar->addWidget(_shift_layer_combo);
   toolbar->addSeparator();
 
@@ -135,7 +136,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   _main_splitter->addWidget(_canvas);
   _main_splitter->setStretchFactor(0, 0);  // panel: don't stretch
   _main_splitter->setStretchFactor(1, 1);  // canvas: stretch
-  _main_splitter->setSizes({ 173, 700 });
+  _main_splitter->setSizes({173, 700});
   _main_splitter->setHandleWidth(4);
 
   _scrollbar = new QScrollBar(Qt::Vertical, this);
@@ -158,63 +159,80 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   // Connections
   connect(btn_add, &QPushButton::clicked, this, [this]() { onAddSignal(); });
-  connect(btn_remove, &QPushButton::clicked, this, &SignalViewWidget::onRemoveSignal);
-  connect(btn_group, &QPushButton::clicked, this, &SignalViewWidget::onGroupSignals);
-  connect(btn_autoscale, &QPushButton::clicked, this, &SignalViewWidget::onAutoScale);
-  connect(btn_reset, &QPushButton::clicked, this, &SignalViewWidget::onResetZoom);
+  connect(btn_remove, &QPushButton::clicked, this,
+          &SignalViewWidget::onRemoveSignal);
+  connect(btn_group, &QPushButton::clicked, this,
+          &SignalViewWidget::onGroupSignals);
+  connect(btn_autoscale, &QPushButton::clicked, this,
+          &SignalViewWidget::onAutoScale);
+  connect(btn_reset, &QPushButton::clicked, this,
+          &SignalViewWidget::onResetZoom);
   connect(btn_reset_cursor, &QPushButton::clicked, this, [this]() {
     _canvas->setCursorTime(_canvas->viewMinTime());
     onCursorMoved(_canvas->viewMinTime());
   });
-  connect(btn_close, &QPushButton::clicked, this, &SignalViewWidget::closeRequested);
+  connect(btn_close, &QPushButton::clicked, this,
+          &SignalViewWidget::closeRequested);
   connect(_snap_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &SignalViewWidget::onSnapComboChanged);
-  connect(_canvas, &PlotCanvas::cursorMoved, this, &SignalViewWidget::onCursorMoved);
-  connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this, &SignalViewWidget::onYRangeChanged);
-  connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this, &SignalViewWidget::onBandOffsetChanged);
-  connect(_y_axis_panel, &YAxisPanel::bandResized, this, &SignalViewWidget::onBandResized);
-  connect(_y_axis_panel, &YAxisPanel::barXChanged, this, &SignalViewWidget::onBarXChanged);
-  connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this, &SignalViewWidget::onRemoveSignalByIndex);
-  connect(_y_axis_panel, &YAxisPanel::editYRangeRequested, this, &SignalViewWidget::onEditYRange);
-  connect(_y_axis_panel, &YAxisPanel::addSignalRequested, this, &SignalViewWidget::onAddSignal);
-  connect(_canvas, &PlotCanvas::canvasResized, this, &SignalViewWidget::onCanvasResized);
+  connect(_canvas, &PlotCanvas::cursorMoved, this,
+          &SignalViewWidget::onCursorMoved);
+  connect(_y_axis_panel, &YAxisPanel::yRangeChanged, this,
+          &SignalViewWidget::onYRangeChanged);
+  connect(_y_axis_panel, &YAxisPanel::bandOffsetChanged, this,
+          &SignalViewWidget::onBandOffsetChanged);
+  connect(_y_axis_panel, &YAxisPanel::bandResized, this,
+          &SignalViewWidget::onBandResized);
+  connect(_y_axis_panel, &YAxisPanel::barXChanged, this,
+          &SignalViewWidget::onBarXChanged);
+  connect(_y_axis_panel, &YAxisPanel::removeSignalRequested, this,
+          &SignalViewWidget::onRemoveSignalByIndex);
+  connect(_y_axis_panel, &YAxisPanel::editYRangeRequested, this,
+          &SignalViewWidget::onEditYRange);
+  connect(_y_axis_panel, &YAxisPanel::addSignalRequested, this,
+          &SignalViewWidget::onAddSignal);
+  connect(_canvas, &PlotCanvas::canvasResized, this,
+          &SignalViewWidget::onCanvasResized);
 
   // Overlay button
-  connect(btn_overlay, &QPushButton::clicked, this, &SignalViewWidget::onLoadOverlay);
+  connect(btn_overlay, &QPushButton::clicked, this,
+          &SignalViewWidget::onLoadOverlay);
 
   // Data Sets Panel signals
-  connect(_data_sets_panel, &DataSetsPanel::loadOverlayRequested,
-          this, &SignalViewWidget::onLoadOverlay);
-  connect(_data_sets_panel, &DataSetsPanel::removeOverlayRequested,
-          this, &SignalViewWidget::onRemoveOverlay);
-  connect(_data_sets_panel, &DataSetsPanel::styleLayerRequested,
-          this, &SignalViewWidget::onStyleLayer);
-  connect(_data_sets_panel, &DataSetsPanel::layerRenamed,
-          this, &SignalViewWidget::onLayerRenamed);
+  connect(_data_sets_panel, &DataSetsPanel::loadOverlayRequested, this,
+          &SignalViewWidget::onLoadOverlay);
+  connect(_data_sets_panel, &DataSetsPanel::removeOverlayRequested, this,
+          &SignalViewWidget::onRemoveOverlay);
+  connect(_data_sets_panel, &DataSetsPanel::styleLayerRequested, this,
+          &SignalViewWidget::onStyleLayer);
+  connect(_data_sets_panel, &DataSetsPanel::layerRenamed, this,
+          &SignalViewWidget::onLayerRenamed);
 
   // Zoom mode toggle
-  connect(btn_zoom, &QPushButton::toggled, this, [this, btn_time_shift](bool checked) {
-    _canvas->setZoomMode(checked);
-    if (checked) btn_time_shift->setChecked(false);
-  });
+  connect(btn_zoom, &QPushButton::toggled, this,
+          [this, btn_time_shift](bool checked) {
+            _canvas->setZoomMode(checked);
+            if (checked) btn_time_shift->setChecked(false);
+          });
 
   // Time shift mode toggle
-  connect(btn_time_shift, &QPushButton::toggled, this, [this, btn_zoom](bool checked) {
-    _canvas->setTimeShiftMode(checked);
-    if (checked) btn_zoom->setChecked(false);
-  });
+  connect(btn_time_shift, &QPushButton::toggled, this,
+          [this, btn_zoom](bool checked) {
+            _canvas->setTimeShiftMode(checked);
+            if (checked) btn_zoom->setChecked(false);
+          });
 
   // Shift layer combo
-  connect(_shift_layer_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-          this, [this](int idx) {
-    int layer = _shift_layer_combo->itemData(idx).toInt();
-    _canvas->setDefaultShiftLayer(layer);
-  });
+  connect(_shift_layer_combo,
+          QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          [this](int idx) {
+            int layer = _shift_layer_combo->itemData(idx).toInt();
+            _canvas->setDefaultShiftLayer(layer);
+          });
 
   // Update selected layers when Y-axis panel selection changes
-  connect(_y_axis_panel, &YAxisPanel::selectionChanged, this, [this]() {
-    updateSelectedLayers();
-  });
+  connect(_y_axis_panel, &YAxisPanel::selectionChanged, this,
+          [this]() { updateSelectedLayers(); });
 
   // When time shift is dragged, update DataSetsPanel offsets and cursor readout
   connect(_canvas, &PlotCanvas::timeShiftChanged, this, [this]() {
@@ -223,10 +241,10 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   });
 
   // Vertical scroll from all sources
-  connect(_canvas, &PlotCanvas::verticalScrollRequested,
-          this, &SignalViewWidget::onVerticalScroll);
-  connect(_y_axis_panel, &YAxisPanel::verticalScrollRequested,
-          this, &SignalViewWidget::onVerticalScroll);
+  connect(_canvas, &PlotCanvas::verticalScrollRequested, this,
+          &SignalViewWidget::onVerticalScroll);
+  connect(_y_axis_panel, &YAxisPanel::verticalScrollRequested, this,
+          &SignalViewWidget::onVerticalScroll);
 
   // Scrollbar
   connect(_scrollbar, &QScrollBar::valueChanged, this, [this](int value) {
@@ -237,29 +255,26 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   auto* delete_shortcut = new QShortcut(Qt::Key_Delete, this);
   delete_shortcut->setContext(Qt::WindowShortcut);
-  connect(delete_shortcut, &QShortcut::activated, this, &SignalViewWidget::onDeleteSelected);
+  connect(delete_shortcut, &QShortcut::activated, this,
+          &SignalViewWidget::onDeleteSelected);
 
   auto* select_all_shortcut = new QShortcut(QKeySequence::SelectAll, this);
   select_all_shortcut->setContext(Qt::WindowShortcut);
-  connect(select_all_shortcut, &QShortcut::activated, this, [this]() {
-    _y_axis_panel->selectAll();
-  });
+  connect(select_all_shortcut, &QShortcut::activated, this,
+          [this]() { _y_axis_panel->selectAll(); });
 
   updateScrollBar();
 }
 
-void SignalViewWidget::onAddSignal(double band_center)
-{
-  if (!_overlay_mgr)
-    return;
+void SignalViewWidget::onAddSignal(double band_center) {
+  if (!_overlay_mgr) return;
 
   auto all_signals = _overlay_mgr->allAvailableSignals();
   QStringList available;
   for (const auto& name : all_signals)
     available.append(QString::fromStdString(name));
 
-  if (available.isEmpty())
-    return;
+  if (available.isEmpty()) return;
 
   available.sort();
 
@@ -275,50 +290,43 @@ void SignalViewWidget::onAddSignal(double band_center)
 
   auto* list = new QListWidget(&dlg);
   list->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  for (const auto& name : available)
-    list->addItem(name);
+  for (const auto& name : available) list->addItem(name);
   layout->addWidget(list);
 
-  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  auto* buttons = new QDialogButtonBox(
+      QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
   layout->addWidget(buttons);
   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
 
   // Filter: show/hide items as user types
   connect(filter_edit, &QLineEdit::textChanged, [&](const QString& text) {
-    for (int i = 0; i < list->count(); i++)
-    {
+    for (int i = 0; i < list->count(); i++) {
       auto* item = list->item(i);
       item->setHidden(!item->text().contains(text, Qt::CaseInsensitive));
     }
   });
 
-  if (dlg.exec() != QDialog::Accepted)
-    return;
+  if (dlg.exec() != QDialog::Accepted) return;
 
   auto selected_items = list->selectedItems();
-  if (selected_items.isEmpty())
-    return;
+  if (selected_items.isEmpty()) return;
 
   // Treat click position as top edge of first band, not center
   double pos = (band_center >= 0.0) ? band_center + kDefaultBandHeight * 0.5
-                                     : kDefaultBandHeight * 0.5;
-  for (auto* item : selected_items)
-  {
+                                    : kDefaultBandHeight * 0.5;
+  for (auto* item : selected_items) {
     SignalEntry entry;
     entry.name = item->text().toStdString();
     entry.color = signalColors()[_signals.size() % signalColors().size()];
 
     // Auto-detect Y range from data
     auto resolved = _overlay_mgr->resolveSignal(entry.name);
-    if (resolved && resolved->series->size() > 0)
-    {
+    if (resolved && resolved->series->size() > 0) {
       auto range = resolved->series->rangeY();
-      if (range)
-      {
+      if (range) {
         double margin = (range->max - range->min) * 0.1;
-        if (margin < 1e-9)
-          margin = 1.0;
+        if (margin < 1e-9) margin = 1.0;
         entry.y_min = range->min - margin;
         entry.y_max = range->max + margin;
       }
@@ -333,23 +341,20 @@ void SignalViewWidget::onAddSignal(double band_center)
   refreshViews();
 }
 
-void SignalViewWidget::onRemoveSignal()
-{
-  if (_signals.empty())
-    return;
+void SignalViewWidget::onRemoveSignal() {
+  if (_signals.empty()) return;
 
   QStringList names;
-  for (const auto& sig : _signals)
-  {
+  for (const auto& sig : _signals) {
     names.append(QString::fromStdString(sig.name));
   }
 
   bool ok;
-  QString selected = QInputDialog::getItem(
-      this, "Remove Signal", "Select a signal to remove:", names, 0, false, &ok);
+  QString selected =
+      QInputDialog::getItem(this, "Remove Signal",
+                            "Select a signal to remove:", names, 0, false, &ok);
 
-  if (!ok || selected.isEmpty())
-    return;
+  if (!ok || selected.isEmpty()) return;
 
   std::string name = selected.toStdString();
   _signals.erase(
@@ -361,71 +366,57 @@ void SignalViewWidget::onRemoveSignal()
   refreshViews();
 }
 
-void SignalViewWidget::onResetZoom()
-{
-  _canvas->resetZoom();
-}
+void SignalViewWidget::onResetZoom() { _canvas->resetZoom(); }
 
-void SignalViewWidget::onCursorMoved(double time)
-{
+void SignalViewWidget::onCursorMoved(double time) {
   _y_axis_panel->updateCursorValues(_overlay_mgr, time);
 }
 
-void SignalViewWidget::onYRangeChanged(int index, double y_min, double y_max)
-{
-  if (index < 0 || index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onYRangeChanged(int index, double y_min, double y_max) {
+  if (index < 0 || index >= (int)_signals.size()) return;
 
   const auto& sel = _y_axis_panel->selection();
-  if (sel.count(index) && sel.size() > 1)
-  {
+  if (sel.count(index) && sel.size() > 1) {
     // Multi-zoom: apply the same scale factor to all selected signals
     double old_range = _signals[index].y_max - _signals[index].y_min;
     double new_range = y_max - y_min;
-    if (old_range > 1e-12)
-    {
+    if (old_range > 1e-12) {
       double factor = new_range / old_range;
-      for (int i : sel)
-      {
+      for (int i : sel) {
         double center = (_signals[i].y_min + _signals[i].y_max) * 0.5;
         double half = (_signals[i].y_max - _signals[i].y_min) * 0.5 * factor;
         _signals[i].y_min = center - half;
         _signals[i].y_max = center + half;
       }
     }
-  }
-  else
-  {
+  } else {
     _signals[index].y_min = y_min;
     _signals[index].y_max = y_max;
   }
   refreshViews();
 }
 
-void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
-{
-  if (index < 0 || index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onBandOffsetChanged(int index, double new_center) {
+  if (index < 0 || index >= (int)_signals.size()) return;
 
   std::set<int> sel = _y_axis_panel->selection();
-  if (sel.count(index) && sel.size() > 1)
-  {
-    // Multi-drag: move all selected signals together, preserving relative positions.
-    // Capture original band_centers when a new drag starts.
-    bool need_init = (_multi_drag_index != index || _multi_drag_origins.empty());
-    if (!need_init)
-    {
+  if (sel.count(index) && sel.size() > 1) {
+    // Multi-drag: move all selected signals together, preserving relative
+    // positions. Capture original band_centers when a new drag starts.
+    bool need_init =
+        (_multi_drag_index != index || _multi_drag_origins.empty());
+    if (!need_init) {
       for (int i : sel)
-        if (_multi_drag_origins.find(i) == _multi_drag_origins.end())
-        { need_init = true; break; }
+        if (_multi_drag_origins.find(i) == _multi_drag_origins.end()) {
+          need_init = true;
+          break;
+        }
     }
-    if (need_init)
-    {
+    if (need_init) {
       _multi_drag_index = index;
       _multi_drag_origins.clear();
       _multi_drag_bar_x_origins.clear();
-      for (int i : sel)
-      {
+      for (int i : sel) {
         _multi_drag_origins[i] = _signals[i].band_center;
         _multi_drag_bar_x_origins[i] = _signals[i].bar_x;
       }
@@ -438,16 +429,13 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
     double delta = snapped_center - _multi_drag_origins[index];
 
     // Clamp delta so no selected signal's top edge goes above position 0
-    for (auto& [i, origin] : _multi_drag_origins)
-    {
+    for (auto& [i, origin] : _multi_drag_origins) {
       double half = _signals[i].band_height * 0.5;
       delta = std::max(delta, half - origin);
     }
     for (auto& [i, origin] : _multi_drag_origins)
       _signals[i].band_center = origin + delta;
-  }
-  else
-  {
+  } else {
     _multi_drag_origins.clear();
     _multi_drag_bar_x_origins.clear();
     _multi_drag_index = -1;
@@ -462,38 +450,34 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center)
   updateScrollBar();
 }
 
-void SignalViewWidget::onBandResized(int index, double new_center, double new_height)
-{
-  if (index < 0 || index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onBandResized(int index, double new_center,
+                                     double new_height) {
+  if (index < 0 || index >= (int)_signals.size()) return;
 
   double new_top = new_center - new_height * 0.5;
   double new_bottom = new_center + new_height * 0.5;
 
   // Only snap the edge that's actually moving, leave the fixed edge alone
-  double cur_top = _signals[index].band_center - _signals[index].band_height * 0.5;
-  double cur_bottom = _signals[index].band_center + _signals[index].band_height * 0.5;
+  double cur_top =
+      _signals[index].band_center - _signals[index].band_height * 0.5;
+  double cur_bottom =
+      _signals[index].band_center + _signals[index].band_height * 0.5;
 
   bool top_moving = std::abs(new_top - cur_top) > 1e-6;
   bool bottom_moving = std::abs(new_bottom - cur_bottom) > 1e-6;
 
-  if (top_moving)
-    new_top = std::max(0.0, snapValue(new_top));
-  if (bottom_moving)
-    new_bottom = snapValue(new_bottom);
+  if (top_moving) new_top = std::max(0.0, snapValue(new_top));
+  if (bottom_moving) new_bottom = snapValue(new_bottom);
 
-  if (new_bottom - new_top < 0.02)
-    return;
+  if (new_bottom - new_top < 0.02) return;
 
   const auto& sel = _y_axis_panel->selection();
-  if (sel.count(index) && sel.size() > 1)
-  {
+  if (sel.count(index) && sel.size() > 1) {
     // Multi-resize: apply the same height delta to all selected signals.
     // The moving edge shifts by delta; the fixed edge stays put.
     double height_delta = (new_bottom - new_top) - _signals[index].band_height;
 
-    for (int i : sel)
-    {
+    for (int i : sel) {
       double i_top = _signals[i].band_center - _signals[i].band_height * 0.5;
       double i_bottom = _signals[i].band_center + _signals[i].band_height * 0.5;
 
@@ -502,14 +486,11 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
       else
         i_bottom += height_delta;  // bottom edge moves down when growing
 
-      if (i_bottom - i_top < 0.02)
-        continue;
+      if (i_bottom - i_top < 0.02) continue;
       _signals[i].band_center = (i_top + i_bottom) * 0.5;
       _signals[i].band_height = i_bottom - i_top;
     }
-  }
-  else
-  {
+  } else {
     _signals[index].band_center = (new_top + new_bottom) * 0.5;
     _signals[index].band_height = new_bottom - new_top;
   }
@@ -519,62 +500,50 @@ void SignalViewWidget::onBandResized(int index, double new_center, double new_he
   updateScrollBar();
 }
 
-void SignalViewWidget::onBarXChanged(int index, double new_bar_x)
-{
-  if (index < 0 || index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onBarXChanged(int index, double new_bar_x) {
+  if (index < 0 || index >= (int)_signals.size()) return;
 
   const auto& sel = _y_axis_panel->selection();
-  if (sel.count(index) && sel.size() > 1 && !_multi_drag_bar_x_origins.empty())
-  {
+  if (sel.count(index) && sel.size() > 1 &&
+      !_multi_drag_bar_x_origins.empty()) {
     // Multi-drag: apply the same horizontal delta to all selected signals
     double snapped = snapValue(new_bar_x);
     double delta = snapped - _multi_drag_bar_x_origins[index];
 
     // Clamp delta so no selected signal leaves [0, 1]
-    for (auto& [i, origin] : _multi_drag_bar_x_origins)
-    {
+    for (auto& [i, origin] : _multi_drag_bar_x_origins) {
       delta = std::max(delta, -origin);
       delta = std::min(delta, 1.0 - origin);
     }
     for (auto& [i, origin] : _multi_drag_bar_x_origins)
       _signals[i].bar_x = origin + delta;
-  }
-  else
-  {
+  } else {
     _signals[index].bar_x = snapValue(new_bar_x);
   }
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
 }
 
-void SignalViewWidget::onCanvasResized()
-{
+void SignalViewWidget::onCanvasResized() {
   _y_axis_panel->setCanvasHeight(_canvas->height());
 }
 
-void SignalViewWidget::onSnapComboChanged(int combo_index)
-{
+void SignalViewWidget::onSnapComboChanged(int combo_index) {
   _snap_amount = _snap_combo->itemData(combo_index).toDouble();
   _y_axis_panel->setSnapAmount(_snap_amount);
 }
 
-double SignalViewWidget::snapValue(double val) const
-{
-  if (_snap_amount <= 0.0)
-    return val;
+double SignalViewWidget::snapValue(double val) const {
+  if (_snap_amount <= 0.0) return val;
   return std::round(val / _snap_amount) * _snap_amount;
 }
 
-void SignalViewWidget::setSnapAmount(double amount)
-{
+void SignalViewWidget::setSnapAmount(double amount) {
   _snap_amount = amount;
   _y_axis_panel->setSnapAmount(amount);
   // Find matching combo index
-  for (int i = 0; i < _snap_combo->count(); i++)
-  {
-    if (std::abs(_snap_combo->itemData(i).toDouble() - amount) < 1e-9)
-    {
+  for (int i = 0; i < _snap_combo->count(); i++) {
+    if (std::abs(_snap_combo->itemData(i).toDouble() - amount) < 1e-9) {
       _snap_combo->setCurrentIndex(i);
       return;
     }
@@ -582,45 +551,37 @@ void SignalViewWidget::setSnapAmount(double amount)
   _snap_combo->setCurrentIndex(0);  // fallback to Off
 }
 
-void SignalViewWidget::setSnapIndex(int index)
-{
+void SignalViewWidget::setSnapIndex(int index) {
   if (index >= 0 && index < _snap_combo->count())
     _snap_combo->setCurrentIndex(index);
 }
 
-void SignalViewWidget::refreshOverlayUI()
-{
+void SignalViewWidget::refreshOverlayUI() {
   _data_sets_panel->refresh(_overlay_mgr);
   updateShiftLayerCombo();
   refreshViews();
 }
 
-void SignalViewWidget::onRemoveSignalByIndex(int index)
-{
-  if (index < 0 || index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onRemoveSignalByIndex(int index) {
+  if (index < 0 || index >= (int)_signals.size()) return;
   _signals.erase(_signals.begin() + index);
   autoAssignBands();
   refreshViews();
 }
 
-void SignalViewWidget::refreshViews()
-{
+void SignalViewWidget::refreshViews() {
   _canvas->setSignalEntries(_signals);
   _y_axis_panel->setSignalEntries(_signals);
   _y_axis_panel->updateCursorValues(_overlay_mgr, _canvas->cursorTime());
   updateScrollBar();
 }
 
-void SignalViewWidget::updateScrollBar()
-{
+void SignalViewWidget::updateScrollBar() {
   // Find the maximum bottom extent of all signals in normalized coordinates
   double max_bottom = 1.0;
-  for (const auto& sig : _signals)
-  {
+  for (const auto& sig : _signals) {
     double bottom = sig.band_center + sig.band_height * 0.5;
-    if (bottom > max_bottom)
-      max_bottom = bottom;
+    if (bottom > max_bottom) max_bottom = bottom;
   }
   // Ensure at least 2 screens worth of scrollable space
   double max_extent = std::max(max_bottom, 2.0);
@@ -632,10 +593,8 @@ void SignalViewWidget::updateScrollBar()
   _scrollbar->blockSignals(false);
 }
 
-void SignalViewWidget::onEditYRange(int clicked_index)
-{
-  if (clicked_index < 0 || clicked_index >= (int)_signals.size())
-    return;
+void SignalViewWidget::onEditYRange(int clicked_index) {
+  if (clicked_index < 0 || clicked_index >= (int)_signals.size()) return;
 
   // Build the set of signal indices to show: selection + clicked index
   std::set<int> sel = _y_axis_panel->selection();
@@ -649,13 +608,19 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   auto* layout = new QVBoxLayout(&dlg);
 
   auto* table = new QTableWidget((int)row_to_idx.size(), 8, &dlg);
-  table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Marker", "Line Width", "Y Min", "Y Max", "Divisions"});
+  table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Marker",
+                                    "Line Width", "Y Min", "Y Max",
+                                    "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-  table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(
+      1, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(
+      2, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(
+      3, QHeaderView::ResizeToContents);
+  table->horizontalHeader()->setSectionResizeMode(
+      4, QHeaderView::ResizeToContents);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table->verticalHeader()->setVisible(false);
@@ -663,64 +628,69 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   // Custom selection model for columns 1/2 (line edit cells):
   // - If the clicked row is already selected, preserve the full selection.
   // - If the clicked row is NOT selected, clear and select just that row.
-  class ColumnGuardSelectionModel : public QItemSelectionModel
-  {
-  public:
+  class ColumnGuardSelectionModel : public QItemSelectionModel {
+   public:
     using QItemSelectionModel::QItemSelectionModel;
-    void select(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
-    {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 7)
-      {
+    void select(const QModelIndex& index,
+                QItemSelectionModel::SelectionFlags command) override {
+      if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
         if (isRowSelected(index.row(), index.parent()))
           return;  // row already selected — preserve multi-selection
-        QItemSelectionModel::select(index,
-            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        QItemSelectionModel::select(index, QItemSelectionModel::ClearAndSelect |
+                                               QItemSelectionModel::Rows);
         return;
       }
       QItemSelectionModel::select(index, command);
     }
-    void select(const QItemSelection& selection, QItemSelectionModel::SelectionFlags command) override
-    {
+    void select(const QItemSelection& selection,
+                QItemSelectionModel::SelectionFlags command) override {
       QItemSelectionModel::select(selection, command);
     }
-    void setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags command) override
-    {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 7)
-      {
-        if (isRowSelected(index.row(), index.parent()))
-        {
-          QItemSelectionModel::setCurrentIndex(index, QItemSelectionModel::NoUpdate);
+    void setCurrentIndex(const QModelIndex& index,
+                         QItemSelectionModel::SelectionFlags command) override {
+      if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
+        if (isRowSelected(index.row(), index.parent())) {
+          QItemSelectionModel::setCurrentIndex(index,
+                                               QItemSelectionModel::NoUpdate);
           return;
         }
-        QItemSelectionModel::setCurrentIndex(index,
+        QItemSelectionModel::setCurrentIndex(
+            index,
             QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
         return;
       }
       QItemSelectionModel::setCurrentIndex(index, command);
     }
   };
-  table->setSelectionModel(new ColumnGuardSelectionModel(table->model(), table));
+  table->setSelectionModel(
+      new ColumnGuardSelectionModel(table->model(), table));
 
   // Line style options
-  struct LineStyleOption { QString label; Qt::PenStyle style; };
+  struct LineStyleOption {
+    QString label;
+    Qt::PenStyle style;
+  };
   const std::vector<LineStyleOption> line_style_options = {
-    {"Solid",      Qt::SolidLine},
-    {"Dash",       Qt::DashLine},
-    {"Dot",        Qt::DotLine},
-    {"Dash-Dot",   Qt::DashDotLine},
-    {"Dash-Dot-Dot", Qt::DashDotDotLine},
+      {"Solid", Qt::SolidLine},
+      {"Dash", Qt::DashLine},
+      {"Dot", Qt::DotLine},
+      {"Dash-Dot", Qt::DashDotLine},
+      {"Dash-Dot-Dot", Qt::DashDotDotLine},
   };
 
   // Marker style options
-  struct MarkerStyleOption { QString label; MarkerStyle style; };
+  struct MarkerStyleOption {
+    QString label;
+    MarkerStyle style;
+  };
   const std::vector<MarkerStyleOption> marker_style_options = {
-    {"None",             MarkerStyle::None},
-    {"Filled Circle",    MarkerStyle::FilledCircle},
-    {"Open Circle",      MarkerStyle::OpenCircle},
-    {"Filled Square",    MarkerStyle::FilledSquare},
-    {"Open Square",      MarkerStyle::OpenSquare},
-    {"Filled Triangle",  MarkerStyle::FilledTriangle},
-    {"Open Triangle",    MarkerStyle::OpenTriangle},
+      {"None", MarkerStyle::None},
+      {"Filled Circle", MarkerStyle::FilledCircle},
+      {"Open Circle", MarkerStyle::OpenCircle},
+      {"Filled Square", MarkerStyle::FilledSquare},
+      {"Open Square", MarkerStyle::OpenSquare},
+      {"Filled Triangle", MarkerStyle::FilledTriangle},
+      {"Open Triangle", MarkerStyle::OpenTriangle},
   };
 
   // Store widget pointers for reading results
@@ -730,13 +700,12 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   std::vector<QColor> colors;
 
   auto setColorBtnStyle = [](QPushButton* btn, const QColor& c) {
-    btn->setStyleSheet(
-        QString("background-color: %1; border: 1px solid #888; min-width: 28px; max-width: 28px;")
-            .arg(c.name()));
+    btn->setStyleSheet(QString("background-color: %1; border: 1px solid #888; "
+                               "min-width: 28px; max-width: 28px;")
+                           .arg(c.name()));
   };
 
-  for (int row = 0; row < (int)row_to_idx.size(); row++)
-  {
+  for (int row = 0; row < (int)row_to_idx.size(); row++) {
     int sig_idx = row_to_idx[row];
     const auto& sig = _signals[sig_idx];
 
@@ -756,11 +725,10 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     // Line style combo
     auto* style_combo = new QComboBox(&dlg);
     int current_style_idx = 0;
-    for (int s = 0; s < (int)line_style_options.size(); s++)
-    {
-      style_combo->addItem(line_style_options[s].label, (int)line_style_options[s].style);
-      if (line_style_options[s].style == sig.line_style)
-        current_style_idx = s;
+    for (int s = 0; s < (int)line_style_options.size(); s++) {
+      style_combo->addItem(line_style_options[s].label,
+                           (int)line_style_options[s].style);
+      if (line_style_options[s].style == sig.line_style) current_style_idx = s;
     }
     style_combo->setCurrentIndex(current_style_idx);
     table->setCellWidget(row, 2, style_combo);
@@ -769,9 +737,9 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     // Marker style combo
     auto* marker_combo = new QComboBox(&dlg);
     int current_marker_idx = 0;
-    for (int m = 0; m < (int)marker_style_options.size(); m++)
-    {
-      marker_combo->addItem(marker_style_options[m].label, (int)marker_style_options[m].style);
+    for (int m = 0; m < (int)marker_style_options.size(); m++) {
+      marker_combo->addItem(marker_style_options[m].label,
+                            (int)marker_style_options[m].style);
       if (marker_style_options[m].style == sig.marker_style)
         current_marker_idx = m;
     }
@@ -802,7 +770,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
 
     // Divisions line edit (0 = auto)
     auto* div_edit = new QLineEdit(&dlg);
-    div_edit->setValidator(new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
+    div_edit->setValidator(
+        new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
     div_edit->setText(QString::number(sig.divisions));
     table->setCellWidget(row, 7, div_edit);
     div_edits.push_back(div_edit);
@@ -811,7 +780,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   // Select all rows initially
   table->selectAll();
 
-  // When a line edit value changes, apply to all selected rows in the same column
+  // When a line edit value changes, apply to all selected rows in the same
+  // column
   auto editForCol = [&](int row, int col) -> QLineEdit* {
     if (col == 4) return width_edits[row];
     if (col == 5) return min_edits[row];
@@ -821,11 +791,9 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   auto propagateText = [&](int source_row, int col) {
     QString text = editForCol(source_row, col)->text();
     auto selected_rows = table->selectionModel()->selectedRows();
-    for (const auto& mi : selected_rows)
-    {
+    for (const auto& mi : selected_rows) {
       int r = mi.row();
-      if (r == source_row)
-        continue;
+      if (r == source_row) continue;
       QLineEdit* target = editForCol(r, col);
       target->blockSignals(true);
       target->setText(text);
@@ -841,74 +809,67 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     return false;
   };
 
-  for (int row = 0; row < (int)row_to_idx.size(); row++)
-  {
-    connect(width_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagateText, row]() { propagateText(row, 4); });
-    connect(min_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagateText, row]() { propagateText(row, 5); });
-    connect(max_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagateText, row]() { propagateText(row, 6); });
-    connect(div_edits[row], &QLineEdit::textEdited,
-            &dlg, [&propagateText, row]() { propagateText(row, 7); });
+  for (int row = 0; row < (int)row_to_idx.size(); row++) {
+    connect(width_edits[row], &QLineEdit::textEdited, &dlg,
+            [&propagateText, row]() { propagateText(row, 4); });
+    connect(min_edits[row], &QLineEdit::textEdited, &dlg,
+            [&propagateText, row]() { propagateText(row, 5); });
+    connect(max_edits[row], &QLineEdit::textEdited, &dlg,
+            [&propagateText, row]() { propagateText(row, 6); });
+    connect(div_edits[row], &QLineEdit::textEdited, &dlg,
+            [&propagateText, row]() { propagateText(row, 7); });
 
     // Line style combo: propagate to selected rows
-    connect(style_combos[row], QOverload<int>::of(&QComboBox::currentIndexChanged),
-            &dlg, [&, row](int idx) {
-      if (!isRowSelected(row))
-        return;
-      auto selected_rows = table->selectionModel()->selectedRows();
-      if (selected_rows.size() <= 1)
-        return;
-      for (const auto& mi : selected_rows)
-      {
-        int r = mi.row();
-        if (r == row) continue;
-        style_combos[r]->blockSignals(true);
-        style_combos[r]->setCurrentIndex(idx);
-        style_combos[r]->blockSignals(false);
-      }
-    });
+    connect(style_combos[row],
+            QOverload<int>::of(&QComboBox::currentIndexChanged), &dlg,
+            [&, row](int idx) {
+              if (!isRowSelected(row)) return;
+              auto selected_rows = table->selectionModel()->selectedRows();
+              if (selected_rows.size() <= 1) return;
+              for (const auto& mi : selected_rows) {
+                int r = mi.row();
+                if (r == row) continue;
+                style_combos[r]->blockSignals(true);
+                style_combos[r]->setCurrentIndex(idx);
+                style_combos[r]->blockSignals(false);
+              }
+            });
 
     // Marker style combo: propagate to selected rows
-    connect(marker_combos[row], QOverload<int>::of(&QComboBox::currentIndexChanged),
-            &dlg, [&, row](int idx) {
-      if (!isRowSelected(row))
-        return;
-      auto selected_rows = table->selectionModel()->selectedRows();
-      if (selected_rows.size() <= 1)
-        return;
-      for (const auto& mi : selected_rows)
-      {
-        int r = mi.row();
-        if (r == row) continue;
-        marker_combos[r]->blockSignals(true);
-        marker_combos[r]->setCurrentIndex(idx);
-        marker_combos[r]->blockSignals(false);
-      }
-    });
+    connect(marker_combos[row],
+            QOverload<int>::of(&QComboBox::currentIndexChanged), &dlg,
+            [&, row](int idx) {
+              if (!isRowSelected(row)) return;
+              auto selected_rows = table->selectionModel()->selectedRows();
+              if (selected_rows.size() <= 1) return;
+              for (const auto& mi : selected_rows) {
+                int r = mi.row();
+                if (r == row) continue;
+                marker_combos[r]->blockSignals(true);
+                marker_combos[r]->setCurrentIndex(idx);
+                marker_combos[r]->blockSignals(false);
+              }
+            });
 
     // Color button: open picker and propagate to selected rows
     connect(color_btns[row], &QPushButton::clicked, &dlg, [&, row]() {
       QColor chosen = QColorDialog::getColor(colors[row], &dlg, "Signal Color");
-      if (!chosen.isValid())
-        return;
+      if (!chosen.isValid()) return;
       auto selected_rows = table->selectionModel()->selectedRows();
       bool row_sel = false;
       for (const auto& mi : selected_rows)
-        if (mi.row() == row) { row_sel = true; break; }
-      if (row_sel && selected_rows.size() > 1)
-      {
-        for (const auto& mi : selected_rows)
-        {
+        if (mi.row() == row) {
+          row_sel = true;
+          break;
+        }
+      if (row_sel && selected_rows.size() > 1) {
+        for (const auto& mi : selected_rows) {
           int r = mi.row();
           colors[r] = chosen;
           setColorBtnStyle(color_btns[r], chosen);
           table->item(r, 0)->setForeground(chosen);
         }
-      }
-      else
-      {
+      } else {
         colors[row] = chosen;
         setColorBtnStyle(color_btns[row], chosen);
         table->item(row, 0)->setForeground(chosen);
@@ -916,7 +877,8 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     });
   }
 
-  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  auto* buttons = new QDialogButtonBox(
+      QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
 
@@ -924,16 +886,16 @@ void SignalViewWidget::onEditYRange(int clicked_index)
   layout->addWidget(buttons);
   dlg.resize(920, 50 + 30 * (int)row_to_idx.size() + 60);
 
-  if (dlg.exec() != QDialog::Accepted)
-    return;
+  if (dlg.exec() != QDialog::Accepted) return;
 
   // Apply changes
-  for (int row = 0; row < (int)row_to_idx.size(); row++)
-  {
+  for (int row = 0; row < (int)row_to_idx.size(); row++) {
     int sig_idx = row_to_idx[row];
     _signals[sig_idx].color = colors[row];
-    _signals[sig_idx].line_style = (Qt::PenStyle)style_combos[row]->currentData().toInt();
-    _signals[sig_idx].marker_style = (MarkerStyle)marker_combos[row]->currentData().toInt();
+    _signals[sig_idx].line_style =
+        (Qt::PenStyle)style_combos[row]->currentData().toInt();
+    _signals[sig_idx].marker_style =
+        (MarkerStyle)marker_combos[row]->currentData().toInt();
     bool ok_w = false;
     double new_w = width_edits[row]->text().toDouble(&ok_w);
     if (ok_w && new_w >= 0.1 && new_w <= 10.0)
@@ -941,30 +903,25 @@ void SignalViewWidget::onEditYRange(int clicked_index)
     bool ok_min = false, ok_max = false;
     double new_min = min_edits[row]->text().toDouble(&ok_min);
     double new_max = max_edits[row]->text().toDouble(&ok_max);
-    if (ok_min && ok_max && new_max > new_min)
-    {
+    if (ok_min && ok_max && new_max > new_min) {
       _signals[sig_idx].y_min = new_min;
       _signals[sig_idx].y_max = new_max;
     }
     bool ok_div = false;
     int new_div = div_edits[row]->text().toInt(&ok_div);
-    if (ok_div && new_div >= 0)
-      _signals[sig_idx].divisions = new_div;
+    if (ok_div && new_div >= 0) _signals[sig_idx].divisions = new_div;
   }
   refreshViews();
 }
 
-void SignalViewWidget::onDeleteSelected()
-{
+void SignalViewWidget::onDeleteSelected() {
   const auto& sel = _y_axis_panel->selection();
-  if (sel.empty())
-    return;
+  if (sel.empty()) return;
 
   // Remove from highest index to lowest so indices stay valid
   std::vector<int> indices(sel.begin(), sel.end());
   std::sort(indices.rbegin(), indices.rend());
-  for (int i : indices)
-  {
+  for (int i : indices) {
     if (i >= 0 && i < (int)_signals.size())
       _signals.erase(_signals.begin() + i);
   }
@@ -973,30 +930,26 @@ void SignalViewWidget::onDeleteSelected()
   refreshViews();
 }
 
-void SignalViewWidget::onGroupSignals()
-{
+void SignalViewWidget::onGroupSignals() {
   const auto& sel = _y_axis_panel->selection();
-  if (sel.size() < 2)
-    return;
+  if (sel.size() < 2) return;
 
-  // Find the topmost selected signal (lowest band_top = band_center - band_height/2)
+  // Find the topmost selected signal (lowest band_top = band_center -
+  // band_height/2)
   int topmost = -1;
   double topmost_top = 2.0;  // above any valid position
-  for (int i : sel)
-  {
+  for (int i : sel) {
     double top = _signals[i].band_center - _signals[i].band_height * 0.5;
-    if (top < topmost_top)
-    {
+    if (top < topmost_top) {
       topmost_top = top;
       topmost = i;
     }
   }
 
-  // Copy the topmost signal's band position, height, and Y range to all selected
-  for (int i : sel)
-  {
-    if (i == topmost)
-      continue;
+  // Copy the topmost signal's band position, height, and Y range to all
+  // selected
+  for (int i : sel) {
+    if (i == topmost) continue;
     _signals[i].band_center = _signals[topmost].band_center;
     _signals[i].band_height = _signals[topmost].band_height;
     _signals[i].y_min = _signals[topmost].y_min;
@@ -1007,25 +960,21 @@ void SignalViewWidget::onGroupSignals()
   refreshViews();
 }
 
-void SignalViewWidget::onAutoScale()
-{
-  if (!_overlay_mgr || _signals.empty())
-    return;
+void SignalViewWidget::onAutoScale() {
+  if (!_overlay_mgr || _signals.empty()) return;
 
   // Auto-scale selected signals, or all signals if none selected
   const auto& sel = _y_axis_panel->selection();
   bool changed = false;
 
-  for (int i = 0; i < (int)_signals.size(); i++)
-  {
-    if (!sel.empty() && sel.count(i) == 0)
-      continue;
+  for (int i = 0; i < (int)_signals.size(); i++) {
+    if (!sel.empty() && sel.count(i) == 0) continue;
 
     auto resolved = _overlay_mgr->resolveSignal(_signals[i].name);
-    if (!resolved || resolved->series->size() == 0)
-      continue;
+    if (!resolved || resolved->series->size() == 0) continue;
 
-    // Find Y range within the current view time range, accounting for time offset
+    // Find Y range within the current view time range, accounting for time
+    // offset
     const auto& series = *resolved->series;
     double t_offset = resolved->time_offset;
     double t_min = _canvas->viewMinTime() - t_offset;
@@ -1033,67 +982,53 @@ void SignalViewWidget::onAutoScale()
 
     // Find first point at or after t_min (in local time)
     auto lb = std::lower_bound(
-        series.begin(), series.end(),
-        PJ::PlotData::Point(t_min, 0.0),
+        series.begin(), series.end(), PJ::PlotData::Point(t_min, 0.0),
         [](const auto& a, const auto& b) { return a.x < b.x; });
 
     // Include the last point before t_min for step-wise hold value
-    if (lb != series.begin())
-      --lb;
+    if (lb != series.begin()) --lb;
 
     double y_lo = std::numeric_limits<double>::max();
     double y_hi = std::numeric_limits<double>::lowest();
     bool found = false;
 
-    for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max; ++pt_it)
-    {
+    for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max; ++pt_it) {
       y_lo = std::min(y_lo, pt_it->y);
       y_hi = std::max(y_hi, pt_it->y);
       found = true;
     }
 
-    if (!found)
-      continue;
+    if (!found) continue;
 
     double margin = (y_hi - y_lo) * 0.1;
-    if (margin < 1e-9)
-      margin = 1.0;
+    if (margin < 1e-9) margin = 1.0;
     _signals[i].y_min = y_lo - margin;
     _signals[i].y_max = y_hi + margin;
     changed = true;
   }
 
-  if (changed)
-    refreshViews();
+  if (changed) refreshViews();
 }
 
-void SignalViewWidget::autoAssignBands()
-{
+void SignalViewWidget::autoAssignBands() {
   int n = (int)_signals.size();
-  if (n == 0)
-    return;
+  if (n == 0) return;
 
-  if (n == 1)
-  {
+  if (n == 1) {
     double top = snapValue(0.0);
     double bottom = snapValue(1.0);
-    if (bottom - top < 0.02)
-    {
+    if (bottom - top < 0.02) {
       top = 0.0;
       bottom = 1.0;
     }
     _signals[0].band_center = (top + bottom) * 0.5;
     _signals[0].band_height = bottom - top;
-  }
-  else
-  {
+  } else {
     double band_h = 1.0 / n;
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
       double top = snapValue(i * band_h);
       double bottom = snapValue((i + 1) * band_h);
-      if (bottom - top < 0.02)
-      {
+      if (bottom - top < 0.02) {
         top = i * band_h;
         bottom = (i + 1) * band_h;
       }
@@ -1103,8 +1038,7 @@ void SignalViewWidget::autoAssignBands()
   }
 }
 
-void SignalViewWidget::onVerticalScroll(double delta)
-{
+void SignalViewWidget::onVerticalScroll(double delta) {
   _scroll_offset = std::max(0.0, _scroll_offset + delta);
   _canvas->setScrollOffset(_scroll_offset);
   _y_axis_panel->setScrollOffset(_scroll_offset);
@@ -1115,56 +1049,46 @@ void SignalViewWidget::onVerticalScroll(double delta)
 
 // --- Overlay ---
 
-void SignalViewWidget::migrateSignalNames(bool add_prefix)
-{
-  if (add_prefix)
-  {
+void SignalViewWidget::migrateSignalNames(bool add_prefix) {
+  if (add_prefix) {
     // Add #1/ prefix to all existing unprefixed signal names
-    for (auto& sig : _signals)
-    {
+    for (auto& sig : _signals) {
       auto parsed = OverlayManager::parsePrefixedName(sig.name);
       if (parsed.layer == 0)
         sig.name = OverlayManager::makePrefixedName(1, sig.name);
     }
-  }
-  else
-  {
+  } else {
     // Remove prefixes — only when going back to single-layer
-    for (auto& sig : _signals)
-    {
+    for (auto& sig : _signals) {
       auto parsed = OverlayManager::parsePrefixedName(sig.name);
-      if (parsed.layer > 0)
-        sig.name = parsed.raw_name;
+      if (parsed.layer > 0) sig.name = parsed.raw_name;
     }
   }
 }
 
-void SignalViewWidget::onLoadOverlay()
-{
+void SignalViewWidget::onLoadOverlay() {
   QString file_path = QFileDialog::getOpenFileName(
       this, "Load Overlay Data", QString(),
       "CSV Files (*.csv *.tsv *.txt);;All Files (*)");
 
-  if (file_path.isEmpty())
-    return;
+  if (file_path.isEmpty()) return;
 
-  // If this is the first overlay and we have existing signals, prefix them with #1/
+  // If this is the first overlay and we have existing signals, prefix them with
+  // #1/
   bool first_overlay = !_overlay_mgr->hasOverlays();
-  if (first_overlay && !_signals.empty())
-    migrateSignalNames(true);
+  if (first_overlay && !_signals.empty()) migrateSignalNames(true);
 
   int new_layer = _overlay_mgr->loadOverlayFile(file_path.toStdString());
-  if (new_layer < 0)
-  {
+  if (new_layer < 0) {
     // Loading failed — undo prefix migration if it was the first attempt
-    if (first_overlay && !_signals.empty())
-      migrateSignalNames(false);
+    if (first_overlay && !_signals.empty()) migrateSignalNames(false);
     QMessageBox::warning(this, "Overlay Error",
-        "Failed to load overlay file:\n" + file_path);
+                         "Failed to load overlay file:\n" + file_path);
     return;
   }
 
-  // Auto-match: for each displayed signal's raw name, check if overlay has a match
+  // Auto-match: for each displayed signal's raw name, check if overlay has a
+  // match
   std::vector<std::string> raw_names;
   for (const auto& sig : _signals)
     raw_names.push_back(OverlayManager::rawName(sig.name));
@@ -1172,8 +1096,7 @@ void SignalViewWidget::onLoadOverlay()
   auto matches = _overlay_mgr->findMatchingSignals(new_layer, raw_names);
 
   // Add matched overlay signals with same position but different appearance
-  for (const auto& match_name : matches)
-  {
+  for (const auto& match_name : matches) {
     auto parsed = OverlayManager::parsePrefixedName(match_name);
 
     // Find the base signal to copy band position from
@@ -1182,10 +1105,8 @@ void SignalViewWidget::onLoadOverlay()
     new_entry.color = signalColors()[_signals.size() % signalColors().size()];
     new_entry.line_style = Qt::DashLine;  // overlay signals get dashed lines
 
-    for (const auto& sig : _signals)
-    {
-      if (OverlayManager::rawName(sig.name) == parsed.raw_name)
-      {
+    for (const auto& sig : _signals) {
+      if (OverlayManager::rawName(sig.name) == parsed.raw_name) {
         new_entry.band_center = sig.band_center;
         new_entry.band_height = sig.band_height;
         new_entry.y_min = sig.y_min;
@@ -1206,11 +1127,10 @@ void SignalViewWidget::onLoadOverlay()
   refreshViews();
 }
 
-void SignalViewWidget::onRemoveOverlay(int layer_index)
-{
+void SignalViewWidget::onRemoveOverlay(int layer_index) {
   // Remove all signals from this layer
-  auto it = std::remove_if(_signals.begin(), _signals.end(),
-      [layer_index](const SignalEntry& sig) {
+  auto it = std::remove_if(
+      _signals.begin(), _signals.end(), [layer_index](const SignalEntry& sig) {
         auto parsed = OverlayManager::parsePrefixedName(sig.name);
         return parsed.layer == layer_index;
       });
@@ -1219,28 +1139,26 @@ void SignalViewWidget::onRemoveOverlay(int layer_index)
   _overlay_mgr->removeOverlay(layer_index);
 
   // If no overlays remain, un-prefix signal names
-  if (!_overlay_mgr->hasOverlays())
-    migrateSignalNames(false);
+  if (!_overlay_mgr->hasOverlays()) migrateSignalNames(false);
 
   _data_sets_panel->refresh(_overlay_mgr);
   updateShiftLayerCombo();
   refreshViews();
 }
 
-void SignalViewWidget::onStyleLayer(int layer_index)
-{
-  // Open a dialog to set color, line style, line width for all signals in this layer
+void SignalViewWidget::onStyleLayer(int layer_index) {
+  // Open a dialog to set color, line style, line width for all signals in this
+  // layer
   QDialog dlg(this);
   dlg.setWindowTitle(QString("Style Layer #%1").arg(layer_index));
   auto* layout = new QVBoxLayout(&dlg);
 
   // Color
   QColor current_color;
-  for (const auto& sig : _signals)
-  {
+  for (const auto& sig : _signals) {
     auto parsed = OverlayManager::parsePrefixedName(sig.name);
-    if (parsed.layer == layer_index || (parsed.layer == 0 && layer_index == 1))
-    {
+    if (parsed.layer == layer_index ||
+        (parsed.layer == 0 && layer_index == 1)) {
       current_color = sig.color;
       break;
     }
@@ -1249,17 +1167,18 @@ void SignalViewWidget::onStyleLayer(int layer_index)
   auto* color_layout = new QHBoxLayout();
   color_layout->addWidget(new QLabel("Color:", &dlg));
   auto* color_btn = new QPushButton(&dlg);
-  QColor chosen_color = current_color.isValid() ? current_color : QColor(200, 200, 200);
+  QColor chosen_color =
+      current_color.isValid() ? current_color : QColor(200, 200, 200);
   color_btn->setStyleSheet(
       QString("background-color: %1; border: 1px solid #888; min-width: 60px;")
           .arg(chosen_color.name()));
   connect(color_btn, &QPushButton::clicked, &dlg, [&]() {
     QColor c = QColorDialog::getColor(chosen_color, &dlg, "Layer Color");
-    if (c.isValid())
-    {
+    if (c.isValid()) {
       chosen_color = c;
       color_btn->setStyleSheet(
-          QString("background-color: %1; border: 1px solid #888; min-width: 60px;")
+          QString(
+              "background-color: %1; border: 1px solid #888; min-width: 60px;")
               .arg(c.name()));
     }
   });
@@ -1267,13 +1186,16 @@ void SignalViewWidget::onStyleLayer(int layer_index)
   layout->addLayout(color_layout);
 
   // Line style
-  struct LineStyleOption { QString label; Qt::PenStyle style; };
+  struct LineStyleOption {
+    QString label;
+    Qt::PenStyle style;
+  };
   const std::vector<LineStyleOption> line_style_options = {
-    {"Solid",      Qt::SolidLine},
-    {"Dash",       Qt::DashLine},
-    {"Dot",        Qt::DotLine},
-    {"Dash-Dot",   Qt::DashDotLine},
-    {"Dash-Dot-Dot", Qt::DashDotDotLine},
+      {"Solid", Qt::SolidLine},
+      {"Dash", Qt::DashLine},
+      {"Dot", Qt::DotLine},
+      {"Dash-Dot", Qt::DashDotLine},
+      {"Dash-Dot-Dot", Qt::DashDotDotLine},
   };
 
   auto* style_layout = new QHBoxLayout();
@@ -1293,27 +1215,24 @@ void SignalViewWidget::onStyleLayer(int layer_index)
   width_layout->addWidget(width_edit);
   layout->addLayout(width_layout);
 
-  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  auto* buttons = new QDialogButtonBox(
+      QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
   layout->addWidget(buttons);
 
-  if (dlg.exec() != QDialog::Accepted)
-    return;
+  if (dlg.exec() != QDialog::Accepted) return;
 
   // Apply to all signals from this layer
   Qt::PenStyle new_style = (Qt::PenStyle)style_combo->currentData().toInt();
   bool ok_w;
   double new_width = width_edit->text().toDouble(&ok_w);
-  if (!ok_w || new_width < 0.1)
-    new_width = 1.5;
+  if (!ok_w || new_width < 0.1) new_width = 1.5;
 
-  for (auto& sig : _signals)
-  {
+  for (auto& sig : _signals) {
     auto parsed = OverlayManager::parsePrefixedName(sig.name);
     int sig_layer = (parsed.layer == 0) ? 1 : parsed.layer;
-    if (sig_layer == layer_index)
-    {
+    if (sig_layer == layer_index) {
       sig.color = chosen_color;
       sig.line_style = new_style;
       sig.line_width = new_width;
@@ -1323,21 +1242,16 @@ void SignalViewWidget::onStyleLayer(int layer_index)
   refreshViews();
 }
 
-void SignalViewWidget::onLayerRenamed(int layer_index, const QString& name)
-{
+void SignalViewWidget::onLayerRenamed(int layer_index, const QString& name) {
   auto* layer = _overlay_mgr->layerByIndex(layer_index);
-  if (layer)
-    layer->display_name = name.toStdString();
+  if (layer) layer->display_name = name.toStdString();
 }
 
-void SignalViewWidget::updateSelectedLayers()
-{
+void SignalViewWidget::updateSelectedLayers() {
   std::set<int> layers;
   const auto& sel = _y_axis_panel->selection();
-  for (int idx : sel)
-  {
-    if (idx >= 0 && idx < (int)_signals.size())
-    {
+  for (int idx : sel) {
+    if (idx >= 0 && idx < (int)_signals.size()) {
       auto parsed = OverlayManager::parsePrefixedName(_signals[idx].name);
       int layer = (parsed.layer == 0) ? 1 : parsed.layer;
       layers.insert(layer);
@@ -1346,16 +1260,14 @@ void SignalViewWidget::updateSelectedLayers()
   _canvas->setSelectedLayers(layers);
 }
 
-void SignalViewWidget::updateShiftLayerCombo()
-{
+void SignalViewWidget::updateShiftLayerCombo() {
   _shift_layer_combo->blockSignals(true);
   _shift_layer_combo->clear();
   for (const auto& layer : _overlay_mgr->layers())
     _shift_layer_combo->addItem(QString("#%1").arg(layer.index), layer.index);
 
   // Default to the highest layer index
-  if (_shift_layer_combo->count() > 0)
-  {
+  if (_shift_layer_combo->count() > 0) {
     _shift_layer_combo->setCurrentIndex(_shift_layer_combo->count() - 1);
     int layer = _shift_layer_combo->currentData().toInt();
     _canvas->setDefaultShiftLayer(layer);

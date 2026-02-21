@@ -1,38 +1,37 @@
 #include "signal_view_plugin.h"
-#include "signal_view_widget.h"
-#include "overlay_manager.h"
+
 #include <QStackedWidget>
+
+#include "overlay_manager.h"
+#include "signal_view_widget.h"
 
 SignalViewPlugin::SignalViewPlugin() = default;
 
-SignalViewPlugin::~SignalViewPlugin()
-{
-  if (_widget)
-  {
+SignalViewPlugin::~SignalViewPlugin() {
+  if (_widget) {
     delete _widget;
     _widget = nullptr;
   }
 }
 
-void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data, PJ::TransformsMap& transform_map)
-{
+void SignalViewPlugin::init(PJ::PlotDataMapRef& src_data,
+                            PJ::TransformsMap& transform_map) {
   _plot_data = &src_data;
   _transforms = &transform_map;
 
   _widget = new SignalViewWidget(_plot_data);
   connect(_widget, &QWidget::destroyed, this, [this]() { _widget = nullptr; });
-  connect(_widget, &SignalViewWidget::closeRequested, this, &SignalViewPlugin::closed);
+  connect(_widget, &SignalViewWidget::closeRequested, this,
+          &SignalViewPlugin::closed);
 }
 
-std::pair<QWidget*, PJ::ToolboxPlugin::WidgetType> SignalViewPlugin::providedWidget() const
-{
-  return { _widget, PJ::ToolboxPlugin::FLOATING };
+std::pair<QWidget*, PJ::ToolboxPlugin::WidgetType>
+SignalViewPlugin::providedWidget() const {
+  return {_widget, PJ::ToolboxPlugin::FLOATING};
 }
 
-bool SignalViewPlugin::onShowWidget()
-{
-  if (_widget)
-  {
+bool SignalViewPlugin::onShowWidget() {
+  if (_widget) {
     _widget->show();
     _widget->raise();
     _widget->activateWindow();
@@ -41,18 +40,16 @@ bool SignalViewPlugin::onShowWidget()
   return false;
 }
 
-bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_element) const
-{
-  if (!_widget)
-    return false;
+bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
+                                    QDomElement& parent_element) const {
+  if (!_widget) return false;
 
   QDomElement widget_elem = doc.createElement("widget");
   widget_elem.setAttribute("visible", _widget->isVisible() ? "1" : "0");
   parent_element.appendChild(widget_elem);
 
   const auto& sig_entries = _widget->signalEntries();
-  for (const auto& sig : sig_entries)
-  {
+  for (const auto& sig : sig_entries) {
     QDomElement sig_elem = doc.createElement("signal");
     sig_elem.setAttribute("name", QString::fromStdString(sig.name));
     sig_elem.setAttribute("color", sig.color.name());
@@ -83,16 +80,16 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
 
   // Overlay layers (including base layer time offset)
   auto* overlay_mgr = _widget->overlayManager();
-  if (overlay_mgr)
-  {
-    for (const auto& layer : overlay_mgr->layers())
-    {
+  if (overlay_mgr) {
+    for (const auto& layer : overlay_mgr->layers()) {
       QDomElement layer_elem = doc.createElement("overlay");
       layer_elem.setAttribute("layer", layer.index);
-      layer_elem.setAttribute("display_name", QString::fromStdString(layer.display_name));
+      layer_elem.setAttribute("display_name",
+                              QString::fromStdString(layer.display_name));
       layer_elem.setAttribute("time_offset", layer.time_offset);
       if (!layer.file_path.empty())
-        layer_elem.setAttribute("file", QString::fromStdString(layer.file_path));
+        layer_elem.setAttribute("file",
+                                QString::fromStdString(layer.file_path));
       parent_element.appendChild(layer_elem);
     }
   }
@@ -100,20 +97,17 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   // Splitter sizes: main (panel|canvas), panel (label|bar), label (name|value)
   QDomElement layout_elem = doc.createElement("layout");
   auto main_sizes = _widget->mainSplitter()->sizes();
-  if (main_sizes.size() == 2)
-  {
+  if (main_sizes.size() == 2) {
     layout_elem.setAttribute("panel_w", main_sizes[0]);
     layout_elem.setAttribute("canvas_w", main_sizes[1]);
   }
   auto panel_sizes = _widget->yAxisPanel()->splitterSizes();
-  if (panel_sizes.size() == 2)
-  {
+  if (panel_sizes.size() == 2) {
     layout_elem.setAttribute("label_w", panel_sizes[0]);
     layout_elem.setAttribute("bar_w", panel_sizes[1]);
   }
   auto label_sizes = _widget->yAxisPanel()->labelSplitterSizes();
-  if (label_sizes.size() == 2)
-  {
+  if (label_sizes.size() == 2) {
     layout_elem.setAttribute("name_w", label_sizes[0]);
     layout_elem.setAttribute("value_w", label_sizes[1]);
   }
@@ -122,17 +116,14 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc, QDomElement& parent_eleme
   return true;
 }
 
-bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
-{
-  if (!_widget)
-    return false;
+bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
+  if (!_widget) return false;
 
   auto& sig_entries = _widget->signalEntriesMutable();
   sig_entries.clear();
 
   QDomElement sig_elem = parent_element.firstChildElement("signal");
-  while (!sig_elem.isNull())
-  {
+  while (!sig_elem.isNull()) {
     SignalEntry entry;
     entry.name = sig_elem.attribute("name").toStdString();
     entry.color = QColor(sig_elem.attribute("color", "#00b4ff"));
@@ -142,11 +133,15 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
     entry.band_height = sig_elem.attribute("band_height", "1.0").toDouble();
     entry.bar_x = sig_elem.attribute("bar_x", "1.0").toDouble();
     entry.divisions = sig_elem.attribute("divisions", "8").toInt();
-    entry.line_style = (Qt::PenStyle)sig_elem.attribute("line_style",
-        QString::number((int)Qt::SolidLine)).toInt();
+    entry.line_style =
+        (Qt::PenStyle)sig_elem
+            .attribute("line_style", QString::number((int)Qt::SolidLine))
+            .toInt();
     entry.line_width = sig_elem.attribute("line_width", "1.5").toDouble();
-    entry.marker_style = (MarkerStyle)sig_elem.attribute("marker_style",
-        QString::number((int)MarkerStyle::None)).toInt();
+    entry.marker_style =
+        (MarkerStyle)sig_elem
+            .attribute("marker_style", QString::number((int)MarkerStyle::None))
+            .toInt();
 
     // Don't check data existence here — data is loaded after plugins
     sig_entries.push_back(entry);
@@ -158,81 +153,71 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
   _widget->yAxisPanel()->setSignalEntries(sig_entries);
 
   QDomElement cursor_elem = parent_element.firstChildElement("cursor");
-  if (!cursor_elem.isNull())
-  {
+  if (!cursor_elem.isNull()) {
     double cursor_time = cursor_elem.attribute("time", "0").toDouble();
     _widget->canvas()->setCursorTime(cursor_time);
   }
 
   QDomElement view_elem = parent_element.firstChildElement("view");
-  if (!view_elem.isNull())
-  {
+  if (!view_elem.isNull()) {
     double t_min = view_elem.attribute("t_min", "0").toDouble();
     double t_max = view_elem.attribute("t_max", "10").toDouble();
     _widget->canvas()->setViewRange(t_min, t_max);
   }
 
   QDomElement settings_elem = parent_element.firstChildElement("settings");
-  if (!settings_elem.isNull())
-  {
+  if (!settings_elem.isNull()) {
     double snap = settings_elem.attribute("snap", "0.01").toDouble();
     _widget->setSnapAmount(snap);
   }
 
   // Restore splitter sizes
   QDomElement layout_elem = parent_element.firstChildElement("layout");
-  if (!layout_elem.isNull())
-  {
-    if (layout_elem.hasAttribute("panel_w") && layout_elem.hasAttribute("canvas_w"))
+  if (!layout_elem.isNull()) {
+    if (layout_elem.hasAttribute("panel_w") &&
+        layout_elem.hasAttribute("canvas_w"))
       _widget->mainSplitter()->setSizes(
-          { layout_elem.attribute("panel_w").toInt(),
-            layout_elem.attribute("canvas_w").toInt() });
-    if (layout_elem.hasAttribute("label_w") && layout_elem.hasAttribute("bar_w"))
+          {layout_elem.attribute("panel_w").toInt(),
+           layout_elem.attribute("canvas_w").toInt()});
+    if (layout_elem.hasAttribute("label_w") &&
+        layout_elem.hasAttribute("bar_w"))
       _widget->yAxisPanel()->setSplitterSizes(
-          { layout_elem.attribute("label_w").toInt(),
-            layout_elem.attribute("bar_w").toInt() });
-    if (layout_elem.hasAttribute("name_w") && layout_elem.hasAttribute("value_w"))
+          {layout_elem.attribute("label_w").toInt(),
+           layout_elem.attribute("bar_w").toInt()});
+    if (layout_elem.hasAttribute("name_w") &&
+        layout_elem.hasAttribute("value_w"))
       _widget->yAxisPanel()->setLabelSplitterSizes(
-          { layout_elem.attribute("name_w").toInt(),
-            layout_elem.attribute("value_w").toInt() });
+          {layout_elem.attribute("name_w").toInt(),
+           layout_elem.attribute("value_w").toInt()});
   }
 
   // Restore overlay layers
   auto* overlay_mgr = _widget->overlayManager();
-  if (overlay_mgr)
-  {
+  if (overlay_mgr) {
     QDomElement overlay_elem = parent_element.firstChildElement("overlay");
-    while (!overlay_elem.isNull())
-    {
+    while (!overlay_elem.isNull()) {
       int layer_index = overlay_elem.attribute("layer", "0").toInt();
-      double time_offset = overlay_elem.attribute("time_offset", "0").toDouble();
+      double time_offset =
+          overlay_elem.attribute("time_offset", "0").toDouble();
       QString display_name = overlay_elem.attribute("display_name");
       QString file_path = overlay_elem.attribute("file");
 
-      if (!file_path.isEmpty())
-      {
+      if (!file_path.isEmpty()) {
         // Load the overlay file
         int new_layer = overlay_mgr->loadOverlayFile(file_path.toStdString());
-        if (new_layer > 0)
-        {
+        if (new_layer > 0) {
           overlay_mgr->setTimeOffset(new_layer, time_offset);
-          if (!display_name.isEmpty())
-          {
+          if (!display_name.isEmpty()) {
             auto* layer = overlay_mgr->layerByIndex(new_layer);
-            if (layer)
-              layer->display_name = display_name.toStdString();
+            if (layer) layer->display_name = display_name.toStdString();
           }
         }
-      }
-      else
-      {
+      } else {
         // Base layer — just restore time offset and display name
         overlay_mgr->setTimeOffset(layer_index, time_offset);
-        if (!display_name.isEmpty())
-        {
+        if (!display_name.isEmpty()) {
           auto* layer = overlay_mgr->layerByIndex(layer_index);
-          if (layer)
-            layer->display_name = display_name.toStdString();
+          if (layer) layer->display_name = display_name.toStdString();
         }
       }
 
@@ -247,13 +232,10 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element)
   // PlotJuggler places toolbox widgets inside a QStackedWidget,
   // so we need to switch the stack to our widget's index.
   QDomElement widget_elem = parent_element.firstChildElement("widget");
-  if (!widget_elem.isNull() && widget_elem.attribute("visible", "0") == "1")
-  {
-    if (auto* stack = qobject_cast<QStackedWidget*>(_widget->parentWidget()))
-    {
+  if (!widget_elem.isNull() && widget_elem.attribute("visible", "0") == "1") {
+    if (auto* stack = qobject_cast<QStackedWidget*>(_widget->parentWidget())) {
       int idx = stack->indexOf(_widget);
-      if (idx >= 0)
-        stack->setCurrentIndex(idx);
+      if (idx >= 0) stack->setCurrentIndex(idx);
     }
     onShowWidget();
   }
