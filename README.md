@@ -2,6 +2,8 @@
 
 An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/facontidavide/PlotJuggler). Displays time series data as step-wise (staircase) traces with individually positionable Y-axis bars, multi-file overlay comparison, and time shifting.
 
+![Signal View screenshot](images/plotjuggler-signalviewer-sample.jpg)
+
 ## Features
 
 - **Step-wise signal traces** with per-pixel downsampling for smooth rendering at any zoom level
