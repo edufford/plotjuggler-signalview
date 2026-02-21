@@ -29,20 +29,26 @@ void OverlayManager::setBaseData(PJ::PlotDataMapRef* data) {
     m_layers.insert(m_layers.begin(), std::move(base));
 
     // Re-number if needed
-    for (int i = 0; i < (int)m_layers.size(); i++) m_layers[i].index = i + 1;
+    for (int i = 0; i < (int)m_layers.size(); i++) {
+      m_layers[i].index = i + 1;
+    }
   }
 }
 
 bool OverlayManager::hasBaseLayer() const {
   for (const auto& layer : m_layers) {
-    if (layer.file_path.empty() && !layer.owned_data) return true;
+    if (layer.file_path.empty() && !layer.owned_data) {
+      return true;
+    }
   }
   return false;
 }
 
 int OverlayManager::loadOverlayFile(const std::string& file_path) {
   auto data = parseCSV(file_path);
-  if (!data || data->numeric.empty()) return -1;
+  if (!data || data->numeric.empty()) {
+    return -1;
+  }
 
   int new_index = nextLayerIndex();
 
@@ -61,9 +67,13 @@ bool OverlayManager::removeOverlay(int layer_index) {
   auto it = std::find_if(
       m_layers.begin(), m_layers.end(),
       [layer_index](const OverlayLayer& l) { return l.index == layer_index; });
-  if (it == m_layers.end()) return false;
+  if (it == m_layers.end()) {
+    return false;
+  }
   // Don't allow removing the PJ base layer
-  if (!it->owned_data) return false;
+  if (!it->owned_data) {
+    return false;
+  }
 
   m_layers.erase(it);
   return true;
@@ -71,7 +81,9 @@ bool OverlayManager::removeOverlay(int layer_index) {
 
 OverlayLayer* OverlayManager::layerByIndex(int index) {
   for (auto& layer : m_layers) {
-    if (layer.index == index) return &layer;
+    if (layer.index == index) {
+      return &layer;
+    }
   }
   return nullptr;
 }
@@ -79,7 +91,9 @@ OverlayLayer* OverlayManager::layerByIndex(int index) {
 bool OverlayManager::hasOverlays() const {
   int overlay_count = 0;
   for (const auto& layer : m_layers) {
-    if (layer.owned_data) overlay_count++;
+    if (layer.owned_data) {
+      overlay_count++;
+    }
   }
   return overlay_count > 0;
 }
@@ -94,7 +108,9 @@ std::optional<ResolvedSignal> OverlayManager::resolveSignal(
   }
 
   for (const auto& layer : m_layers) {
-    if (layer.index != parsed.layer || !layer.data) continue;
+    if (layer.index != parsed.layer || !layer.data) {
+      continue;
+    }
 
     auto it = layer.data->numeric.find(parsed.raw_name);
     if (it != layer.data->numeric.end()) {
@@ -113,12 +129,15 @@ std::vector<std::string> OverlayManager::allAvailableSignals() const {
   bool use_prefix = m_layers.size() > 1;
 
   for (const auto& layer : m_layers) {
-    if (!layer.data) continue;
+    if (!layer.data) {
+      continue;
+    }
     for (const auto& [name, _] : layer.data->numeric) {
-      if (use_prefix)
+      if (use_prefix) {
         result.push_back(makePrefixedName(layer.index, name));
-      else
+      } else {
         result.push_back(name);
+      }
     }
   }
   std::sort(result.begin(), result.end());
@@ -129,10 +148,13 @@ std::vector<std::string> OverlayManager::findMatchingSignals(
     int layer_index, const std::vector<std::string>& raw_names) const {
   std::vector<std::string> matches;
   for (const auto& layer : m_layers) {
-    if (layer.index != layer_index || !layer.data) continue;
+    if (layer.index != layer_index || !layer.data) {
+      continue;
+    }
     for (const auto& raw : raw_names) {
-      if (layer.data->numeric.count(raw))
+      if (layer.data->numeric.count(raw)) {
         matches.push_back(makePrefixedName(layer_index, raw));
+      }
     }
   }
   return matches;
@@ -140,7 +162,9 @@ std::vector<std::string> OverlayManager::findMatchingSignals(
 
 double OverlayManager::timeOffset(int layer_index) const {
   for (const auto& layer : m_layers) {
-    if (layer.index == layer_index) return layer.time_offset;
+    if (layer.index == layer_index) {
+      return layer.time_offset;
+    }
   }
   return 0.0;
 }
@@ -194,28 +218,37 @@ char CsvUtil::detectDelimiter(const std::string& line) {
   // Count occurrences of common delimiters
   int commas = 0, tabs = 0, semicolons = 0;
   for (char c : line) {
-    if (c == ',')
+    if (c == ',') {
       commas++;
-    else if (c == '\t')
+    } else if (c == '\t') {
       tabs++;
-    else if (c == ';')
+    } else if (c == ';') {
       semicolons++;
+    }
   }
-  if (tabs >= commas && tabs >= semicolons && tabs > 0) return '\t';
-  if (semicolons >= commas && semicolons > 0) return ';';
+  if (tabs >= commas && tabs >= semicolons && tabs > 0) {
+    return '\t';
+  }
+  if (semicolons >= commas && semicolons > 0) {
+    return ';';
+  }
   return ',';
 }
 
 std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
     const std::string& file_path) {
   std::ifstream file(file_path);
-  if (!file.is_open()) return nullptr;
+  if (!file.is_open()) {
+    return nullptr;
+  }
 
   auto data = std::make_unique<PJ::PlotDataMapRef>();
 
   // Read header line
   std::string header_line;
-  if (!std::getline(file, header_line)) return nullptr;
+  if (!std::getline(file, header_line)) {
+    return nullptr;
+  }
 
   // Detect delimiter from header
   char delim = CsvUtil::detectDelimiter(header_line);
@@ -229,15 +262,18 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
       // Trim whitespace
       auto start = token.find_first_not_of(" \t\r\n");
       auto end = token.find_last_not_of(" \t\r\n");
-      if (start != std::string::npos)
+      if (start != std::string::npos) {
         token = token.substr(start, end - start + 1);
-      else
+      } else {
         token.clear();
+      }
       col_names.push_back(token);
     }
   }
 
-  if (col_names.size() < 2) return nullptr;
+  if (col_names.size() < 2) {
+    return nullptr;
+  }
 
   // First column is time. Create a PlotData entry for each remaining column.
   std::vector<PJ::TimeseriesMap::iterator> series_iters;
@@ -249,7 +285,9 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
   // Parse data rows
   std::string line;
   while (std::getline(file, line)) {
-    if (line.empty()) continue;
+    if (line.empty()) {
+      continue;
+    }
 
     std::vector<double> values;
     std::stringstream ss(line);
@@ -258,18 +296,23 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
       // Trim whitespace
       auto start = token.find_first_not_of(" \t\r\n");
       auto end = token.find_last_not_of(" \t\r\n");
-      if (start != std::string::npos)
+      if (start != std::string::npos) {
         token = token.substr(start, end - start + 1);
-      else
+      } else {
         token = "0";
+      }
 
       char* endp = nullptr;
       double val = std::strtod(token.c_str(), &endp);
-      if (endp == token.c_str()) val = 0.0;  // parse failure
+      if (endp == token.c_str()) {
+        val = 0.0;  // parse failure
+      }
       values.push_back(val);
     }
 
-    if (values.size() < 2) continue;
+    if (values.size() < 2) {
+      continue;
+    }
 
     double time = values[0];
     for (size_t i = 0; i < series_iters.size() && (i + 1) < values.size();
@@ -284,6 +327,8 @@ std::unique_ptr<PJ::PlotDataMapRef> OverlayManager::parseCSV(
 
 int OverlayManager::nextLayerIndex() const {
   int max_idx = 0;
-  for (const auto& layer : m_layers) max_idx = std::max(max_idx, layer.index);
+  for (const auto& layer : m_layers) {
+    max_idx = std::max(max_idx, layer.index);
+  }
   return max_idx + 1;
 }
