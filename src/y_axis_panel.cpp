@@ -10,36 +10,36 @@
 #include "overlay_manager.h"
 
 // ============================================================================
-// SignalNameColumn
+// SignalColumnBase (shared drag, rubber-band, and scroll handling)
 // ============================================================================
 
-SignalNameColumn::SignalNameColumn(QWidget* parent) : QWidget(parent) {
+SignalColumnBase::SignalColumnBase(QWidget* parent) : QWidget(parent) {
   setMinimumWidth(40);
   setMouseTracking(true);
 }
 
-void SignalNameColumn::setSignalEntries(
+void SignalColumnBase::setSignalEntries(
     const std::vector<SignalEntry>& entries) {
   _signals = entries;
   update();
 }
 
-void SignalNameColumn::setDragIndex(int idx) {
+void SignalColumnBase::setDragIndex(int idx) {
   _external_drag_index = idx;
   update();
 }
 
-void SignalNameColumn::setSelection(const std::set<int>& sel) {
+void SignalColumnBase::setSelection(const std::set<int>& sel) {
   _selected = sel;
   update();
 }
 
-void SignalNameColumn::setScrollOffset(double offset) {
+void SignalColumnBase::setScrollOffset(double offset) {
   _scroll_offset = offset;
   update();
 }
 
-int SignalNameColumn::effectiveDragIndex() const {
+int SignalColumnBase::effectiveDragIndex() const {
   // Only apply drag demotion after movement starts, not on initial press.
   if (_drag_index >= 0 && _drag_moved) {
     // During active multi-drag, use stored index to preserve previous stacking.
@@ -50,45 +50,7 @@ int SignalNameColumn::effectiveDragIndex() const {
   return _external_drag_index;
 }
 
-void SignalNameColumn::paintEvent(QPaintEvent* /*event*/) {
-  QPainter painter(this);
-  painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), QColor(32, 32, 38));
-
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight,
-                                             _scroll_offset);
-
-  for (int i = 0; i < (int)_signals.size(); i++) {
-    const auto& sig = _signals[i];
-    double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
-    double row_y = top + offsets[i];
-
-    // Selection highlight
-    if (_selected.count(i))
-      painter.fillRect(QRectF(0, row_y, width(), kTextRowHeight),
-                       QColor(255, 255, 255, 20));
-
-    // Signal name
-    painter.setPen(sig.color);
-    QFont name_font("sans-serif", 10, QFont::Bold);
-    painter.setFont(name_font);
-    QString name = QString::fromStdString(sig.name);
-    QFontMetrics fm(name_font);
-    QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 8);
-    painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
-                     Qt::AlignLeft | Qt::AlignVCenter, elided);
-  }
-
-  // Rubber band overlay
-  if (_rubber_band_active) {
-    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
-    painter.fillRect(rb, QColor(100, 150, 255, 30));
-    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
-    painter.drawRect(rb);
-  }
-}
-
-int SignalNameColumn::hitTestSignal(const QPoint& pos) const {
+int SignalColumnBase::hitTestSignal(const QPoint& pos) const {
   auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight,
                                              _scroll_offset);
   for (int i = 0; i < (int)_signals.size(); i++) {
@@ -99,7 +61,33 @@ int SignalNameColumn::hitTestSignal(const QPoint& pos) const {
   return -1;
 }
 
-void SignalNameColumn::mousePressEvent(QMouseEvent* event) {
+void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
+  QPainter painter(this);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.fillRect(rect(), QColor(32, 32, 38));
+
+  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight,
+                                             _scroll_offset);
+
+  for (int i = 0; i < (int)_signals.size(); i++) {
+    double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
+    double row_y = top + offsets[i];
+    if (_selected.count(i))
+      painter.fillRect(QRectF(0, row_y, width(), kTextRowHeight),
+                       QColor(255, 255, 255, 20));
+  }
+
+  paintContent(painter, offsets);
+
+  if (_rubber_band_active) {
+    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
+    painter.fillRect(rb, QColor(100, 150, 255, 30));
+    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
+    painter.drawRect(rb);
+  }
+}
+
+void SignalColumnBase::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
     _drag_index = hitTestSignal(event->pos());
     if (_drag_index >= 0) {
@@ -124,7 +112,7 @@ void SignalNameColumn::mousePressEvent(QMouseEvent* event) {
   }
 }
 
-void SignalNameColumn::mouseMoveEvent(QMouseEvent* event) {
+void SignalColumnBase::mouseMoveEvent(QMouseEvent* event) {
   if (_rubber_band_active) {
     _rubber_band_current = event->pos();
     update();
@@ -154,7 +142,7 @@ void SignalNameColumn::mouseMoveEvent(QMouseEvent* event) {
   emit bandOffsetChanged(_drag_index, new_center);
 }
 
-void SignalNameColumn::mouseReleaseEvent(QMouseEvent* event) {
+void SignalColumnBase::mouseReleaseEvent(QMouseEvent* /*event*/) {
   if (_rubber_band_active) {
     _rubber_band_active = false;
     QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
@@ -175,7 +163,7 @@ void SignalNameColumn::mouseReleaseEvent(QMouseEvent* event) {
   setCursor(Qt::ArrowCursor);
 }
 
-void SignalNameColumn::mouseDoubleClickEvent(QMouseEvent* event) {
+void SignalColumnBase::mouseDoubleClickEvent(QMouseEvent* event) {
   int idx = hitTestSignal(event->pos());
   if (idx >= 0) {
     emit editYRangeRequested(idx);
@@ -190,26 +178,48 @@ void SignalNameColumn::mouseDoubleClickEvent(QMouseEvent* event) {
   }
 }
 
-void SignalNameColumn::wheelEvent(QWheelEvent* event) {
+void SignalColumnBase::wheelEvent(QWheelEvent* event) {
   double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
   emit verticalScrollRequested(delta);
+}
+
+// ============================================================================
+// SignalNameColumn
+// ============================================================================
+
+SignalNameColumn::SignalNameColumn(QWidget* parent)
+    : SignalColumnBase(parent) {}
+
+void SignalNameColumn::paintContent(QPainter& painter,
+                                    const std::vector<double>& offsets) {
+  for (int i = 0; i < (int)_signals.size(); i++) {
+    const auto& sig = _signals[i];
+    double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
+    double row_y = top + offsets[i];
+
+    painter.setPen(sig.color);
+    QFont name_font("sans-serif", 10, QFont::Bold);
+    painter.setFont(name_font);
+    QString name = QString::fromStdString(sig.name);
+    QFontMetrics fm(name_font);
+    QString elided = fm.elidedText(name, Qt::ElideMiddle, width() - 8);
+    painter.drawText(QRectF(4, row_y, width() - 8, kTextRowHeight),
+                     Qt::AlignLeft | Qt::AlignVCenter, elided);
+  }
 }
 
 // ============================================================================
 // SignalValueColumn
 // ============================================================================
 
-SignalValueColumn::SignalValueColumn(QWidget* parent) : QWidget(parent) {
-  setMinimumWidth(40);
-  setMouseTracking(true);
-}
+SignalValueColumn::SignalValueColumn(QWidget* parent)
+    : SignalColumnBase(parent) {}
 
 void SignalValueColumn::setSignalEntries(
     const std::vector<SignalEntry>& entries) {
-  _signals = entries;
+  SignalColumnBase::setSignalEntries(entries);
   _cursor_values.resize(entries.size(), 0.0);
   _cursor_valid.resize(entries.size(), false);
-  update();
 }
 
 void SignalValueColumn::setCursorValues(const std::vector<double>& values,
@@ -219,49 +229,13 @@ void SignalValueColumn::setCursorValues(const std::vector<double>& values,
   update();
 }
 
-void SignalValueColumn::setDragIndex(int idx) {
-  _external_drag_index = idx;
-  update();
-}
-
-void SignalValueColumn::setSelection(const std::set<int>& sel) {
-  _selected = sel;
-  update();
-}
-
-void SignalValueColumn::setScrollOffset(double offset) {
-  _scroll_offset = offset;
-  update();
-}
-
-int SignalValueColumn::effectiveDragIndex() const {
-  if (_drag_index >= 0 && _drag_moved) {
-    if (_selected.size() > 1 && _selected.count(_drag_index))
-      return _external_drag_index;
-    return _drag_index;
-  }
-  return _external_drag_index;
-}
-
-void SignalValueColumn::paintEvent(QPaintEvent* /*event*/) {
-  QPainter painter(this);
-  painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), QColor(32, 32, 38));
-
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight,
-                                             _scroll_offset);
-
+void SignalValueColumn::paintContent(QPainter& painter,
+                                     const std::vector<double>& offsets) {
   for (int i = 0; i < (int)_signals.size(); i++) {
     const auto& sig = _signals[i];
     double top = AxisLayout::bandTopY(sig, height(), _scroll_offset);
     double row_y = top + offsets[i];
 
-    // Selection highlight
-    if (_selected.count(i))
-      painter.fillRect(QRectF(0, row_y, width(), kTextRowHeight),
-                       QColor(255, 255, 255, 20));
-
-    // Cursor readout value
     if (i < (int)_cursor_valid.size()) {
       painter.setPen(sig.color);
       QFont readout_font("monospace", 10, QFont::Bold);
@@ -275,118 +249,6 @@ void SignalValueColumn::paintEvent(QPaintEvent* /*event*/) {
                        Qt::AlignLeft | Qt::AlignVCenter, value_str);
     }
   }
-
-  // Rubber band overlay
-  if (_rubber_band_active) {
-    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
-    painter.fillRect(rb, QColor(100, 150, 255, 30));
-    painter.setPen(QPen(QColor(100, 150, 255, 120), 1));
-    painter.drawRect(rb);
-  }
-}
-
-int SignalValueColumn::hitTestSignal(const QPoint& pos) const {
-  auto offsets = AxisLayout::textRowYOffsets(_signals, height(), kTextRowHeight,
-                                             _scroll_offset);
-  for (int i = 0; i < (int)_signals.size(); i++) {
-    double top = AxisLayout::bandTopY(_signals[i], height(), _scroll_offset);
-    double row_y = top + offsets[i];
-    if (pos.y() >= row_y && pos.y() <= row_y + kTextRowHeight) return i;
-  }
-  return -1;
-}
-
-void SignalValueColumn::mousePressEvent(QMouseEvent* event) {
-  if (event->button() == Qt::LeftButton) {
-    _drag_index = hitTestSignal(event->pos());
-    if (_drag_index >= 0) {
-      if (event->modifiers() & Qt::ControlModifier)
-        emit clickSelect(_drag_index, true);
-      else if (!_selected.count(_drag_index))
-        emit clickSelect(_drag_index, false);
-
-      _drag_start_global_y = event->globalPos().y();
-      _drag_start_band_center = _signals[_drag_index].band_center;
-      _drag_moved = false;
-      setCursor(Qt::ClosedHandCursor);
-    } else {
-      // Empty space: start rubber band
-      _rubber_band_active = true;
-      _rubber_band_ctrl = event->modifiers() & Qt::ControlModifier;
-      _rubber_band_origin = event->pos();
-      _rubber_band_current = event->pos();
-      setCursor(Qt::CrossCursor);
-    }
-  }
-}
-
-void SignalValueColumn::mouseMoveEvent(QMouseEvent* event) {
-  if (_rubber_band_active) {
-    _rubber_band_current = event->pos();
-    update();
-    return;
-  }
-
-  if (_drag_index < 0) {
-    int hit = hitTestSignal(event->pos());
-    setCursor(hit >= 0 ? Qt::OpenHandCursor : Qt::ArrowCursor);
-    return;
-  }
-
-  if (!_drag_moved) {
-    _drag_moved = true;
-    if (_selected.size() <= 1 || !_selected.count(_drag_index))
-      emit dragIndexChanged(_drag_index);
-  }
-
-  int dy = event->globalPos().y() - _drag_start_global_y;
-  double plot_h = height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-  if (plot_h <= 0) return;
-
-  double delta = dy / plot_h;
-  double new_center = _drag_start_band_center + delta;
-  emit bandOffsetChanged(_drag_index, new_center);
-}
-
-void SignalValueColumn::mouseReleaseEvent(QMouseEvent* event) {
-  if (_rubber_band_active) {
-    _rubber_band_active = false;
-    QRect rb = QRect(_rubber_band_origin, _rubber_band_current).normalized();
-    if (rb.height() > 3)
-      emit boxSelect(rb.top(), rb.bottom(), _rubber_band_ctrl);
-    else
-      emit clickSelect(-1, false);  // click on empty = clear
-    update();
-    setCursor(Qt::ArrowCursor);
-    return;
-  }
-
-  if (_drag_index >= 0 && _drag_moved) {
-    if (_selected.size() <= 1 || !_selected.count(_drag_index))
-      _external_drag_index = _drag_index;
-  }
-  _drag_index = -1;
-  setCursor(Qt::ArrowCursor);
-}
-
-void SignalValueColumn::mouseDoubleClickEvent(QMouseEvent* event) {
-  int idx = hitTestSignal(event->pos());
-  if (idx >= 0) {
-    emit editYRangeRequested(idx);
-  } else {
-    double plot_h =
-        height() - PlotCanvas::kMarginTop - PlotCanvas::kMarginBottom;
-    double band_center =
-        (plot_h > 0) ? (event->pos().y() - PlotCanvas::kMarginTop) / plot_h +
-                           _scroll_offset
-                     : 0.5;
-    emit addSignalRequested(band_center);
-  }
-}
-
-void SignalValueColumn::wheelEvent(QWheelEvent* event) {
-  double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
-  emit verticalScrollRequested(delta);
 }
 
 // ============================================================================

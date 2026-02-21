@@ -73,18 +73,17 @@ inline std::vector<double> textRowYOffsets(
 }
 }  // namespace AxisLayout
 
-// Signal name column: colored dot + signal name, draggable to reposition.
-class SignalNameColumn : public QWidget {
+// Base class for signal column widgets (name and value columns).
+// Provides shared drag, rubber-band selection, and scroll handling.
+class SignalColumnBase : public QWidget {
   Q_OBJECT
 
  public:
-  explicit SignalNameColumn(QWidget* parent = nullptr);
-  void setSignalEntries(const std::vector<SignalEntry>& entries);
+  explicit SignalColumnBase(QWidget* parent = nullptr);
+  virtual void setSignalEntries(const std::vector<SignalEntry>& entries);
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
   void setScrollOffset(double offset);
-
-  static constexpr int kDefaultWidth = 70;
 
  signals:
   void bandOffsetChanged(int index, double new_center);
@@ -103,76 +102,55 @@ class SignalNameColumn : public QWidget {
   void mouseDoubleClickEvent(QMouseEvent* event) override;
   void wheelEvent(QWheelEvent* event) override;
 
- private:
-  int effectiveDragIndex() const;
+  virtual void paintContent(QPainter& painter,
+                            const std::vector<double>& row_offsets) = 0;
   int hitTestSignal(const QPoint& pos) const;
+  int effectiveDragIndex() const;
+
   static constexpr int kTextRowHeight = 15;
   std::vector<SignalEntry> _signals;
   std::set<int> _selected;
   double _scroll_offset = 0.0;
+
+ private:
   int _drag_index = -1;
   int _external_drag_index = -1;
   bool _drag_moved = false;
   int _drag_start_global_y = 0;
   double _drag_start_band_center = 0.0;
-  // Rubber band selection
   bool _rubber_band_active = false;
   bool _rubber_band_ctrl = false;
   QPoint _rubber_band_origin;
   QPoint _rubber_band_current;
 };
 
-// Signal value column: cursor readout values, vertically aligned with names.
-class SignalValueColumn : public QWidget {
-  Q_OBJECT
-
+// Signal name column: colored dot + signal name, draggable to reposition.
+class SignalNameColumn : public SignalColumnBase {
  public:
-  explicit SignalValueColumn(QWidget* parent = nullptr);
-  void setSignalEntries(const std::vector<SignalEntry>& entries);
-  void setCursorValues(const std::vector<double>& values,
-                       const std::vector<bool>& valid);
-  void setDragIndex(int idx);
-  void setSelection(const std::set<int>& sel);
-  void setScrollOffset(double offset);
-
+  explicit SignalNameColumn(QWidget* parent = nullptr);
   static constexpr int kDefaultWidth = 70;
 
- signals:
-  void bandOffsetChanged(int index, double new_center);
-  void dragIndexChanged(int index);
-  void editYRangeRequested(int index);
-  void addSignalRequested(double band_center);
-  void clickSelect(int index, bool toggle);
-  void boxSelect(double y_top, double y_bottom, bool add);
-  void verticalScrollRequested(double delta);
+ protected:
+  void paintContent(QPainter& painter,
+                    const std::vector<double>& row_offsets) override;
+};
+
+// Signal value column: cursor readout values, vertically aligned with names.
+class SignalValueColumn : public SignalColumnBase {
+ public:
+  explicit SignalValueColumn(QWidget* parent = nullptr);
+  void setSignalEntries(const std::vector<SignalEntry>& entries) override;
+  void setCursorValues(const std::vector<double>& values,
+                       const std::vector<bool>& valid);
+  static constexpr int kDefaultWidth = 70;
 
  protected:
-  void paintEvent(QPaintEvent* event) override;
-  void mousePressEvent(QMouseEvent* event) override;
-  void mouseMoveEvent(QMouseEvent* event) override;
-  void mouseReleaseEvent(QMouseEvent* event) override;
-  void mouseDoubleClickEvent(QMouseEvent* event) override;
-  void wheelEvent(QWheelEvent* event) override;
+  void paintContent(QPainter& painter,
+                    const std::vector<double>& row_offsets) override;
 
  private:
-  int effectiveDragIndex() const;
-  int hitTestSignal(const QPoint& pos) const;
-  static constexpr int kTextRowHeight = 15;
-  std::vector<SignalEntry> _signals;
-  std::set<int> _selected;
-  double _scroll_offset = 0.0;
   std::vector<double> _cursor_values;
   std::vector<bool> _cursor_valid;
-  int _drag_index = -1;
-  int _external_drag_index = -1;
-  bool _drag_moved = false;
-  int _drag_start_global_y = 0;
-  double _drag_start_band_center = 0.0;
-  // Rubber band selection
-  bool _rubber_band_active = false;
-  bool _rubber_band_ctrl = false;
-  QPoint _rubber_band_origin;
-  QPoint _rubber_band_current;
 };
 
 // Container: name column | value column in a splitter.
