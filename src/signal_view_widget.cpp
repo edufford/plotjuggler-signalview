@@ -26,6 +26,39 @@
 
 static constexpr const char* kPluginVersion = "0.9.0";
 
+// Shared style option definitions used by onEditYRange and onStyleLayer.
+struct LineStyleOption {
+  QString label;
+  Qt::PenStyle style;
+};
+static const std::vector<LineStyleOption>& lineStyleOptions() {
+  static const std::vector<LineStyleOption> opts = {
+      {"Solid", Qt::SolidLine},
+      {"Dash", Qt::DashLine},
+      {"Dot", Qt::DotLine},
+      {"Dash-Dot", Qt::DashDotLine},
+      {"Dash-Dot-Dot", Qt::DashDotDotLine},
+  };
+  return opts;
+}
+
+struct MarkerStyleOption {
+  QString label;
+  MarkerStyle style;
+};
+static const std::vector<MarkerStyleOption>& markerStyleOptions() {
+  static const std::vector<MarkerStyleOption> opts = {
+      {"None", MarkerStyle::None},
+      {"Filled Circle", MarkerStyle::FilledCircle},
+      {"Open Circle", MarkerStyle::OpenCircle},
+      {"Filled Square", MarkerStyle::FilledSquare},
+      {"Open Square", MarkerStyle::OpenSquare},
+      {"Filled Triangle", MarkerStyle::FilledTriangle},
+      {"Open Triangle", MarkerStyle::OpenTriangle},
+  };
+  return opts;
+}
+
 const std::vector<QColor>& SignalViewWidget::signalColors() {
   static const std::vector<QColor> colors = {
       QColor(0, 180, 255),    // Cyan-blue
@@ -593,14 +626,263 @@ void SignalViewWidget::updateScrollBar() {
   _scrollbar->blockSignals(false);
 }
 
+// Per-row widget pointers for the Edit Y Range dialog table.
+struct EditRowWidgets {
+  QLineEdit* width_edit;
+  QLineEdit* min_edit;
+  QLineEdit* max_edit;
+  QLineEdit* div_edit;
+  QPushButton* color_btn;
+  QComboBox* style_combo;
+  QComboBox* marker_combo;
+  QColor color;
+};
+
+static void setColorBtnStyle(QPushButton* btn, const QColor& c) {
+  btn->setStyleSheet(QString("background-color: %1; border: 1px solid #888; "
+                             "min-width: 28px; max-width: 28px;")
+                         .arg(c.name()));
+}
+
+// Custom selection model: clicking a widget cell in an already-selected row
+// preserves the multi-row selection instead of clearing it.
+class ColumnGuardSelectionModel : public QItemSelectionModel {
+ public:
+  using QItemSelectionModel::QItemSelectionModel;
+  void select(const QModelIndex& index,
+              QItemSelectionModel::SelectionFlags command) override {
+    if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
+      if (isRowSelected(index.row(), index.parent()))
+        return;  // row already selected — preserve multi-selection
+      QItemSelectionModel::select(index, QItemSelectionModel::ClearAndSelect |
+                                             QItemSelectionModel::Rows);
+      return;
+    }
+    QItemSelectionModel::select(index, command);
+  }
+  void select(const QItemSelection& selection,
+              QItemSelectionModel::SelectionFlags command) override {
+    QItemSelectionModel::select(selection, command);
+  }
+  void setCurrentIndex(const QModelIndex& index,
+                       QItemSelectionModel::SelectionFlags command) override {
+    if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
+      if (isRowSelected(index.row(), index.parent())) {
+        QItemSelectionModel::setCurrentIndex(index,
+                                             QItemSelectionModel::NoUpdate);
+        return;
+      }
+      QItemSelectionModel::setCurrentIndex(
+          index,
+          QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+      return;
+    }
+    QItemSelectionModel::setCurrentIndex(index, command);
+  }
+};
+
+// Populate one row of the Edit Y Range table from a SignalEntry.
+static EditRowWidgets populateEditRow(QTableWidget* table, int row,
+                                      const SignalEntry& sig, QWidget* parent) {
+  EditRowWidgets w;
+
+  // Signal name (read-only)
+  auto* name_item = new QTableWidgetItem(QString::fromStdString(sig.name));
+  name_item->setFlags(name_item->flags() & ~Qt::ItemIsEditable);
+  name_item->setForeground(sig.color);
+  table->setItem(row, 0, name_item);
+
+  // Color button
+  w.color = sig.color;
+  w.color_btn = new QPushButton(parent);
+  setColorBtnStyle(w.color_btn, sig.color);
+  table->setCellWidget(row, 1, w.color_btn);
+
+  // Line style combo
+  w.style_combo = new QComboBox(parent);
+  int current_style_idx = 0;
+  const auto& ls = lineStyleOptions();
+  for (int s = 0; s < (int)ls.size(); s++) {
+    w.style_combo->addItem(ls[s].label, (int)ls[s].style);
+    if (ls[s].style == sig.line_style) current_style_idx = s;
+  }
+  w.style_combo->setCurrentIndex(current_style_idx);
+  table->setCellWidget(row, 2, w.style_combo);
+
+  // Marker style combo
+  w.marker_combo = new QComboBox(parent);
+  int current_marker_idx = 0;
+  const auto& ms = markerStyleOptions();
+  for (int m = 0; m < (int)ms.size(); m++) {
+    w.marker_combo->addItem(ms[m].label, (int)ms[m].style);
+    if (ms[m].style == sig.marker_style) current_marker_idx = m;
+  }
+  w.marker_combo->setCurrentIndex(current_marker_idx);
+  table->setCellWidget(row, 3, w.marker_combo);
+
+  // Line width
+  w.width_edit = new QLineEdit(parent);
+  w.width_edit->setValidator(new QDoubleValidator(0.1, 10.0, 1, parent));
+  w.width_edit->setText(QString::number(sig.line_width, 'f', 1));
+  table->setCellWidget(row, 4, w.width_edit);
+
+  // Y Min / Y Max
+  w.min_edit = new QLineEdit(parent);
+  w.min_edit->setValidator(new QDoubleValidator(parent));
+  w.min_edit->setText(QString::number(sig.y_min, 'g', 6));
+  table->setCellWidget(row, 5, w.min_edit);
+
+  w.max_edit = new QLineEdit(parent);
+  w.max_edit->setValidator(new QDoubleValidator(parent));
+  w.max_edit->setText(QString::number(sig.y_max, 'g', 6));
+  table->setCellWidget(row, 6, w.max_edit);
+
+  // Divisions (0 = auto)
+  w.div_edit = new QLineEdit(parent);
+  w.div_edit->setValidator(
+      new QIntValidator(0, SignalEntry::kMaxDivisions, parent));
+  w.div_edit->setText(QString::number(sig.divisions));
+  table->setCellWidget(row, 7, w.div_edit);
+
+  return w;
+}
+
+// Wire cross-row propagation: editing a value in one selected row copies it
+// to all other selected rows in the same column.
+static void wireEditTablePropagation(QTableWidget* table,
+                                     std::vector<EditRowWidgets>& rows,
+                                     QDialog* dlg) {
+  auto editForCol = [&](int row, int col) -> QLineEdit* {
+    if (col == 4) return rows[row].width_edit;
+    if (col == 5) return rows[row].min_edit;
+    if (col == 6) return rows[row].max_edit;
+    return rows[row].div_edit;
+  };
+  auto propagateText = [=, &rows](int source_row, int col) {
+    QString text = editForCol(source_row, col)->text();
+    auto selected = table->selectionModel()->selectedRows();
+    for (const auto& mi : selected) {
+      int r = mi.row();
+      if (r == source_row) continue;
+      QLineEdit* target = editForCol(r, col);
+      target->blockSignals(true);
+      target->setText(text);
+      target->blockSignals(false);
+    }
+  };
+  auto isRowSelected = [table](int row) {
+    for (const auto& mi : table->selectionModel()->selectedRows())
+      if (mi.row() == row) return true;
+    return false;
+  };
+
+  for (int row = 0; row < (int)rows.size(); row++) {
+    // Text edits: width, min, max, divisions
+    QObject::connect(rows[row].width_edit, &QLineEdit::textEdited, dlg,
+                     [propagateText, row]() { propagateText(row, 4); });
+    QObject::connect(rows[row].min_edit, &QLineEdit::textEdited, dlg,
+                     [propagateText, row]() { propagateText(row, 5); });
+    QObject::connect(rows[row].max_edit, &QLineEdit::textEdited, dlg,
+                     [propagateText, row]() { propagateText(row, 6); });
+    QObject::connect(rows[row].div_edit, &QLineEdit::textEdited, dlg,
+                     [propagateText, row]() { propagateText(row, 7); });
+
+    // Line style combo
+    QObject::connect(rows[row].style_combo,
+                     QOverload<int>::of(&QComboBox::currentIndexChanged), dlg,
+                     [&rows, table, isRowSelected, row](int idx) {
+                       if (!isRowSelected(row)) return;
+                       auto selected = table->selectionModel()->selectedRows();
+                       if (selected.size() <= 1) return;
+                       for (const auto& mi : selected) {
+                         int r = mi.row();
+                         if (r == row) continue;
+                         rows[r].style_combo->blockSignals(true);
+                         rows[r].style_combo->setCurrentIndex(idx);
+                         rows[r].style_combo->blockSignals(false);
+                       }
+                     });
+
+    // Marker style combo
+    QObject::connect(rows[row].marker_combo,
+                     QOverload<int>::of(&QComboBox::currentIndexChanged), dlg,
+                     [&rows, table, isRowSelected, row](int idx) {
+                       if (!isRowSelected(row)) return;
+                       auto selected = table->selectionModel()->selectedRows();
+                       if (selected.size() <= 1) return;
+                       for (const auto& mi : selected) {
+                         int r = mi.row();
+                         if (r == row) continue;
+                         rows[r].marker_combo->blockSignals(true);
+                         rows[r].marker_combo->setCurrentIndex(idx);
+                         rows[r].marker_combo->blockSignals(false);
+                       }
+                     });
+
+    // Color button
+    QObject::connect(rows[row].color_btn, &QPushButton::clicked, dlg,
+                     [&rows, table, dlg, row]() {
+                       QColor chosen = QColorDialog::getColor(
+                           rows[row].color, dlg, "Signal Color");
+                       if (!chosen.isValid()) return;
+                       auto selected = table->selectionModel()->selectedRows();
+                       bool row_sel = false;
+                       for (const auto& mi : selected)
+                         if (mi.row() == row) {
+                           row_sel = true;
+                           break;
+                         }
+                       if (row_sel && selected.size() > 1) {
+                         for (const auto& mi : selected) {
+                           int r = mi.row();
+                           rows[r].color = chosen;
+                           setColorBtnStyle(rows[r].color_btn, chosen);
+                           table->item(r, 0)->setForeground(chosen);
+                         }
+                       } else {
+                         rows[row].color = chosen;
+                         setColorBtnStyle(rows[row].color_btn, chosen);
+                         table->item(row, 0)->setForeground(chosen);
+                       }
+                     });
+  }
+}
+
+// Apply accepted dialog values back to signal entries.
+static void applyEditTableResults(const std::vector<EditRowWidgets>& rows,
+                                  const std::vector<int>& row_to_idx,
+                                  std::vector<SignalEntry>& entries) {
+  for (int row = 0; row < (int)row_to_idx.size(); row++) {
+    int sig_idx = row_to_idx[row];
+    const auto& w = rows[row];
+    entries[sig_idx].color = w.color;
+    entries[sig_idx].line_style =
+        (Qt::PenStyle)w.style_combo->currentData().toInt();
+    entries[sig_idx].marker_style =
+        (MarkerStyle)w.marker_combo->currentData().toInt();
+    bool ok_w = false;
+    double new_w = w.width_edit->text().toDouble(&ok_w);
+    if (ok_w && new_w >= 0.1 && new_w <= 10.0)
+      entries[sig_idx].line_width = new_w;
+    bool ok_min = false, ok_max = false;
+    double new_min = w.min_edit->text().toDouble(&ok_min);
+    double new_max = w.max_edit->text().toDouble(&ok_max);
+    if (ok_min && ok_max && new_max > new_min) {
+      entries[sig_idx].y_min = new_min;
+      entries[sig_idx].y_max = new_max;
+    }
+    bool ok_div = false;
+    int new_div = w.div_edit->text().toInt(&ok_div);
+    if (ok_div && new_div >= 0) entries[sig_idx].divisions = new_div;
+  }
+}
+
 void SignalViewWidget::onEditYRange(int clicked_index) {
   if (clicked_index < 0 || clicked_index >= (int)_signals.size()) return;
 
   // Build the set of signal indices to show: selection + clicked index
   std::set<int> sel = _y_axis_panel->selection();
   sel.insert(clicked_index);
-
-  // Map from table row to signal index
   std::vector<int> row_to_idx(sel.begin(), sel.end());
 
   QDialog dlg(this);
@@ -613,304 +895,37 @@ void SignalViewWidget::onEditYRange(int clicked_index) {
                                     "Divisions"});
   table->horizontalHeader()->setStretchLastSection(true);
   table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-  table->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(
-      3, QHeaderView::ResizeToContents);
-  table->horizontalHeader()->setSectionResizeMode(
-      4, QHeaderView::ResizeToContents);
+  for (int col = 1; col <= 4; col++)
+    table->horizontalHeader()->setSectionResizeMode(
+        col, QHeaderView::ResizeToContents);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
   table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table->verticalHeader()->setVisible(false);
-
-  // Custom selection model for columns 1/2 (line edit cells):
-  // - If the clicked row is already selected, preserve the full selection.
-  // - If the clicked row is NOT selected, clear and select just that row.
-  class ColumnGuardSelectionModel : public QItemSelectionModel {
-   public:
-    using QItemSelectionModel::QItemSelectionModel;
-    void select(const QModelIndex& index,
-                QItemSelectionModel::SelectionFlags command) override {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
-        if (isRowSelected(index.row(), index.parent()))
-          return;  // row already selected — preserve multi-selection
-        QItemSelectionModel::select(index, QItemSelectionModel::ClearAndSelect |
-                                               QItemSelectionModel::Rows);
-        return;
-      }
-      QItemSelectionModel::select(index, command);
-    }
-    void select(const QItemSelection& selection,
-                QItemSelectionModel::SelectionFlags command) override {
-      QItemSelectionModel::select(selection, command);
-    }
-    void setCurrentIndex(const QModelIndex& index,
-                         QItemSelectionModel::SelectionFlags command) override {
-      if (index.isValid() && index.column() >= 1 && index.column() <= 7) {
-        if (isRowSelected(index.row(), index.parent())) {
-          QItemSelectionModel::setCurrentIndex(index,
-                                               QItemSelectionModel::NoUpdate);
-          return;
-        }
-        QItemSelectionModel::setCurrentIndex(
-            index,
-            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-        return;
-      }
-      QItemSelectionModel::setCurrentIndex(index, command);
-    }
-  };
   table->setSelectionModel(
       new ColumnGuardSelectionModel(table->model(), table));
 
-  // Line style options
-  struct LineStyleOption {
-    QString label;
-    Qt::PenStyle style;
-  };
-  const std::vector<LineStyleOption> line_style_options = {
-      {"Solid", Qt::SolidLine},
-      {"Dash", Qt::DashLine},
-      {"Dot", Qt::DotLine},
-      {"Dash-Dot", Qt::DashDotLine},
-      {"Dash-Dot-Dot", Qt::DashDotDotLine},
-  };
-
-  // Marker style options
-  struct MarkerStyleOption {
-    QString label;
-    MarkerStyle style;
-  };
-  const std::vector<MarkerStyleOption> marker_style_options = {
-      {"None", MarkerStyle::None},
-      {"Filled Circle", MarkerStyle::FilledCircle},
-      {"Open Circle", MarkerStyle::OpenCircle},
-      {"Filled Square", MarkerStyle::FilledSquare},
-      {"Open Square", MarkerStyle::OpenSquare},
-      {"Filled Triangle", MarkerStyle::FilledTriangle},
-      {"Open Triangle", MarkerStyle::OpenTriangle},
-  };
-
-  // Store widget pointers for reading results
-  std::vector<QLineEdit*> min_edits, max_edits, div_edits, width_edits;
-  std::vector<QPushButton*> color_btns;
-  std::vector<QComboBox*> style_combos, marker_combos;
-  std::vector<QColor> colors;
-
-  auto setColorBtnStyle = [](QPushButton* btn, const QColor& c) {
-    btn->setStyleSheet(QString("background-color: %1; border: 1px solid #888; "
-                               "min-width: 28px; max-width: 28px;")
-                           .arg(c.name()));
-  };
-
-  for (int row = 0; row < (int)row_to_idx.size(); row++) {
-    int sig_idx = row_to_idx[row];
-    const auto& sig = _signals[sig_idx];
-
-    // Signal name (read-only)
-    auto* name_item = new QTableWidgetItem(QString::fromStdString(sig.name));
-    name_item->setFlags(name_item->flags() & ~Qt::ItemIsEditable);
-    name_item->setForeground(sig.color);
-    table->setItem(row, 0, name_item);
-
-    // Color button
-    colors.push_back(sig.color);
-    auto* color_btn = new QPushButton(&dlg);
-    setColorBtnStyle(color_btn, sig.color);
-    table->setCellWidget(row, 1, color_btn);
-    color_btns.push_back(color_btn);
-
-    // Line style combo
-    auto* style_combo = new QComboBox(&dlg);
-    int current_style_idx = 0;
-    for (int s = 0; s < (int)line_style_options.size(); s++) {
-      style_combo->addItem(line_style_options[s].label,
-                           (int)line_style_options[s].style);
-      if (line_style_options[s].style == sig.line_style) current_style_idx = s;
-    }
-    style_combo->setCurrentIndex(current_style_idx);
-    table->setCellWidget(row, 2, style_combo);
-    style_combos.push_back(style_combo);
-
-    // Marker style combo
-    auto* marker_combo = new QComboBox(&dlg);
-    int current_marker_idx = 0;
-    for (int m = 0; m < (int)marker_style_options.size(); m++) {
-      marker_combo->addItem(marker_style_options[m].label,
-                            (int)marker_style_options[m].style);
-      if (marker_style_options[m].style == sig.marker_style)
-        current_marker_idx = m;
-    }
-    marker_combo->setCurrentIndex(current_marker_idx);
-    table->setCellWidget(row, 3, marker_combo);
-    marker_combos.push_back(marker_combo);
-
-    // Line width edit
-    auto* width_edit = new QLineEdit(&dlg);
-    width_edit->setValidator(new QDoubleValidator(0.1, 10.0, 1, &dlg));
-    width_edit->setText(QString::number(sig.line_width, 'f', 1));
-    table->setCellWidget(row, 4, width_edit);
-    width_edits.push_back(width_edit);
-
-    // Y Min line edit
-    auto* min_edit = new QLineEdit(&dlg);
-    min_edit->setValidator(new QDoubleValidator(&dlg));
-    min_edit->setText(QString::number(sig.y_min, 'g', 6));
-    table->setCellWidget(row, 5, min_edit);
-    min_edits.push_back(min_edit);
-
-    // Y Max line edit
-    auto* max_edit = new QLineEdit(&dlg);
-    max_edit->setValidator(new QDoubleValidator(&dlg));
-    max_edit->setText(QString::number(sig.y_max, 'g', 6));
-    table->setCellWidget(row, 6, max_edit);
-    max_edits.push_back(max_edit);
-
-    // Divisions line edit (0 = auto)
-    auto* div_edit = new QLineEdit(&dlg);
-    div_edit->setValidator(
-        new QIntValidator(0, SignalEntry::kMaxDivisions, &dlg));
-    div_edit->setText(QString::number(sig.divisions));
-    table->setCellWidget(row, 7, div_edit);
-    div_edits.push_back(div_edit);
-  }
-
-  // Select all rows initially
+  // Populate rows
+  std::vector<EditRowWidgets> rows;
+  rows.reserve(row_to_idx.size());
+  for (int row = 0; row < (int)row_to_idx.size(); row++)
+    rows.push_back(
+        populateEditRow(table, row, _signals[row_to_idx[row]], &dlg));
   table->selectAll();
 
-  // When a line edit value changes, apply to all selected rows in the same
-  // column
-  auto editForCol = [&](int row, int col) -> QLineEdit* {
-    if (col == 4) return width_edits[row];
-    if (col == 5) return min_edits[row];
-    if (col == 6) return max_edits[row];
-    return div_edits[row];
-  };
-  auto propagateText = [&](int source_row, int col) {
-    QString text = editForCol(source_row, col)->text();
-    auto selected_rows = table->selectionModel()->selectedRows();
-    for (const auto& mi : selected_rows) {
-      int r = mi.row();
-      if (r == source_row) continue;
-      QLineEdit* target = editForCol(r, col);
-      target->blockSignals(true);
-      target->setText(text);
-      target->blockSignals(false);
-    }
-  };
-
-  // Helper to check if a row is in the current selection
-  auto isRowSelected = [&](int row) {
-    auto selected_rows = table->selectionModel()->selectedRows();
-    for (const auto& mi : selected_rows)
-      if (mi.row() == row) return true;
-    return false;
-  };
-
-  for (int row = 0; row < (int)row_to_idx.size(); row++) {
-    connect(width_edits[row], &QLineEdit::textEdited, &dlg,
-            [&propagateText, row]() { propagateText(row, 4); });
-    connect(min_edits[row], &QLineEdit::textEdited, &dlg,
-            [&propagateText, row]() { propagateText(row, 5); });
-    connect(max_edits[row], &QLineEdit::textEdited, &dlg,
-            [&propagateText, row]() { propagateText(row, 6); });
-    connect(div_edits[row], &QLineEdit::textEdited, &dlg,
-            [&propagateText, row]() { propagateText(row, 7); });
-
-    // Line style combo: propagate to selected rows
-    connect(style_combos[row],
-            QOverload<int>::of(&QComboBox::currentIndexChanged), &dlg,
-            [&, row](int idx) {
-              if (!isRowSelected(row)) return;
-              auto selected_rows = table->selectionModel()->selectedRows();
-              if (selected_rows.size() <= 1) return;
-              for (const auto& mi : selected_rows) {
-                int r = mi.row();
-                if (r == row) continue;
-                style_combos[r]->blockSignals(true);
-                style_combos[r]->setCurrentIndex(idx);
-                style_combos[r]->blockSignals(false);
-              }
-            });
-
-    // Marker style combo: propagate to selected rows
-    connect(marker_combos[row],
-            QOverload<int>::of(&QComboBox::currentIndexChanged), &dlg,
-            [&, row](int idx) {
-              if (!isRowSelected(row)) return;
-              auto selected_rows = table->selectionModel()->selectedRows();
-              if (selected_rows.size() <= 1) return;
-              for (const auto& mi : selected_rows) {
-                int r = mi.row();
-                if (r == row) continue;
-                marker_combos[r]->blockSignals(true);
-                marker_combos[r]->setCurrentIndex(idx);
-                marker_combos[r]->blockSignals(false);
-              }
-            });
-
-    // Color button: open picker and propagate to selected rows
-    connect(color_btns[row], &QPushButton::clicked, &dlg, [&, row]() {
-      QColor chosen = QColorDialog::getColor(colors[row], &dlg, "Signal Color");
-      if (!chosen.isValid()) return;
-      auto selected_rows = table->selectionModel()->selectedRows();
-      bool row_sel = false;
-      for (const auto& mi : selected_rows)
-        if (mi.row() == row) {
-          row_sel = true;
-          break;
-        }
-      if (row_sel && selected_rows.size() > 1) {
-        for (const auto& mi : selected_rows) {
-          int r = mi.row();
-          colors[r] = chosen;
-          setColorBtnStyle(color_btns[r], chosen);
-          table->item(r, 0)->setForeground(chosen);
-        }
-      } else {
-        colors[row] = chosen;
-        setColorBtnStyle(color_btns[row], chosen);
-        table->item(row, 0)->setForeground(chosen);
-      }
-    });
-  }
+  // Wire cross-row propagation
+  wireEditTablePropagation(table, rows, &dlg);
 
   auto* buttons = new QDialogButtonBox(
       QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-
   layout->addWidget(table);
   layout->addWidget(buttons);
   dlg.resize(920, 50 + 30 * (int)row_to_idx.size() + 60);
 
   if (dlg.exec() != QDialog::Accepted) return;
 
-  // Apply changes
-  for (int row = 0; row < (int)row_to_idx.size(); row++) {
-    int sig_idx = row_to_idx[row];
-    _signals[sig_idx].color = colors[row];
-    _signals[sig_idx].line_style =
-        (Qt::PenStyle)style_combos[row]->currentData().toInt();
-    _signals[sig_idx].marker_style =
-        (MarkerStyle)marker_combos[row]->currentData().toInt();
-    bool ok_w = false;
-    double new_w = width_edits[row]->text().toDouble(&ok_w);
-    if (ok_w && new_w >= 0.1 && new_w <= 10.0)
-      _signals[sig_idx].line_width = new_w;
-    bool ok_min = false, ok_max = false;
-    double new_min = min_edits[row]->text().toDouble(&ok_min);
-    double new_max = max_edits[row]->text().toDouble(&ok_max);
-    if (ok_min && ok_max && new_max > new_min) {
-      _signals[sig_idx].y_min = new_min;
-      _signals[sig_idx].y_max = new_max;
-    }
-    bool ok_div = false;
-    int new_div = div_edits[row]->text().toInt(&ok_div);
-    if (ok_div && new_div >= 0) _signals[sig_idx].divisions = new_div;
-  }
+  applyEditTableResults(rows, row_to_idx, _signals);
   refreshViews();
 }
 
@@ -1186,22 +1201,10 @@ void SignalViewWidget::onStyleLayer(int layer_index) {
   layout->addLayout(color_layout);
 
   // Line style
-  struct LineStyleOption {
-    QString label;
-    Qt::PenStyle style;
-  };
-  const std::vector<LineStyleOption> line_style_options = {
-      {"Solid", Qt::SolidLine},
-      {"Dash", Qt::DashLine},
-      {"Dot", Qt::DotLine},
-      {"Dash-Dot", Qt::DashDotLine},
-      {"Dash-Dot-Dot", Qt::DashDotDotLine},
-  };
-
   auto* style_layout = new QHBoxLayout();
   style_layout->addWidget(new QLabel("Line Style:", &dlg));
   auto* style_combo = new QComboBox(&dlg);
-  for (const auto& opt : line_style_options)
+  for (const auto& opt : lineStyleOptions())
     style_combo->addItem(opt.label, (int)opt.style);
   style_layout->addWidget(style_combo);
   layout->addLayout(style_layout);
