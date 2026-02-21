@@ -58,6 +58,7 @@ class PlotCanvas : public QWidget {
 
  public:
   explicit PlotCanvas(QWidget* parent = nullptr);
+  ~PlotCanvas() override;
 
   void setDataSource(std::shared_ptr<OverlayManager> mgr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);

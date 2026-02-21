@@ -160,6 +160,14 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   updateTimeEditTexts();
 }
 
+PlotCanvas::~PlotCanvas() {
+  // Disconnect before QWidget::~QWidget() destroys the child QLineEdits.
+  // Without this, their focusOut events fire editingFinished into our lambdas
+  // while the vtable has already been rewound to QWidget, causing UB.
+  disconnect(m_time_start_edit, nullptr, this, nullptr);
+  disconnect(m_time_end_edit, nullptr, this, nullptr);
+}
+
 void PlotCanvas::setDataSource(std::shared_ptr<OverlayManager> mgr) {
   m_overlay_mgr = std::move(mgr);
 }
