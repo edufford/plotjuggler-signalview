@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     env:
@@ -16,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # xvfb provides a virtual framebuffer for headless Qt widget tests
       - name: Install plugin dependencies
         run: |
           sudo apt-get update
@@ -34,7 +36,7 @@ jobs:
         run: |
           sudo apt-get install -y \
             libqt5svg5-dev libqt5opengl5-dev libqt5websockets5-dev \
-            libcurl4-openssl-dev
+            libqt5x11extras5-dev libcurl4-openssl-dev
 
       - name: Build PlotJuggler
         if: steps.cache-pj.outputs.cache-hit != 'true'
@@ -48,5 +50,7 @@ jobs:
           make -j$(nproc)
           make install
 
+      # xvfb-run launches tests inside a virtual X display so Qt can
+      # instantiate widgets without a physical screen.
       - name: Run tests
         run: xvfb-run ./test.sh
