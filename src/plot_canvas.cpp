@@ -235,24 +235,25 @@ void PlotCanvas::setScrollOffset(double offset) {
 }
 
 void PlotCanvas::setZoomMode(bool enabled) {
-  m_zoom_mode = enabled;
+  m_mode = enabled ? InteractionMode::Zoom : InteractionMode::Normal;
   updateIdleCursor();
 }
 
 void PlotCanvas::setTimeShiftMode(bool enabled) {
-  m_time_shift_mode = enabled;
+  m_mode = enabled ? InteractionMode::TimeShift : InteractionMode::Normal;
   updateIdleCursor();
 }
 
 void PlotCanvas::updateIdleCursor() {
-  if (m_time_shift_mode) {
+  if (m_mode == InteractionMode::TimeShift) {
     static QCursor shift_cursor = makeTimeShiftCursor();
     setCursor(shift_cursor);
-  } else if (m_zoom_mode) {
+  } else if (m_mode == InteractionMode::Zoom) {
     static QCursor zoom_cursor = makeZoomCursor();
     setCursor(zoom_cursor);
-  } else
+  } else {
     setCursor(Qt::ArrowCursor);
+  }
 }
 
 void PlotCanvas::setSelectedLayers(const std::set<int>& layers) {
@@ -693,7 +694,7 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   drawCursor(painter);
 
   // Zoom rubber band overlay
-  if (m_zoom_selecting) {
+  if (m_drag_state == DragState::ZoomSelect) {
     double x1 = std::max(m_zoom_select_start_x, (double)MARGIN_LEFT);
     double x2 = std::max(m_zoom_select_current_x, (double)MARGIN_LEFT);
     x1 = std::min(x1, (double)(width() - MARGIN_RIGHT));
@@ -737,48 +738,42 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
 
 void PlotCanvas::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
-    if (m_time_shift_mode && m_overlay_mgr) {
-      // Start time shift drag
-      m_time_shift_dragging = true;
-      m_time_shift_start = event->pos();
-      // Capture current offsets for target layers
-      mm_time_shift_start_offsets.clear();
-      std::set<int> targets = m_selected_layers.empty()
-                                  ? std::set<int>{m_default_shift_layer}
-                                  : m_selected_layers;
-      for (int layer_idx : targets)
-        mm_time_shift_start_offsets[layer_idx] =
-            m_overlay_mgr->timeOffset(layer_idx);
-      setCursor(Qt::SizeHorCursor);
-      return;
+    switch (m_mode) {
+      case InteractionMode::TimeShift:
+        // Start time shift drag
+        if (m_overlay_mgr) {
+          m_drag_state = DragState::TimeShiftDrag;
+          m_time_shift_start = event->pos();
+          // Capture current offsets for target layers
+          m_time_shift_start_offsets.clear();
+          std::set<int> targets = m_selected_layers.empty()
+                                      ? std::set<int>{m_default_shift_layer}
+                                      : m_selected_layers;
+          for (int layer_idx : targets) {
+            m_time_shift_start_offsets[layer_idx] =
+                m_overlay_mgr->timeOffset(layer_idx);
+          }
+          setCursor(Qt::SizeHorCursor);
+        }
+        return;
+      case InteractionMode::Zoom:
+        // Start rubber-band zoom selection
+        m_drag_state = DragState::ZoomSelect;
+        m_zoom_select_start_x = event->pos().x();
+        m_zoom_select_current_x = event->pos().x();
+        update();
+        return;
+      case InteractionMode::Normal:
+        // Start cursor drag
+        m_drag_state = DragState::CursorDrag;
+        m_cursor_time = pixelXToTime(event->pos().x());
+        m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+        emit cursorMoved(m_cursor_time);
+        update();
+        return;
     }
-    if (m_zoom_mode) {
-      // Start rubber-band zoom selection
-      m_zoom_selecting = true;
-      m_zoom_select_start_x = event->pos().x();
-      m_zoom_select_current_x = event->pos().x();
-      update();
-      return;
-    }
-    // Check if clicking near the cursor
-    double cursor_x = timeToPixelX(m_cursor_time);
-    if (std::abs(event->pos().x() - cursor_x) < 10 ||
-        event->pos().y() < MARGIN_TOP + 10) {
-      m_cursor_dragging = true;
-      m_cursor_time = pixelXToTime(event->pos().x());
-      m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
-      emit cursorMoved(m_cursor_time);
-      update();
-      return;
-    }
-    // Otherwise start cursor drag from click position
-    m_cursor_dragging = true;
-    m_cursor_time = pixelXToTime(event->pos().x());
-    m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
-    emit cursorMoved(m_cursor_time);
-    update();
   } else if (event->button() == Qt::RightButton) {
-    m_panning = true;
+    m_drag_state = DragState::Panning;
     m_pan_start = event->pos();
     m_pan_t_min_start = m_view_t_min;
     m_pan_t_max_start = m_view_t_max;
@@ -787,62 +782,67 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event) {
 }
 
 void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
-  if (m_time_shift_dragging && m_overlay_mgr) {
-    double dx_pixels = event->pos().x() - m_time_shift_start.x();
-    double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-    if (plot_w <= 0) return;
-    double dt = dx_pixels / plot_w * (m_view_t_max - m_view_t_min);
-    for (auto& [layer_idx, start_offset] : mm_time_shift_start_offsets)
-      m_overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
-    emit timeShiftChanged();
-    update();
-    return;
-  }
-  if (m_zoom_selecting) {
-    m_zoom_select_current_x = event->pos().x();
-    update();
-    return;
-  }
-  if (m_cursor_dragging) {
-    m_cursor_time = pixelXToTime(event->pos().x());
-    m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
-    emit cursorMoved(m_cursor_time);
-    update();
-  } else if (m_panning) {
-    double dx_pixels = event->pos().x() - m_pan_start.x();
-    double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
-    if (plot_w <= 0) return;
-    double dt = -dx_pixels / plot_w * (m_pan_t_max_start - m_pan_t_min_start);
-    m_view_t_min = m_pan_t_min_start + dt;
-    m_view_t_max = m_pan_t_max_start + dt;
-    m_auto_fit = false;
-    updateTimeEditTexts();
-    emit viewRangeChanged(m_view_t_min, m_view_t_max);
-    update();
-  } else {
-    // Show appropriate cursor hint
-    if (m_time_shift_mode || m_zoom_mode) {
-      updateIdleCursor();
-    } else {
-      double cursor_x = timeToPixelX(m_cursor_time);
-      if (std::abs(event->pos().x() - cursor_x) < 10)
-        setCursor(Qt::SizeHorCursor);
-      else
-        setCursor(Qt::ArrowCursor);
+  switch (m_drag_state) {
+    case DragState::TimeShiftDrag:
+      if (m_overlay_mgr) {
+        double dx_pixels = event->pos().x() - m_time_shift_start.x();
+        double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+        if (plot_w <= 0) return;
+        double dt = dx_pixels / plot_w * (m_view_t_max - m_view_t_min);
+        for (auto& [layer_idx, start_offset] : m_time_shift_start_offsets)
+          m_overlay_mgr->setTimeOffset(layer_idx, start_offset + dt);
+        emit timeShiftChanged();
+        update();
+      }
+      return;
+    case DragState::ZoomSelect:
+      m_zoom_select_current_x = event->pos().x();
+      update();
+      return;
+    case DragState::CursorDrag:
+      m_cursor_time = pixelXToTime(event->pos().x());
+      m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+      emit cursorMoved(m_cursor_time);
+      update();
+      return;
+    case DragState::Panning: {
+      double dx_pixels = event->pos().x() - m_pan_start.x();
+      double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+      if (plot_w <= 0) return;
+      double dt = -dx_pixels / plot_w * (m_pan_t_max_start - m_pan_t_min_start);
+      m_view_t_min = m_pan_t_min_start + dt;
+      m_view_t_max = m_pan_t_max_start + dt;
+      m_auto_fit = false;
+      updateTimeEditTexts();
+      emit viewRangeChanged(m_view_t_min, m_view_t_max);
+      update();
+      return;
     }
+    case DragState::None:
+      // Show appropriate cursor hint for idle hover
+      if (m_mode != InteractionMode::Normal) {
+        updateIdleCursor();
+      } else {
+        double cursor_x = timeToPixelX(m_cursor_time);
+        if (std::abs(event->pos().x() - cursor_x) < 10)
+          setCursor(Qt::SizeHorCursor);
+        else
+          setCursor(Qt::ArrowCursor);
+      }
+      return;
   }
 }
 
 void PlotCanvas::mouseReleaseEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
-    if (m_time_shift_dragging) {
-      m_time_shift_dragging = false;
-      mm_time_shift_start_offsets.clear();
+    if (m_drag_state == DragState::TimeShiftDrag) {
+      m_drag_state = DragState::None;
+      m_time_shift_start_offsets.clear();
       updateIdleCursor();
       return;
     }
-    if (m_zoom_selecting) {
-      m_zoom_selecting = false;
+    if (m_drag_state == DragState::ZoomSelect) {
+      m_drag_state = DragState::None;
       double t1 = pixelXToTime(m_zoom_select_start_x);
       double t2 = pixelXToTime(event->pos().x());
       double new_min = std::min(t1, t2);
@@ -858,15 +858,15 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event) {
       update();
       return;
     }
-    m_cursor_dragging = false;
+    m_drag_state = DragState::None;
   } else if (event->button() == Qt::RightButton) {
-    m_panning = false;
+    m_drag_state = DragState::None;
     updateIdleCursor();
   }
 }
 
 void PlotCanvas::wheelEvent(QWheelEvent* event) {
-  if (!m_zoom_mode) {
+  if (m_mode != InteractionMode::Zoom) {
     // Default: vertical scroll
     double delta = (event->angleDelta().y() > 0) ? -0.05 : 0.05;
     emit verticalScrollRequested(delta);
