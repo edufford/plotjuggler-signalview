@@ -7,8 +7,8 @@ static SignalEntry makeEntry(double center, double height) {
   SignalEntry e;
   e.name = "test";
   e.color = QColor(Qt::red);
-  e.band_center = center;
-  e.band_height = height;
+  e.band_center_norm = center;
+  e.band_height_norm = height;
   return e;
 }
 
@@ -49,7 +49,7 @@ TEST(BandBottomY, CenteredHalfHeight) {
   EXPECT_DOUBLE_EQ(AxisLayout::bandBottomY(e, 500), 347.5);
 }
 
-// The pixel distance from top to bottom equals plot_h * band_height.
+// The pixel distance from top to bottom equals plot_h * band_height_norm.
 TEST(BandGeometry, HeightEqualsExpected) {
   auto e = makeEntry(0.3, 0.4);
   double top = AxisLayout::bandTopY(e, 600);

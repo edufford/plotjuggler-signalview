@@ -51,8 +51,8 @@ int SignalColumnBase::effectiveDragIndex() const {
 }
 
 int SignalColumnBase::hitTestSignal(const QPoint& pos) const {
-  auto offsets = AxisLayout::textRowYOffsets(m_signals, height(), TEXT_ROW_HEIGHT,
-                                             m_scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
+                                             TEXT_ROW_HEIGHT, m_scroll_offset);
   for (int i = 0; i < (int)m_signals.size(); i++) {
     double top = AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
     double row_y = top + offsets[i];
@@ -66,8 +66,8 @@ void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
   painter.setRenderHint(QPainter::Antialiasing);
   painter.fillRect(rect(), QColor(32, 32, 38));
 
-  auto offsets = AxisLayout::textRowYOffsets(m_signals, height(), TEXT_ROW_HEIGHT,
-                                             m_scroll_offset);
+  auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
+                                             TEXT_ROW_HEIGHT, m_scroll_offset);
 
   for (int i = 0; i < (int)m_signals.size(); i++) {
     double top = AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
@@ -98,7 +98,7 @@ void SignalColumnBase::mousePressEvent(QMouseEvent* event) {
         emit clickSelect(m_drag_index, false);
 
       m_drag_start_global_y = event->globalPos().y();
-      m_drag_start_band_center = m_signals[m_drag_index].band_center;
+      m_drag_start_band_center = m_signals[m_drag_index].band_center_norm;
       m_drag_moved = false;
       setCursor(Qt::ClosedHandCursor);
     } else {
@@ -170,11 +170,11 @@ void SignalColumnBase::mouseDoubleClickEvent(QMouseEvent* event) {
   } else {
     double plot_h =
         height() - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
-    double band_center =
+    double band_center_norm =
         (plot_h > 0) ? (event->pos().y() - PlotCanvas::MARGIN_TOP) / plot_h +
                            m_scroll_offset
                      : 0.5;
-    emit addSignalRequested(band_center);
+    emit addSignalRequested(band_center_norm);
   }
 }
 
@@ -395,13 +395,14 @@ void YAxisBarColumn::setScrollOffset(double offset) {
 
 void YAxisBarColumn::setSnapAmount(double snap) { m_snap_amount = snap; }
 
-double YAxisBarColumn::axisX(double bar_x) const {
-  return AXIS_PAD_LEFT + bar_x * (width() - AXIS_PAD_LEFT - AXIS_PAD_RIGHT);
+double YAxisBarColumn::axisX(double bar_x_norm) const {
+  return AXIS_PAD_LEFT +
+         bar_x_norm * (width() - AXIS_PAD_LEFT - AXIS_PAD_RIGHT);
 }
 
 YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
   for (int i = 0; i < (int)m_signals.size(); i++) {
-    double ax = axisX(m_signals[i].bar_x);
+    double ax = axisX(m_signals[i].bar_x_norm);
 
     // Check horizontal proximity to this bar's axis
     if (pos.x() < ax - 30 || pos.x() > ax + 10) continue;
@@ -429,14 +430,14 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     const auto& sig = m_signals[i];
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double bottom = AxisLayout::bandBottomY(sig, height(), m_scroll_offset);
-    double band_h = bottom - top;
+    double band_pixel_h = bottom - top;
 
-    if (band_h < 4) continue;
+    if (band_pixel_h < 4) continue;
 
-    double ax = axisX(sig.bar_x);
+    double ax = axisX(sig.bar_x_norm);
 
     // Color stripe (right of axis)
-    painter.fillRect(QRectF(ax + 2, top, 4, band_h), sig.color);
+    painter.fillRect(QRectF(ax + 2, top, 4, band_pixel_h), sig.color);
 
     // Axis line
     painter.setPen(QPen(sig.color.lighter(130), 1.5));
@@ -448,17 +449,13 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     painter.drawLine(QPointF(ax - 10, bottom), QPointF(ax + 6, bottom));
 
     // Tick marks and value labels
-    int n_ticks =
-        (sig.divisions > 0)
-            ? sig.divisions
-            : std::clamp((int)(band_h / SignalEntry::PIXELS_PER_AUTO_TICK), 2,
-                         SignalEntry::MAX_DIVISIONS);
+    int n_ticks = sig.tickCount(band_pixel_h);
     painter.setFont(QFont("monospace", 7));
     painter.setPen(QColor(170, 170, 170));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
-      double y = bottom - frac * band_h;
+      double y = bottom - frac * band_pixel_h;
       double val = sig.y_min + frac * (sig.y_max - sig.y_min);
 
       painter.drawLine(QPointF(ax - 3, y), QPointF(ax + 3, y));
@@ -516,9 +513,9 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event) {
 
     m_drag_start_global_x = event->globalPos().x();
     m_drag_start_global_y = event->globalPos().y();
-    m_drag_start_bar_x = m_signals[m_drag_hit.index].bar_x;
-    m_drag_start_band_center = m_signals[m_drag_hit.index].band_center;
-    m_drag_start_band_height = m_signals[m_drag_hit.index].band_height;
+    m_drag_start_bar_x = m_signals[m_drag_hit.index].bar_x_norm;
+    m_drag_start_band_center = m_signals[m_drag_hit.index].band_center_norm;
+    m_drag_start_band_height = m_signals[m_drag_hit.index].band_height_norm;
 
     m_drag_moved = false;
 
@@ -583,7 +580,8 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event) {
   } else if (m_drag_hit.zone == TOP_EDGE) {
     double delta_norm = dy / plot_h;
     double old_top = m_drag_start_band_center - m_drag_start_band_height * 0.5;
-    double old_bottom = m_drag_start_band_center + m_drag_start_band_height * 0.5;
+    double old_bottom =
+        m_drag_start_band_center + m_drag_start_band_height * 0.5;
     double new_top = std::min(old_top + delta_norm, old_bottom - 0.02);
     double new_height = old_bottom - new_top;
     double new_center = new_top + new_height * 0.5;
@@ -591,7 +589,8 @@ void YAxisBarColumn::mouseMoveEvent(QMouseEvent* event) {
   } else if (m_drag_hit.zone == BOTTOM_EDGE) {
     double delta_norm = dy / plot_h;
     double old_top = m_drag_start_band_center - m_drag_start_band_height * 0.5;
-    double old_bottom = m_drag_start_band_center + m_drag_start_band_height * 0.5;
+    double old_bottom =
+        m_drag_start_band_center + m_drag_start_band_height * 0.5;
     double new_bottom = std::max(old_bottom + delta_norm, old_top + 0.02);
     double new_height = new_bottom - old_top;
     double new_center = old_top + new_height * 0.5;
@@ -612,7 +611,7 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/) {
             AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
         double bottom =
             AxisLayout::bandBottomY(m_signals[i], height(), m_scroll_offset);
-        double ax = axisX(m_signals[i].bar_x);
+        double ax = axisX(m_signals[i].bar_x_norm);
         double bar_left = ax - 30;
         double bar_right = ax + 10;
         if (bottom >= rb.top() && top <= rb.bottom() &&
@@ -641,11 +640,11 @@ void YAxisBarColumn::mouseDoubleClickEvent(QMouseEvent* event) {
   } else {
     double plot_h =
         height() - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
-    double band_center =
+    double band_center_norm =
         (plot_h > 0) ? (event->pos().y() - PlotCanvas::MARGIN_TOP) / plot_h +
                            m_scroll_offset
                      : 0.5;
-    emit addSignalRequested(band_center);
+    emit addSignalRequested(band_center_norm);
   }
 }
 

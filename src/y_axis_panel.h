@@ -18,14 +18,16 @@ inline double bandTopY(const SignalEntry& sig, int widget_height,
   double plot_h =
       widget_height - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
   return PlotCanvas::MARGIN_TOP +
-         plot_h * (sig.band_center - sig.band_height * 0.5 - scroll_offset);
+         plot_h * (sig.band_center_norm - sig.band_height_norm * 0.5 -
+                   scroll_offset);
 }
 inline double bandBottomY(const SignalEntry& sig, int widget_height,
                           double scroll_offset = 0.0) {
   double plot_h =
       widget_height - PlotCanvas::MARGIN_TOP - PlotCanvas::MARGIN_BOTTOM;
   return PlotCanvas::MARGIN_TOP +
-         plot_h * (sig.band_center + sig.band_height * 0.5 - scroll_offset);
+         plot_h * (sig.band_center_norm + sig.band_height_norm * 0.5 -
+                   scroll_offset);
 }
 // Returns the pixel Y offset for each signal's text row, ensuring no
 // overlap. Signals are processed top-to-bottom so the highest signal
@@ -89,7 +91,7 @@ class SignalColumnBase : public QWidget {
   void bandOffsetChanged(int index, double new_center);
   void dragIndexChanged(int index);
   void editYRangeRequested(int index);
-  void addSignalRequested(double band_center);
+  void addSignalRequested(double band_center_norm);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
   void verticalScrollRequested(double delta);
@@ -171,12 +173,14 @@ class YAxisLabelColumn : public QWidget {
       SignalNameColumn::DEFAULT_WIDTH + SignalValueColumn::DEFAULT_WIDTH + 3;
 
   QList<int> splitterSizes() const { return m_splitter->sizes(); }
-  void setSplitterSizes(const QList<int>& sizes) { m_splitter->setSizes(sizes); }
+  void setSplitterSizes(const QList<int>& sizes) {
+    m_splitter->setSizes(sizes);
+  }
 
  signals:
   void bandOffsetChanged(int index, double new_center);
   void editYRangeRequested(int index);
-  void addSignalRequested(double band_center);
+  void addSignalRequested(double band_center_norm);
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
   void verticalScrollRequested(double delta);
@@ -214,7 +218,7 @@ class YAxisBarColumn : public QWidget {
   void dragIndexChanged(int index);
   void selectionChanged();
   void editYRangeRequested(int clicked_index);
-  void addSignalRequested(double band_center);
+  void addSignalRequested(double band_center_norm);
   void verticalScrollRequested(double delta);
 
  protected:
@@ -232,7 +236,7 @@ class YAxisBarColumn : public QWidget {
     HitZone zone = NONE;
   };
   HitResult hitTest(const QPoint& pos) const;
-  double axisX(double bar_x) const;
+  double axisX(double bar_x_norm) const;
 
   std::vector<SignalEntry> m_signals;
   std::set<int> m_selected;
@@ -273,7 +277,9 @@ class YAxisPanel : public QWidget {
 
   // Splitter size accessors for layout save/restore
   QList<int> splitterSizes() const { return m_splitter->sizes(); }
-  void setSplitterSizes(const QList<int>& sizes) { m_splitter->setSizes(sizes); }
+  void setSplitterSizes(const QList<int>& sizes) {
+    m_splitter->setSizes(sizes);
+  }
   QList<int> labelSplitterSizes() const { return m_label_col->splitterSizes(); }
   void setLabelSplitterSizes(const QList<int>& sizes) {
     m_label_col->setSplitterSizes(sizes);
@@ -286,7 +292,7 @@ class YAxisPanel : public QWidget {
   void barXChanged(int index, double new_bar_x);
   void removeSignalRequested(int index);
   void editYRangeRequested(int clicked_index);
-  void addSignalRequested(double band_center);
+  void addSignalRequested(double band_center_norm);
   void selectionChanged();
   void verticalScrollRequested(double delta);
 

@@ -299,7 +299,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   updateScrollBar();
 }
 
-void SignalViewWidget::onAddSignal(double band_center) {
+void SignalViewWidget::onAddSignal(double band_center_norm) {
   if (!m_overlay_mgr) return;
 
   auto allm_signals = m_overlay_mgr->allAvailableSignals();
@@ -346,8 +346,9 @@ void SignalViewWidget::onAddSignal(double band_center) {
   if (selected_items.isEmpty()) return;
 
   // Treat click position as top edge of first band, not center
-  double pos = (band_center >= 0.0) ? band_center + DEFAULT_BAND_HEIGHT * 0.5
-                                    : DEFAULT_BAND_HEIGHT * 0.5;
+  double pos = (band_center_norm >= 0.0)
+                   ? band_center_norm + DEFAULT_BAND_HEIGHT * 0.5
+                   : DEFAULT_BAND_HEIGHT * 0.5;
   for (auto* item : selected_items) {
     SignalEntry entry;
     entry.name = item->text().toStdString();
@@ -365,8 +366,8 @@ void SignalViewWidget::onAddSignal(double band_center) {
       }
     }
 
-    entry.band_height = DEFAULT_BAND_HEIGHT;
-    entry.band_center = snapValue(pos);
+    entry.band_height_norm = DEFAULT_BAND_HEIGHT;
+    entry.band_center_norm = snapValue(pos);
     pos += DEFAULT_BAND_HEIGHT;
 
     m_signals.push_back(entry);
@@ -450,32 +451,32 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center) {
       m_multi_drag_origins.clear();
       m_multi_drag_bar_x_origins.clear();
       for (int i : sel) {
-        m_multi_drag_origins[i] = m_signals[i].band_center;
-        m_multi_drag_bar_x_origins[i] = m_signals[i].bar_x;
+        m_multi_drag_origins[i] = m_signals[i].band_center_norm;
+        m_multi_drag_bar_x_origins[i] = m_signals[i].bar_x_norm;
       }
     }
 
     // Compute snapped delta from the dragged signal
-    double half_h = m_signals[index].band_height * 0.5;
+    double half_h = m_signals[index].band_height_norm * 0.5;
     double new_top = snapValue(new_center - half_h);
     double snapped_center = new_top + half_h;
     double delta = snapped_center - m_multi_drag_origins[index];
 
     // Clamp delta so no selected signal's top edge goes above position 0
     for (auto& [i, origin] : m_multi_drag_origins) {
-      double half = m_signals[i].band_height * 0.5;
+      double half = m_signals[i].band_height_norm * 0.5;
       delta = std::max(delta, half - origin);
     }
     for (auto& [i, origin] : m_multi_drag_origins)
-      m_signals[i].band_center = origin + delta;
+      m_signals[i].band_center_norm = origin + delta;
   } else {
     m_multi_drag_origins.clear();
     m_multi_drag_bar_x_origins.clear();
     m_multi_drag_index = -1;
 
-    double half_h = m_signals[index].band_height * 0.5;
+    double half_h = m_signals[index].band_height_norm * 0.5;
     double new_top = std::max(0.0, snapValue(new_center - half_h));
-    m_signals[index].band_center = new_top + half_h;
+    m_signals[index].band_center_norm = new_top + half_h;
   }
 
   m_canvas->setSignalEntries(m_signals);
@@ -491,10 +492,10 @@ void SignalViewWidget::onBandResized(int index, double new_center,
   double new_bottom = new_center + new_height * 0.5;
 
   // Only snap the edge that's actually moving, leave the fixed edge alone
-  double cur_top =
-      m_signals[index].band_center - m_signals[index].band_height * 0.5;
-  double cur_bottom =
-      m_signals[index].band_center + m_signals[index].band_height * 0.5;
+  double cur_top = m_signals[index].band_center_norm -
+                   m_signals[index].band_height_norm * 0.5;
+  double cur_bottom = m_signals[index].band_center_norm +
+                      m_signals[index].band_height_norm * 0.5;
 
   bool top_moving = std::abs(new_top - cur_top) > 1e-6;
   bool bottom_moving = std::abs(new_bottom - cur_bottom) > 1e-6;
@@ -508,11 +509,14 @@ void SignalViewWidget::onBandResized(int index, double new_center,
   if (sel.count(index) && sel.size() > 1) {
     // Multi-resize: apply the same height delta to all selected signals.
     // The moving edge shifts by delta; the fixed edge stays put.
-    double height_delta = (new_bottom - new_top) - m_signals[index].band_height;
+    double height_delta =
+        (new_bottom - new_top) - m_signals[index].band_height_norm;
 
     for (int i : sel) {
-      double i_top = m_signals[i].band_center - m_signals[i].band_height * 0.5;
-      double i_bottom = m_signals[i].band_center + m_signals[i].band_height * 0.5;
+      double i_top =
+          m_signals[i].band_center_norm - m_signals[i].band_height_norm * 0.5;
+      double i_bottom =
+          m_signals[i].band_center_norm + m_signals[i].band_height_norm * 0.5;
 
       if (top_moving)
         i_top -= height_delta;  // top edge moves up when growing
@@ -520,12 +524,12 @@ void SignalViewWidget::onBandResized(int index, double new_center,
         i_bottom += height_delta;  // bottom edge moves down when growing
 
       if (i_bottom - i_top < 0.02) continue;
-      m_signals[i].band_center = (i_top + i_bottom) * 0.5;
-      m_signals[i].band_height = i_bottom - i_top;
+      m_signals[i].band_center_norm = (i_top + i_bottom) * 0.5;
+      m_signals[i].band_height_norm = i_bottom - i_top;
     }
   } else {
-    m_signals[index].band_center = (new_top + new_bottom) * 0.5;
-    m_signals[index].band_height = new_bottom - new_top;
+    m_signals[index].band_center_norm = (new_top + new_bottom) * 0.5;
+    m_signals[index].band_height_norm = new_bottom - new_top;
   }
 
   m_canvas->setSignalEntries(m_signals);
@@ -549,9 +553,9 @@ void SignalViewWidget::onBarXChanged(int index, double new_bar_x) {
       delta = std::min(delta, 1.0 - origin);
     }
     for (auto& [i, origin] : m_multi_drag_bar_x_origins)
-      m_signals[i].bar_x = origin + delta;
+      m_signals[i].bar_x_norm = origin + delta;
   } else {
-    m_signals[index].bar_x = snapValue(new_bar_x);
+    m_signals[index].bar_x_norm = snapValue(new_bar_x);
   }
   m_canvas->setSignalEntries(m_signals);
   m_y_axis_panel->setSignalEntries(m_signals);
@@ -613,7 +617,7 @@ void SignalViewWidget::updateScrollBar() {
   // Find the maximum bottom extent of all signals in normalized coordinates
   double max_bottom = 1.0;
   for (const auto& sig : m_signals) {
-    double bottom = sig.band_center + sig.band_height * 0.5;
+    double bottom = sig.band_center_norm + sig.band_height_norm * 0.5;
     if (bottom > max_bottom) max_bottom = bottom;
   }
   // Ensure at least 2 screens worth of scrollable space
@@ -949,12 +953,13 @@ void SignalViewWidget::onGroupSignals() {
   const auto& sel = m_y_axis_panel->selection();
   if (sel.size() < 2) return;
 
-  // Find the topmost selected signal (lowest band_top = band_center -
-  // band_height/2)
+  // Find the topmost selected signal (lowest band_top = band_center_norm -
+  // band_height_norm/2)
   int topmost = -1;
   double topmost_top = 2.0;  // above any valid position
   for (int i : sel) {
-    double top = m_signals[i].band_center - m_signals[i].band_height * 0.5;
+    double top =
+        m_signals[i].band_center_norm - m_signals[i].band_height_norm * 0.5;
     if (top < topmost_top) {
       topmost_top = top;
       topmost = i;
@@ -965,11 +970,11 @@ void SignalViewWidget::onGroupSignals() {
   // selected
   for (int i : sel) {
     if (i == topmost) continue;
-    m_signals[i].band_center = m_signals[topmost].band_center;
-    m_signals[i].band_height = m_signals[topmost].band_height;
+    m_signals[i].band_center_norm = m_signals[topmost].band_center_norm;
+    m_signals[i].band_height_norm = m_signals[topmost].band_height_norm;
     m_signals[i].y_min = m_signals[topmost].y_min;
     m_signals[i].y_max = m_signals[topmost].y_max;
-    m_signals[i].bar_x = m_signals[topmost].bar_x;
+    m_signals[i].bar_x_norm = m_signals[topmost].bar_x_norm;
     m_signals[i].divisions = m_signals[topmost].divisions;
   }
   refreshViews();
@@ -1036,8 +1041,8 @@ void SignalViewWidget::autoAssignBands() {
       top = 0.0;
       bottom = 1.0;
     }
-    m_signals[0].band_center = (top + bottom) * 0.5;
-    m_signals[0].band_height = bottom - top;
+    m_signals[0].band_center_norm = (top + bottom) * 0.5;
+    m_signals[0].band_height_norm = bottom - top;
   } else {
     double band_h = 1.0 / n;
     for (int i = 0; i < n; i++) {
@@ -1047,8 +1052,8 @@ void SignalViewWidget::autoAssignBands() {
         top = i * band_h;
         bottom = (i + 1) * band_h;
       }
-      m_signals[i].band_center = (top + bottom) * 0.5;
-      m_signals[i].band_height = bottom - top;
+      m_signals[i].band_center_norm = (top + bottom) * 0.5;
+      m_signals[i].band_height_norm = bottom - top;
     }
   }
 }
@@ -1122,11 +1127,11 @@ void SignalViewWidget::onLoadOverlay() {
 
     for (const auto& sig : m_signals) {
       if (OverlayManager::rawName(sig.name) == parsed.raw_name) {
-        new_entry.band_center = sig.band_center;
-        new_entry.band_height = sig.band_height;
+        new_entry.band_center_norm = sig.band_center_norm;
+        new_entry.band_height_norm = sig.band_height_norm;
         new_entry.y_min = sig.y_min;
         new_entry.y_max = sig.y_max;
-        new_entry.bar_x = sig.bar_x;
+        new_entry.bar_x_norm = sig.bar_x_norm;
         new_entry.divisions = sig.divisions;
         new_entry.line_width = sig.line_width;
         new_entry.marker_style = sig.marker_style;
@@ -1144,11 +1149,12 @@ void SignalViewWidget::onLoadOverlay() {
 
 void SignalViewWidget::onRemoveOverlay(int layer_index) {
   // Remove all signals from this layer
-  auto it = std::remove_if(
-      m_signals.begin(), m_signals.end(), [layer_index](const SignalEntry& sig) {
-        auto parsed = OverlayManager::parsePrefixedName(sig.name);
-        return parsed.layer == layer_index;
-      });
+  auto it = std::remove_if(m_signals.begin(), m_signals.end(),
+                           [layer_index](const SignalEntry& sig) {
+                             auto parsed =
+                                 OverlayManager::parsePrefixedName(sig.name);
+                             return parsed.layer == layer_index;
+                           });
   m_signals.erase(it, m_signals.end());
 
   m_overlay_mgr->removeOverlay(layer_index);

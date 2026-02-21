@@ -16,8 +16,8 @@ static SignalEntry makeEntry(const std::string& name, QColor color,
   SignalEntry e;
   e.name = name;
   e.color = color;
-  e.band_center = center;
-  e.band_height = height;
+  e.band_center_norm = center;
+  e.band_height_norm = height;
   return e;
 }
 
@@ -34,7 +34,7 @@ class SignalNameUITest : public ::testing::Test {
     m_col = new SignalNameColumn;
     m_col->resize(W, H);
     m_entries = {makeEntry("sig_a", Qt::red, 0.3, 0.2),
-                makeEntry("sig_b", Qt::blue, 0.7, 0.2)};
+                 makeEntry("sig_b", Qt::blue, 0.7, 0.2)};
     m_col->setSignalEntries(m_entries);
     m_col->show();
     ASSERT_TRUE(QTest::qWaitForWindowExposed(m_col));
