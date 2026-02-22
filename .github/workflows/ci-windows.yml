@@ -1,0 +1,67 @@
+name: CI (Windows)
+
+on:
+  push:
+    branches: [dev_ai, main]
+  pull_request:
+    branches: [dev_ai, main]
+
+# Required by mikepenz/action-junit-report to publish test results
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  test-windows:
+    name: Build and Test (Windows)
+    runs-on: windows-latest
+
+    env:
+      PJ_INSTALL_DIR: ${{ github.workspace }}\plotjuggler-install
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 5.15
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          arch: win64_msvc2019_64
+
+      - name: Compute week number
+        shell: bash
+        run: echo "WEEK=$(date +%Y-%U)" >> $GITHUB_ENV
+
+      - name: Cache PlotJuggler
+        id: cache-pj
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PJ_INSTALL_DIR }}
+          key: plotjuggler-${{ runner.os }}-week${{ env.WEEK }}-${{ hashFiles('.github/workflows/ci-windows.yml') }}
+
+      - name: Build PlotJuggler
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/facontidavide/PlotJuggler.git $env:RUNNER_TEMP\PlotJuggler
+          cmake -S $env:RUNNER_TEMP\PlotJuggler -B $env:RUNNER_TEMP\PlotJuggler\build `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_INSTALL_PREFIX="${{ env.PJ_INSTALL_DIR }}" `
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build $env:RUNNER_TEMP\PlotJuggler\build --config Release -j $env:NUMBER_OF_PROCESSORS
+          cmake --install $env:RUNNER_TEMP\PlotJuggler\build --config Release
+
+      # Windows runners have a virtual desktop so Qt widget tests work without
+      # an offscreen platform.
+      - name: Build and run tests
+        shell: cmd
+        env:
+          JUNIT_OUTPUT: ${{ github.workspace }}\test-results.xml
+        run: test.bat vs2022
+
+      - name: Publish test results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: ${{ github.workspace }}\test-results.xml
+          check_name: JUnit Test Report (Windows)
