@@ -1,6 +1,7 @@
-# PlotJuggler Signal View
+# Signal View plugin for PlotJuggler
 
-![CI](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci.yml/badge.svg?branch=dev_ai)
+![CI (Linux)](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci-linux.yml/badge.svg?branch=dev_ai)
+![CI (Windows)](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci-windows.yml/badge.svg?branch=dev_ai)
 
 An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/facontidavide/PlotJuggler). Displays time series data as step-wise (staircase) traces with individually positionable Y-axis bars, multi-file overlay comparison, and time shifting.
 
@@ -16,6 +17,7 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - **Selection and batch editing**: select signals with click, Ctrl+click, rubber band, or Ctrl+A; edit properties in bulk via the Y-range table dialog
 - **Customizable appearance**: per-signal color, line style, line width, marker style, and Y-axis divisions
 - **Layout persistence**: full save/restore of signal configuration, overlays, and view state via PlotJuggler layout files
+- **Plot cursor navigation**: double-click to jump the cursor, drag within 5 px to slide it, or use left/right arrow keys for single-pixel steps
 
 ## Requirements
 
@@ -68,6 +70,14 @@ set PJ_INSTALL_DIR=C:\path\to\plotjuggler-install
 build.bat
 ```
 
+The script defaults to Visual Studio 2026. To use Visual Studio 2022 instead:
+
+```bat
+build.bat vs2022
+```
+
+Both generators require the **v142 (VS 2019) C++ toolchain** to be installed, as Qt 5.15 was built against it.
+
 ## Running
 
 ### Linux
@@ -100,6 +110,8 @@ Then go to **Tools > Signal View** to open the plugin.
 
 ## Testing
 
+### Linux
+
 Run the unit tests with:
 
 ```bash
@@ -112,6 +124,25 @@ To output JUnit XML results (used by CI for test reporting):
 
 ```bash
 JUNIT_OUTPUT=test-results.xml ./test.sh
+```
+
+### Windows
+
+```bat
+test.bat
+```
+
+To use Visual Studio 2022:
+
+```bat
+test.bat vs2022
+```
+
+To output JUnit XML results:
+
+```bat
+set JUNIT_OUTPUT=test-results.xml
+test.bat vs2022
 ```
 
 ## Coding Conventions
