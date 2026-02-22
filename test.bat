@@ -42,9 +42,14 @@ cd /d "%BUILD_DIR%"
 cmake .. -G "Visual Studio 18 2026" -A x64 -T v142 ^
     -DPJ_INSTALL_DIR="%PJ_INSTALL_DIR%" ^
     -DCMAKE_PREFIX_PATH="%QT_DIR%;%PJ_INSTALL_DIR%" ^
-    -DBUILD_TESTING=OFF
+    -DBUILD_TESTING=ON
 
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 cmake --build . --config Release
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
+set JUNIT_ARG=
+if not "%JUNIT_OUTPUT%"=="" set "JUNIT_ARG=--output-junit %JUNIT_OUTPUT%"
+
+ctest -C Release --output-on-failure %JUNIT_ARG%

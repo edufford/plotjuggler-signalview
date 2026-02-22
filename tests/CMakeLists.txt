@@ -2,16 +2,19 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+add_compile_definitions($<$<CXX_COMPILER_ID:MSVC>:_USE_MATH_DEFINES>)
 
 set(TEST_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src
     ${PJ_INSTALL_DIR}/include
 )
 set(TEST_LINK_LIBS
-    ${PJ_INSTALL_DIR}/lib/libplotjuggler_base.a
+    ${PJ_BASE_LIB}
     fmt::fmt
     Qt5::Core
     Qt5::Widgets
@@ -67,7 +70,7 @@ set(UI_WIDGET_SOURCES
     ${CMAKE_SOURCE_DIR}/src/data_sets_panel.cpp
 )
 set(UI_TEST_LINK_LIBS
-    ${PJ_INSTALL_DIR}/lib/libplotjuggler_base.a
+    ${PJ_BASE_LIB}
     fmt::fmt
     Qt5::Core
     Qt5::Widgets
