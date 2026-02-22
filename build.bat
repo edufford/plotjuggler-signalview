@@ -48,5 +48,3 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 cmake --build . --config Release
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
-
-cmake --install . --config Release
