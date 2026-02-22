@@ -29,12 +29,15 @@ jobs:
           sudo apt-get install -y \
             qtbase5-dev cmake xvfb
 
+      - name: Compute week number
+        run: echo "WEEK=$(date +%Y-%U)" >> $GITHUB_ENV
+
       - name: Cache PlotJuggler
         id: cache-pj
         uses: actions/cache@v4
         with:
           path: ${{ env.PJ_INSTALL_DIR }}
-          key: plotjuggler-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          key: plotjuggler-${{ runner.os }}-week${{ env.WEEK }}-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Install PlotJuggler build dependencies
         if: steps.cache-pj.outputs.cache-hit != 'true'
@@ -82,12 +85,16 @@ jobs:
           version: '5.15.2'
           arch: win64_msvc2019_64
 
+      - name: Compute week number
+        shell: bash
+        run: echo "WEEK=$(date +%Y-%U)" >> $GITHUB_ENV
+
       - name: Cache PlotJuggler
         id: cache-pj
         uses: actions/cache@v4
         with:
           path: ${{ env.PJ_INSTALL_DIR }}
-          key: plotjuggler-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          key: plotjuggler-${{ runner.os }}-week${{ env.WEEK }}-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Build PlotJuggler
         if: steps.cache-pj.outputs.cache-hit != 'true'
