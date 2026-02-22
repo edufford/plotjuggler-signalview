@@ -36,10 +36,13 @@ if not exist "%PJ_INSTALL_DIR%\include\PlotJuggler\plotdata.h" (
 
 echo Using PlotJuggler at: %PJ_INSTALL_DIR%
 
+set VS_GENERATOR=Visual Studio 18 2026
+if /i "%~1"=="vs2022" set VS_GENERATOR=Visual Studio 17 2022
+
 mkdir "%BUILD_DIR%" 2>nul
 cd /d "%BUILD_DIR%"
 
-cmake .. -G "Visual Studio 18 2026" -A x64 -T v142 ^
+cmake .. -G "%VS_GENERATOR%" -A x64 -T v142 ^
     -DPJ_INSTALL_DIR="%PJ_INSTALL_DIR%" ^
     -DCMAKE_PREFIX_PATH="%QT_DIR%;%PJ_INSTALL_DIR%" ^
     -DBUILD_TESTING=ON

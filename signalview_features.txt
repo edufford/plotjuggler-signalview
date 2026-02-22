@@ -501,11 +501,25 @@ On layout load:
     QStackedWidget to show itself and calls onShowWidget().
 
 Usage:
-  ./run.sh -l dev_layout.xml
+  Linux:   ./run.sh -l dev_layout.xml
+  Windows: run.bat -l dev_layout.xml
 
 
 BUILD & RUN
 -----------
-Build:   ./build.sh
-Run:     ./run.sh [-d data.csv] [-l layout.xml]
-Install: cmake --install build
+Linux:
+  Build:   ./build.sh
+  Test:    ./test.sh
+  Run:     ./run.sh [-d data.csv] [-l layout.xml]
+  Install: cmake --install build
+
+Windows:
+  Build:   build.bat [vs2022]
+  Test:    test.bat [vs2022]
+  Run:     run.bat [-d data.csv] [-l layout.xml]
+  Install: cmake --install build --config Release
+
+  Both build.bat and test.bat default to Visual Studio 18 2026.
+  Pass "vs2022" as the first argument to use Visual Studio 17 2022 instead:
+    build.bat vs2022
+    test.bat vs2022
