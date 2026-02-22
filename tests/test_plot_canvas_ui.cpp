@@ -30,20 +30,32 @@ class PlotCanvasUITest : public ::testing::Test {
   PlotCanvas* m_canvas = nullptr;
 };
 
-// Left-clicking on the canvas sets the cursor time near the clicked position.
-TEST_F(PlotCanvasUITest, LeftClickSetsCursorTime) {
+// Double-clicking anywhere in the canvas jumps the cursor to that time.
+TEST_F(PlotCanvasUITest, DoubleClickSetsCursorTime) {
   QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
   int click_x = timeToPixelX(5.0);
   int click_y = H / 2;
-  QTest::mouseClick(m_canvas, Qt::LeftButton, Qt::NoModifier,
-                    QPoint(click_x, click_y));
+  QTest::mouseDClick(m_canvas, Qt::LeftButton, Qt::NoModifier,
+                     QPoint(click_x, click_y));
   ASSERT_GE(spy.count(), 1);
   double t = spy.last().at(0).toDouble();
   EXPECT_NEAR(t, 5.0, 0.5);
 }
 
-// Dragging horizontally after a left press updates cursor time continuously.
+// A single left-click far from the cursor does nothing (no cursorMoved signal).
+TEST_F(PlotCanvasUITest, SingleClickFarFromCursorDoesNothing) {
+  // Cursor starts at 0.0; clicking at 5.0 is well outside the grab margin.
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
+  QTest::mouseClick(m_canvas, Qt::LeftButton, Qt::NoModifier,
+                    QPoint(timeToPixelX(5.0), H / 2));
+  EXPECT_EQ(spy.count(), 0);
+}
+
+// Dragging after pressing within the grab margin updates cursor time.
 TEST_F(PlotCanvasUITest, CursorDragUpdatesTime) {
+  // Position cursor at 3.0 so the press lands within the grab margin.
+  m_canvas->setCursorTime(3.0);
+
   QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
   int y = H / 2;
   QPoint start(timeToPixelX(3.0), y);
@@ -57,11 +69,86 @@ TEST_F(PlotCanvasUITest, CursorDragUpdatesTime) {
   QApplication::sendEvent(m_canvas, &move);
   QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
 
-  ASSERT_GE(spy.count(), 2);
-  double t_first = spy.first().at(0).toDouble();
+  ASSERT_GE(spy.count(), 1);
   double t_last = spy.last().at(0).toDouble();
-  EXPECT_NEAR(t_first, 3.0, 0.5);
   EXPECT_NEAR(t_last, 7.0, 0.5);
+}
+
+// Drag is relative: the cursor starts from its pre-drag position, not the
+// click position.
+TEST_F(PlotCanvasUITest, CursorDragIsRelative) {
+  // Position cursor at 3.0. Press 2px to the right of cursor and drag 4s
+  // worth of pixels to the right. Cursor should end up at ~7.0.
+  m_canvas->setCursorTime(3.0);
+
+  double plot_w = W - PlotCanvas::MARGIN_LEFT - PlotCanvas::MARGIN_RIGHT;
+  int px_per_second = (int)(plot_w / 10.0);
+  int cursor_px = timeToPixelX(3.0);
+  int press_px = cursor_px + 2;  // 2px right of cursor, within grab margin
+  int release_px = press_px + 4 * px_per_second;
+
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
+  int y = H / 2;
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier,
+                    QPoint(press_px, y));
+  QMouseEvent move(QEvent::MouseMove, QPoint(release_px, y),
+                   m_canvas->mapToGlobal(QPoint(release_px, y)), Qt::LeftButton,
+                   Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier,
+                      QPoint(release_px, y));
+
+  ASSERT_GE(spy.count(), 1);
+  double t = spy.last().at(0).toDouble();
+  EXPECT_NEAR(t, 7.0, 0.5);
+}
+
+// Right arrow key moves the cursor right by one pixel's worth of time.
+TEST_F(PlotCanvasUITest, ArrowKeyMovesRight) {
+  m_canvas->setCursorTime(5.0);
+  m_canvas->setFocus();
+
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
+  QTest::keyClick(m_canvas, Qt::Key_Right);
+
+  ASSERT_EQ(spy.count(), 1);
+  double t = spy.first().at(0).toDouble();
+  double plot_w = W - PlotCanvas::MARGIN_LEFT - PlotCanvas::MARGIN_RIGHT;
+  double expected_dt = 10.0 / plot_w;
+  EXPECT_NEAR(t, 5.0 + expected_dt, 1e-6);
+}
+
+// Left arrow key moves the cursor left by one pixel's worth of time.
+TEST_F(PlotCanvasUITest, ArrowKeyMovesLeft) {
+  m_canvas->setCursorTime(5.0);
+  m_canvas->setFocus();
+
+  QSignalSpy spy(m_canvas, &PlotCanvas::cursorMoved);
+  QTest::keyClick(m_canvas, Qt::Key_Left);
+
+  ASSERT_EQ(spy.count(), 1);
+  double t = spy.first().at(0).toDouble();
+  double plot_w = W - PlotCanvas::MARGIN_LEFT - PlotCanvas::MARGIN_RIGHT;
+  double expected_dt = 10.0 / plot_w;
+  EXPECT_NEAR(t, 5.0 - expected_dt, 1e-6);
+}
+
+// Arrow keys clamp to view range and do not overshoot.
+TEST_F(PlotCanvasUITest, ArrowKeyClampedAtViewBounds) {
+  // At min bound: left arrow should not move below 0.
+  m_canvas->setCursorTime(0.0);
+  m_canvas->setFocus();
+  QSignalSpy spy_left(m_canvas, &PlotCanvas::cursorMoved);
+  QTest::keyClick(m_canvas, Qt::Key_Left);
+  ASSERT_EQ(spy_left.count(), 1);
+  EXPECT_DOUBLE_EQ(spy_left.first().at(0).toDouble(), 0.0);
+
+  // At max bound: right arrow should not move above 10.
+  m_canvas->setCursorTime(10.0);
+  QSignalSpy spy_right(m_canvas, &PlotCanvas::cursorMoved);
+  QTest::keyClick(m_canvas, Qt::Key_Right);
+  ASSERT_EQ(spy_right.count(), 1);
+  EXPECT_DOUBLE_EQ(spy_right.first().at(0).toDouble(), 10.0);
 }
 
 // Right-click drag pans the view range horizontally.
