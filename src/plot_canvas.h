@@ -88,6 +88,8 @@ class PlotCanvas : public QWidget {
 
  protected:
   void paintEvent(QPaintEvent* event) override;
+  void keyPressEvent(QKeyEvent* event) override;
+  void mouseDoubleClickEvent(QMouseEvent* event) override;
   void mousePressEvent(QMouseEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
@@ -141,6 +143,8 @@ class PlotCanvas : public QWidget {
   double m_cursor_time = 0.0;
   bool m_cursor_needs_data =
       false;  // set when signals change, cleared when data found
+  double m_cursor_drag_start_x = 0.0;
+  double m_cursor_drag_start_time = 0.0;
 
   // Pan state
   QPoint m_pan_start;
@@ -170,4 +174,5 @@ class PlotCanvas : public QWidget {
   static constexpr int MARGIN_RIGHT = 20;
   static constexpr int MARGIN_TOP = 10;
   static constexpr int MARGIN_BOTTOM = 40;
+  static constexpr int CURSOR_GRAB_PX = 5;
 };

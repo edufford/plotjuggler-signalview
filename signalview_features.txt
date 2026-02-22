@@ -185,7 +185,7 @@ Time axis:
 Cursor:
   - Vertical dashed yellow line spanning the plot area.
   - Small yellow triangle handle at the top.
-  - In default mode, shows SizeHorCursor when hovering near the cursor line.
+  - In default mode, shows SizeHorCursor when hovering within 5px of the cursor line.
   - In H. Zoom mode, shows a custom magnifying glass cursor.
   - In Time Shift mode, shows a custom sine wave + arrow cursor.
 
@@ -328,12 +328,19 @@ OK applies changes; Cancel discards. Changes are only applied if Y Max > Y Min.
 
 MOUSE INTERACTION: PLOT CANVAS
 -------------------------------
-- Left click anywhere (default mode): places the cursor at that time
-  position and begins cursor dragging. Cursor time is clamped to the
-  current view range.
+- Left click on empty area (default mode): no action.
 
-- Left click + drag (default mode): drags the cursor along the time axis.
-  Continuously updates cursor readout values in the signal value column.
+- Left click within 5px of the cursor line (default mode): begins cursor
+  dragging from the cursor's current position. The cursor does not jump
+  on press; movement begins only when the mouse is dragged.
+
+- Left click + drag on cursor line (default mode): drags the cursor along
+  the time axis. Movement is relative to the click position. Continuously
+  updates cursor readout values in the signal value column.
+
+- Double left click anywhere (default mode): jumps the cursor to the
+  clicked time position. Cursor time is clamped to the current view range.
+  The OS cursor icon updates immediately to SizeHorCursor.
 
 - Left click + drag (H. Zoom mode): shows a rubber-band vertical band
   (semi-transparent yellow overlay with edge lines) between the click
@@ -354,6 +361,20 @@ MOUSE INTERACTION: PLOT CANVAS
 
 - Mouse wheel (H. Zoom mode): zooms the time axis in/out (0.8x / 1.25x
   factor), centered on the mouse position. Disables auto-fit.
+
+
+KEYBOARD INTERACTION: PLOT CANVAS
+----------------------------------
+The canvas accepts keyboard focus (click on it to focus).
+
+- Left arrow: moves the cursor one pixel to the left. The step size equals
+  one pixel's worth of time at the current zoom level
+  (view_range / plot_width_in_pixels), so it scales automatically with zoom.
+
+- Right arrow: moves the cursor one pixel to the right, same step size.
+
+Both keys clamp the cursor to the current view range and emit cursorMoved,
+updating the signal value column readout.
 
 
 CURSOR READOUT

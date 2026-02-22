@@ -1,6 +1,7 @@
 #include "plot_canvas.h"
 
 #include <QDoubleValidator>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QPainter>
@@ -790,7 +791,39 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   }
 }
 
+// --- Keyboard interaction ---
+
+void PlotCanvas::keyPressEvent(QKeyEvent* event) {
+  if (event->key() != Qt::Key_Left && event->key() != Qt::Key_Right) {
+    QWidget::keyPressEvent(event);
+    return;
+  }
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  if (plot_w <= 0) {
+    return;
+  }
+  double dt = (m_view_t_max - m_view_t_min) / plot_w;
+  if (event->key() == Qt::Key_Left) {
+    m_cursor_time -= dt;
+  } else {
+    m_cursor_time += dt;
+  }
+  m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+  emit cursorMoved(m_cursor_time);
+  update();
+}
+
 // --- Mouse interaction ---
+
+void PlotCanvas::mouseDoubleClickEvent(QMouseEvent* event) {
+  if (event->button() == Qt::LeftButton && m_mode == InteractionMode::Normal) {
+    m_cursor_time = std::clamp(pixelXToTime(event->pos().x()),
+                               m_view_t_min, m_view_t_max);
+    emit cursorMoved(m_cursor_time);
+    setCursor(Qt::SizeHorCursor);
+    update();
+  }
+}
 
 void PlotCanvas::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
@@ -819,14 +852,17 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event) {
         m_zoom_select_current_x = event->pos().x();
         update();
         return;
-      case InteractionMode::Normal:
-        // Start cursor drag
+      case InteractionMode::Normal: {
+        // Only start cursor drag when clicking within the grab margin
+        double cursor_x = timeToPixelX(m_cursor_time);
+        if (std::abs(event->pos().x() - cursor_x) >= CURSOR_GRAB_PX) {
+          return;
+        }
         m_drag_state = DragState::CursorDrag;
-        m_cursor_time = pixelXToTime(event->pos().x());
-        m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
-        emit cursorMoved(m_cursor_time);
-        update();
+        m_cursor_drag_start_x = event->pos().x();
+        m_cursor_drag_start_time = m_cursor_time;
         return;
+      }
     }
   } else if (event->button() == Qt::RightButton) {
     m_drag_state = DragState::Panning;
@@ -858,12 +894,18 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       m_zoom_select_current_x = event->pos().x();
       update();
       return;
-    case DragState::CursorDrag:
-      m_cursor_time = pixelXToTime(event->pos().x());
-      m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
-      emit cursorMoved(m_cursor_time);
-      update();
+    case DragState::CursorDrag: {
+      double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+      if (plot_w > 0) {
+        double dx = event->pos().x() - m_cursor_drag_start_x;
+        double dt = dx / plot_w * (m_view_t_max - m_view_t_min);
+        m_cursor_time = std::clamp(m_cursor_drag_start_time + dt,
+                                   m_view_t_min, m_view_t_max);
+        emit cursorMoved(m_cursor_time);
+        update();
+      }
       return;
+    }
     case DragState::Panning: {
       double dx_pixels = event->pos().x() - m_pan_start.x();
       double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
@@ -885,7 +927,7 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
         updateIdleCursor();
       } else {
         double cursor_x = timeToPixelX(m_cursor_time);
-        if (std::abs(event->pos().x() - cursor_x) < 10) {
+        if (std::abs(event->pos().x() - cursor_x) < CURSOR_GRAB_PX) {
           setCursor(Qt::SizeHorCursor);
         } else {
           setCursor(Qt::ArrowCursor);
