@@ -68,6 +68,7 @@ jobs:
         if: always()
         with:
           report_paths: ${{ github.workspace }}/test-results.xml
+          check_name: JUnit Test Report (Linux)
 
   test-windows:
     name: Build and Test (Windows)
@@ -121,3 +122,4 @@ jobs:
         if: always()
         with:
           report_paths: ${{ github.workspace }}\test-results.xml
+          check_name: JUnit Test Report (Windows)
