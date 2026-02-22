@@ -1,6 +1,7 @@
 #include "plot_canvas.h"
 
 #include <QDoubleValidator>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QPainter>
@@ -788,6 +789,28 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
       }
     }
   }
+}
+
+// --- Keyboard interaction ---
+
+void PlotCanvas::keyPressEvent(QKeyEvent* event) {
+  if (event->key() != Qt::Key_Left && event->key() != Qt::Key_Right) {
+    QWidget::keyPressEvent(event);
+    return;
+  }
+  double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
+  if (plot_w <= 0) {
+    return;
+  }
+  double dt = (m_view_t_max - m_view_t_min) / plot_w;
+  if (event->key() == Qt::Key_Left) {
+    m_cursor_time -= dt;
+  } else {
+    m_cursor_time += dt;
+  }
+  m_cursor_time = std::clamp(m_cursor_time, m_view_t_min, m_view_t_max);
+  emit cursorMoved(m_cursor_time);
+  update();
 }
 
 // --- Mouse interaction ---
