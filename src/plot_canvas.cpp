@@ -815,6 +815,16 @@ void PlotCanvas::keyPressEvent(QKeyEvent* event) {
 
 // --- Mouse interaction ---
 
+void PlotCanvas::mouseDoubleClickEvent(QMouseEvent* event) {
+  if (event->button() == Qt::LeftButton && m_mode == InteractionMode::Normal) {
+    m_cursor_time = std::clamp(pixelXToTime(event->pos().x()),
+                               m_view_t_min, m_view_t_max);
+    emit cursorMoved(m_cursor_time);
+    setCursor(Qt::SizeHorCursor);
+    update();
+  }
+}
+
 void PlotCanvas::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
     switch (m_mode) {
