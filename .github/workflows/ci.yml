@@ -27,7 +27,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            qtbase5-dev cmake libfmt-dev xvfb
+            qtbase5-dev cmake xvfb
 
       - name: Cache PlotJuggler
         id: cache-pj

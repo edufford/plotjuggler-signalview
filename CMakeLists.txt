@@ -41,8 +41,15 @@ target_include_directories(SignalViewPlugin PRIVATE
     ${PJ_INSTALL_DIR}/include
 )
 
+find_library(PJ_BASE_LIB
+    NAMES plotjuggler_base
+    PATHS ${PJ_INSTALL_DIR}/lib
+    NO_DEFAULT_PATH
+    REQUIRED
+)
+
 target_link_libraries(SignalViewPlugin PRIVATE
-    ${PJ_INSTALL_DIR}/lib/libplotjuggler_base.a
+    ${PJ_BASE_LIB}
     fmt::fmt
     Qt5::Core
     Qt5::Widgets
@@ -50,7 +57,10 @@ target_link_libraries(SignalViewPlugin PRIVATE
     Qt5::Concurrent
 )
 
-target_compile_definitions(SignalViewPlugin PRIVATE QT_PLUGIN)
+target_compile_definitions(SignalViewPlugin PRIVATE
+    QT_PLUGIN
+    $<$<CXX_COMPILER_ID:MSVC>:_USE_MATH_DEFINES>
+)
 
 install(TARGETS SignalViewPlugin
     DESTINATION ${PJ_INSTALL_DIR}/lib/plotjuggler/plugins

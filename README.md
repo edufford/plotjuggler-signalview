@@ -19,18 +19,26 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 
 ## Requirements
 
-- PlotJuggler 3.x (built and installed)
+- PlotJuggler 3.x (built and installed from source)
 - Qt 5
 - CMake 3.16+
-- fmt library
+- fmt library (bundled with PlotJuggler)
 
-On Ubuntu/Debian:
+**Linux (Ubuntu/Debian):**
 
 ```bash
-sudo apt install qtbase5-dev cmake libfmt-dev
+sudo apt install qtbase5-dev cmake
 ```
 
+**Windows:**
+
+- Visual Studio 2026 with the v142 (VS 2019) C++ toolchain installed
+- Qt 5.15 via [aqtinstall](https://github.com/miurahr/aqtinstall): `pip install aqtinstall && aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O C:\Qt`
+- PlotJuggler must be [built from source](https://github.com/facontidavide/PlotJuggler) and installed via `cmake --install` to produce the install tree
+
 ## Building
+
+### Linux
 
 If `plotjuggler` is on your PATH, the build script auto-detects the install prefix:
 
@@ -44,14 +52,38 @@ Otherwise, set `PJ_INSTALL_DIR` manually:
 PJ_INSTALL_DIR=/path/to/plotjuggler-install ./build.sh
 ```
 
+### Windows
+
+If both `qmake` and `plotjuggler` are on your PATH, the build script auto-detects both:
+
+```bat
+build.bat
+```
+
+Otherwise, set the directories manually:
+
+```bat
+set QT_DIR=C:\Qt\5.15.2\msvc2019_64
+set PJ_INSTALL_DIR=C:\path\to\plotjuggler-install
+build.bat
+```
+
 ## Running
 
-The `run.sh` script finds `plotjuggler` and launches it with the plugin loaded from the build directory. It uses the same detection as `build.sh` — `PJ_INSTALL_DIR` if set, otherwise PATH lookup.
+### Linux
 
 ```bash
 ./run.sh                        # launch PlotJuggler with the plugin
 ./run.sh -d data.csv            # load a data file
 ./run.sh -l layout.xml          # restore a saved layout
+```
+
+### Windows
+
+```bat
+run.bat                         # launch PlotJuggler with the plugin
+run.bat -d data.csv             # load a data file
+run.bat -l layout.xml           # restore a saved layout
 ```
 
 Any additional arguments are passed through to PlotJuggler.

@@ -8,6 +8,8 @@ PlotJuggler Signal View is a C++17 Qt5 ToolboxPlugin for [PlotJuggler](https://g
 
 ## Build & Test Commands
 
+**Linux:**
+
 ```bash
 # Build (auto-detects PlotJuggler on PATH, or set PJ_INSTALL_DIR)
 ./build.sh
@@ -22,6 +24,18 @@ JUNIT_OUTPUT=results.xml ./test.sh
 ./run.sh
 ./run.sh -d data.csv        # with data file
 ./run.sh -l layout.xml      # with saved layout
+```
+
+**Windows:**
+
+```bat
+:: Build (auto-detects qmake and plotjuggler on PATH, or set QT_DIR / PJ_INSTALL_DIR)
+build.bat
+
+:: Launch PlotJuggler with the plugin loaded
+run.bat
+run.bat -d data.csv
+run.bat -l layout.xml
 ```
 
 Tests use Google Test + Qt Test. UI tests simulate mouse events with explicit `QMouseEvent` + `QApplication::sendEvent` (not `QTest::mouseMove`, which is unreliable under xvfb). Run a single test with `cd build && ctest -R TestName`.
