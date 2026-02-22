@@ -1,6 +1,7 @@
-# PlotJuggler Signal View
+# Signal View plugin for PlotJuggler
 
-![CI](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci.yml/badge.svg?branch=dev_ai)
+![CI (Linux)](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci.yml/badge.svg?branch=dev_ai&job=Build+and+Test+%28Linux%29)
+![CI (Windows)](https://github.com/edufford/plotjuggler-signalview/actions/workflows/ci.yml/badge.svg?branch=dev_ai&job=Build+and+Test+%28Windows%29)
 
 An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/facontidavide/PlotJuggler). Displays time series data as step-wise (staircase) traces with individually positionable Y-axis bars, multi-file overlay comparison, and time shifting.
 
