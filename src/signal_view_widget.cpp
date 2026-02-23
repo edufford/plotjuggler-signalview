@@ -73,6 +73,16 @@ const std::vector<QColor>& SignalViewWidget::signalColors() {
   return colors;
 }
 
+// Mirrors HSL lightness around L=0.5 (L_new = 1.0 − L).  Applying this
+// twice returns the original color exactly, making it a perfect round-trip
+// transform for toggling between dark and light themes.  Pure white (L=1)
+// maps to pure black (L=0) and vice versa.
+static QColor mirrorLightness(const QColor& c) {
+  qreal h, s, l, a;
+  c.getHslF(&h, &s, &l, &a);
+  return QColor::fromHslF(h, s, 1.0 - l, a);
+}
+
 SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
     : QWidget(parent), m_data(data) {
   m_overlay_mgr = std::make_shared<OverlayManager>();
@@ -153,6 +163,12 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_overlay = new QPushButton("Overlay", this);
   btn_overlay->setToolTip("Load an overlay data file (CSV) for comparison");
   toolbar->addWidget(btn_overlay);
+  toolbar->addSeparator();
+
+  auto* btn_theme = new QPushButton("Light", this);
+  btn_theme->setCheckable(true);
+  btn_theme->setToolTip("Toggle Dark/Light theme");
+  toolbar->addWidget(btn_theme);
   toolbar->addSeparator();
   toolbar->addWidget(btn_close);
 
@@ -258,6 +274,21 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
             if (checked) {
               btn_zoom->setChecked(false);
             }
+          });
+
+  // Dark/Light theme toggle: apply HSL lightness mirror (L → 0.9 − L) to
+  // every signal color.  Applying it twice restores the original color, so
+  // toggling back and forth is lossless for all colors.
+  connect(btn_theme, &QPushButton::toggled, this,
+          [this, btn_theme](bool checked) {
+            for (auto& sig : m_signals) {
+              sig.color = mirrorLightness(sig.color);
+            }
+            m_theme = checked ? Theme::Light : Theme::Dark;
+            btn_theme->setText(checked ? "Dark" : "Light");
+            m_canvas->setTheme(m_theme);
+            m_y_axis_panel->setTheme(m_theme);
+            refreshViews();
           });
 
   // Shift layer combo
@@ -369,6 +400,9 @@ void SignalViewWidget::onAddSignal(double band_center_norm) {
     SignalEntry entry;
     entry.name = item->text().toStdString();
     entry.color = signalColors()[m_signals.size() % signalColors().size()];
+    if (m_theme == Theme::Light) {
+      entry.color = mirrorLightness(entry.color);
+    }
 
     // Auto-detect Y range from data
     auto resolved = m_overlay_mgr->resolveSignal(entry.name);
@@ -1245,6 +1279,9 @@ void SignalViewWidget::onLoadOverlay() {
     SignalEntry new_entry;
     new_entry.name = match_name;
     new_entry.color = signalColors()[m_signals.size() % signalColors().size()];
+    if (m_theme == Theme::Light) {
+      new_entry.color = mirrorLightness(new_entry.color);
+    }
     new_entry.line_style = Qt::DashLine;  // overlay signals get dashed lines
 
     for (const auto& sig : m_signals) {

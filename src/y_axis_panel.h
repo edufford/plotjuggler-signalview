@@ -91,6 +91,7 @@ class SignalColumnBase : public QWidget {
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
   void setScrollOffset(double offset);
+  void setTheme(Theme theme);
 
  signals:
   void bandOffsetChanged(int index, double new_center);
@@ -118,6 +119,7 @@ class SignalColumnBase : public QWidget {
   std::vector<SignalEntry> m_signals;
   std::set<int> m_selected;
   double m_scroll_offset = 0.0;
+  Theme m_theme = Theme::Dark;
 
  private:
   int m_drag_index = -1;
@@ -173,6 +175,7 @@ class YAxisLabelColumn : public QWidget {
   void setDragIndex(int idx);
   void setSelection(const std::set<int>& sel);
   void setScrollOffset(double offset);
+  void setTheme(Theme theme);
 
   static constexpr int DEFAULT_WIDTH =
       SignalNameColumn::DEFAULT_WIDTH + SignalValueColumn::DEFAULT_WIDTH + 3;
@@ -211,6 +214,7 @@ class YAxisBarColumn : public QWidget {
   void selectAll();
   void setScrollOffset(double offset);
   double scrollOffset() const { return m_scroll_offset; }
+  void setTheme(Theme theme);
 
   static constexpr int DEFAULT_WIDTH = 60;
 
@@ -246,6 +250,7 @@ class YAxisBarColumn : public QWidget {
   std::vector<SignalEntry> m_signals;
   std::set<int> m_selected;
   double m_scroll_offset = 0.0;
+  Theme m_theme = Theme::Dark;
   HitResult m_drag_hit;
   bool m_drag_moved = false;
   double m_snap_amount = 0.01;
@@ -272,6 +277,7 @@ class YAxisPanel : public QWidget {
  public:
   explicit YAxisPanel(QWidget* parent = nullptr);
   void setSignalEntries(const std::vector<SignalEntry>& entries);
+  void setTheme(Theme theme);
   void updateCursorValues(const std::shared_ptr<OverlayManager>& overlay_mgr,
                           double cursor_time);
   void setCanvasHeight(int h);

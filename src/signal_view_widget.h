@@ -97,6 +97,8 @@ class SignalViewWidget : public QWidget {
 
   static constexpr double DEFAULT_BAND_HEIGHT = 0.20;
 
-  // Predefined signal colors
+  // Predefined signal colors (dark-mode palette; light mode uses HSL mirror).
   static const std::vector<QColor>& signalColors();
+
+  Theme m_theme = Theme::Dark;
 };

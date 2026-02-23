@@ -114,18 +114,10 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   setPalette(pal);
 
   // Time range edit fields at the bottom corners of the plot area
-  auto setupTimeEdit = [this](QLineEdit* edit) {
+  auto setupTimeEdit = [](QLineEdit* edit) {
     edit->setValidator(new QDoubleValidator(edit));
     edit->setFixedHeight(16);
     edit->setFrame(false);
-    edit->setStyleSheet(
-        "QLineEdit {"
-        "  background: rgba(30, 30, 30, 220);"
-        "  color: #b4b4b4;"
-        "  border: 1px solid #555;"
-        "  font: bold 8pt monospace;"
-        "  padding: 0px 2px;"
-        "}");
   };
 
   m_time_start_edit = new QLineEdit(this);
@@ -133,6 +125,7 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   setupTimeEdit(m_time_start_edit);
   setupTimeEdit(m_time_end_edit);
   m_time_end_edit->setAlignment(Qt::AlignRight);
+  applyThemeStylesheet();
 
   connect(m_time_start_edit, &QLineEdit::editingFinished, this, [this]() {
     bool ok;
@@ -284,6 +277,41 @@ void PlotCanvas::setDefaultShiftLayer(int layer_index) {
   m_default_shift_layer = layer_index;
 }
 
+void PlotCanvas::applyThemeStylesheet() {
+  QString stylesheet;
+  if (m_theme == Theme::Light) {
+    stylesheet =
+        "QLineEdit {"
+        "  background: rgba(240, 240, 240, 220);"
+        "  color: #333333;"
+        "  border: 1px solid #aaa;"
+        "  font: bold 8pt monospace;"
+        "  padding: 0px 2px;"
+        "}";
+  } else {
+    stylesheet =
+        "QLineEdit {"
+        "  background: rgba(30, 30, 30, 220);"
+        "  color: #b4b4b4;"
+        "  border: 1px solid #555;"
+        "  font: bold 8pt monospace;"
+        "  padding: 0px 2px;"
+        "}";
+  }
+  m_time_start_edit->setStyleSheet(stylesheet);
+  m_time_end_edit->setStyleSheet(stylesheet);
+}
+
+void PlotCanvas::setTheme(Theme theme) {
+  m_theme = theme;
+  QPalette pal = palette();
+  pal.setColor(QPalette::Window,
+               theme == Theme::Light ? QColor(255, 255, 255) : QColor(30, 30, 30));
+  setPalette(pal);
+  applyThemeStylesheet();
+  update();
+}
+
 void PlotCanvas::repositionTimeEdits() {
   const int field_w = 80;
   const int field_h = 16;
@@ -355,7 +383,9 @@ void PlotCanvas::drawGrid(QPainter& painter) {
 
     int n_ticks = sig.tickCount(band_pixel_h);
 
-    painter.setPen(QPen(QColor(60, 60, 60), 1, Qt::DotLine));
+    painter.setPen(QPen(
+        m_theme == Theme::Light ? QColor(170, 170, 170) : QColor(80, 80, 80),
+        1, Qt::DotLine));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
@@ -402,7 +432,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
   double axis_y = MARGIN_TOP + plot_h;
 
   // Axis line
-  painter.setPen(QPen(QColor(180, 180, 180), 1));
+  painter.setPen(QPen(
+      m_theme == Theme::Light ? QColor(60, 60, 60) : QColor(180, 180, 180), 1));
   painter.drawLine(QPointF(MARGIN_LEFT, axis_y),
                    QPointF(width() - MARGIN_RIGHT, axis_y));
 
@@ -429,7 +460,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
   int decimals = std::max(0, (int)std::ceil(-std::log10(nice_step)));
 
   painter.setFont(QFont("monospace", 8));
-  painter.setPen(QColor(180, 180, 180));
+  painter.setPen(
+      m_theme == Theme::Light ? QColor(60, 60, 60) : QColor(180, 180, 180));
 
   double t_start = std::ceil(m_view_t_min / nice_step) * nice_step;
   for (double t = t_start; t <= m_view_t_max; t += nice_step) {
@@ -702,7 +734,9 @@ void PlotCanvas::drawCursor(QPainter& painter) {
     return;
   }
 
-  painter.setPen(QPen(QColor(255, 255, 100, 200), 1, Qt::DashLine));
+  QColor cursor_color = (m_theme == Theme::Light) ? QColor(220, 50, 50, 200)
+                                                   : QColor(255, 255, 100, 200);
+  painter.setPen(QPen(cursor_color, 1, Qt::DashLine));
   painter.drawLine(QPointF(x, MARGIN_TOP), QPointF(x, MARGIN_TOP + plot_h));
 
   // Draw a small triangle handle at the top
@@ -711,12 +745,12 @@ void PlotCanvas::drawCursor(QPainter& painter) {
   handle.lineTo(x + 5, MARGIN_TOP);
   handle.lineTo(x, MARGIN_TOP + 8);
   handle.closeSubpath();
-  painter.setBrush(QColor(255, 255, 100, 200));
+  painter.setBrush(cursor_color);
   painter.setPen(Qt::NoPen);
   painter.drawPath(handle);
 
   // Time label next to the triangle
-  painter.setPen(QColor(255, 255, 100, 200));
+  painter.setPen(cursor_color);
   painter.setFont(QFont("monospace", 8));
   QString time_str = QString::number(m_cursor_time, 'g', 6);
   QRectF text_rect(x + 7, MARGIN_TOP - 2, 80, 14);
@@ -734,12 +768,14 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   QPainter painter(this);
 
   // Background
-  painter.fillRect(rect(), QColor(30, 30, 30));
+  painter.fillRect(rect(), m_theme == Theme::Light ? QColor(255, 255, 255)
+                                                   : QColor(30, 30, 30));
 
   // Plot area border
   double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  painter.setPen(QPen(QColor(80, 80, 80), 1));
+  painter.setPen(QPen(
+      m_theme == Theme::Light ? QColor(180, 180, 180) : QColor(80, 80, 80), 1));
   painter.drawRect(QRectF(MARGIN_LEFT, MARGIN_TOP, plot_w, plot_h));
 
   // Clip to plot area for signals
@@ -757,9 +793,12 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
     x2 = std::min(x2, (double)(width() - MARGIN_RIGHT));
     double left = std::min(x1, x2);
     double right = std::max(x1, x2);
-    painter.fillRect(QRectF(left, MARGIN_TOP, right - left, plot_h),
-                     QColor(255, 255, 100, 40));
-    painter.setPen(QPen(QColor(255, 255, 100, 160), 1));
+    QColor rb_fill = (m_theme == Theme::Light) ? QColor(220, 50, 50, 40)
+                                               : QColor(255, 255, 100, 40);
+    QColor rb_edge = (m_theme == Theme::Light) ? QColor(220, 50, 50, 160)
+                                               : QColor(255, 255, 100, 160);
+    painter.fillRect(QRectF(left, MARGIN_TOP, right - left, plot_h), rb_fill);
+    painter.setPen(QPen(rb_edge, 1));
     painter.drawLine(QPointF(left, MARGIN_TOP),
                      QPointF(left, MARGIN_TOP + plot_h));
     painter.drawLine(QPointF(right, MARGIN_TOP),
