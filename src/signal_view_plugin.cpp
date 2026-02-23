@@ -72,6 +72,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
 
   QDomElement settings_elem = doc.createElement("settings");
   settings_elem.setAttribute("snap", m_widget->snapAmount());
+  settings_elem.setAttribute("theme", (int)m_widget->theme());
   parent_element.appendChild(settings_elem);
 
   // Overlay layers (including base layer time offset)
@@ -170,6 +171,8 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
   if (!settings_elem.isNull()) {
     double snap = settings_elem.attribute("snap", "0.01").toDouble();
     m_widget->setSnapAmount(snap);
+    Theme theme = (Theme)settings_elem.attribute("theme", "0").toInt();
+    m_widget->applyTheme(theme);
   }
 
   // Restore splitter sizes

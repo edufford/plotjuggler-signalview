@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QComboBox>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSplitter>
 #include <QWidget>
@@ -36,6 +37,11 @@ class SignalViewWidget : public QWidget {
   void setSnapIndex(int index);
   void refreshOverlayUI();  // call after programmatic overlay changes (e.g. XML
                             // restore)
+
+  Theme theme() const { return m_theme; }
+  // Apply theme without transforming signal colors (for XML restore, where
+  // colors are already in the correct mode).
+  void applyTheme(Theme t);
 
  signals:
   void closeRequested();
@@ -82,6 +88,7 @@ class SignalViewWidget : public QWidget {
   double m_scroll_offset = 0.0;
 
   // Qt parent-child owned (parent = this or a splitter/layout).
+  QPushButton* m_btn_theme = nullptr;
   PlotCanvas* m_canvas;
   YAxisPanel* m_y_axis_panel;
   QSplitter* m_main_splitter;
