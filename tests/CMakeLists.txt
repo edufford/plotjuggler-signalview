@@ -113,3 +113,12 @@ add_executable(test_signal_path
 target_include_directories(test_signal_path PRIVATE ${TEST_INCLUDE_DIRS})
 target_link_libraries(test_signal_path PRIVATE ${UI_TEST_LINK_LIBS})
 add_test(NAME SignalPath COMMAND test_signal_path)
+
+# Test 9: Dark/Light theme (mirrorLightness math, PlotCanvas, YAxisBar)
+add_executable(test_theme
+    test_theme.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_theme PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_theme PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME Theme COMMAND test_theme)
