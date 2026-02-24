@@ -279,16 +279,15 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   // Dark/Light theme toggle: apply HSL lightness mirror (L → 0.9 − L) to
   // every signal color.  Applying it twice restores the original color, so
   // toggling back and forth is lossless for all colors.
-  connect(m_btn_theme, &QPushButton::toggled, this,
-          [this](bool checked) {
-            for (auto& sig : m_signals) {
-              sig.color = mirrorLightness(sig.color);
-            }
-            m_theme = checked ? Theme::Light : Theme::Dark;
-            m_canvas->setTheme(m_theme);
-            m_y_axis_panel->setTheme(m_theme);
-            refreshViews();
-          });
+  connect(m_btn_theme, &QPushButton::toggled, this, [this](bool checked) {
+    for (auto& sig : m_signals) {
+      sig.color = mirrorLightness(sig.color);
+    }
+    m_theme = checked ? Theme::Light : Theme::Dark;
+    m_canvas->setTheme(m_theme);
+    m_y_axis_panel->setTheme(m_theme);
+    refreshViews();
+  });
 
   // Shift layer combo
   connect(m_shift_layer_combo,

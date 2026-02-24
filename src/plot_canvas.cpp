@@ -305,8 +305,8 @@ void PlotCanvas::applyThemeStylesheet() {
 void PlotCanvas::setTheme(Theme theme) {
   m_theme = theme;
   QPalette pal = palette();
-  pal.setColor(QPalette::Window,
-               theme == Theme::Light ? QColor(255, 255, 255) : QColor(30, 30, 30));
+  pal.setColor(QPalette::Window, theme == Theme::Light ? QColor(255, 255, 255)
+                                                       : QColor(30, 30, 30));
   setPalette(pal);
   applyThemeStylesheet();
   update();
@@ -384,8 +384,8 @@ void PlotCanvas::drawGrid(QPainter& painter) {
     int n_ticks = sig.tickCount(band_pixel_h);
 
     painter.setPen(QPen(
-        m_theme == Theme::Light ? QColor(170, 170, 170) : QColor(80, 80, 80),
-        1, Qt::DotLine));
+        m_theme == Theme::Light ? QColor(170, 170, 170) : QColor(80, 80, 80), 1,
+        Qt::DotLine));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
@@ -460,8 +460,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
   int decimals = std::max(0, (int)std::ceil(-std::log10(nice_step)));
 
   painter.setFont(QFont("monospace", 8));
-  painter.setPen(
-      m_theme == Theme::Light ? QColor(60, 60, 60) : QColor(180, 180, 180));
+  painter.setPen(m_theme == Theme::Light ? QColor(60, 60, 60)
+                                         : QColor(180, 180, 180));
 
   double t_start = std::ceil(m_view_t_min / nice_step) * nice_step;
   for (double t = t_start; t <= m_view_t_max; t += nice_step) {
@@ -735,7 +735,7 @@ void PlotCanvas::drawCursor(QPainter& painter) {
   }
 
   QColor cursor_color = (m_theme == Theme::Light) ? QColor(220, 50, 50, 200)
-                                                   : QColor(255, 255, 100, 200);
+                                                  : QColor(255, 255, 100, 200);
   painter.setPen(QPen(cursor_color, 1, Qt::DashLine));
   painter.drawLine(QPointF(x, MARGIN_TOP), QPointF(x, MARGIN_TOP + plot_h));
 
@@ -856,8 +856,8 @@ void PlotCanvas::keyPressEvent(QKeyEvent* event) {
 
 void PlotCanvas::mouseDoubleClickEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton && m_mode == InteractionMode::Normal) {
-    m_cursor_time = std::clamp(pixelXToTime(event->pos().x()),
-                               m_view_t_min, m_view_t_max);
+    m_cursor_time =
+        std::clamp(pixelXToTime(event->pos().x()), m_view_t_min, m_view_t_max);
     emit cursorMoved(m_cursor_time);
     setCursor(Qt::SizeHorCursor);
     update();
@@ -938,8 +938,8 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       if (plot_w > 0) {
         double dx = event->pos().x() - m_cursor_drag_start_x;
         double dt = dx / plot_w * (m_view_t_max - m_view_t_min);
-        m_cursor_time = std::clamp(m_cursor_drag_start_time + dt,
-                                   m_view_t_min, m_view_t_max);
+        m_cursor_time = std::clamp(m_cursor_drag_start_time + dt, m_view_t_min,
+                                   m_view_t_max);
         emit cursorMoved(m_cursor_time);
         update();
       }
