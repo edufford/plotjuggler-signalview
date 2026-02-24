@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QComboBox>
-#include <QPushButton>
 #include <QScrollBar>
 #include <QSplitter>
 #include <QWidget>
@@ -88,7 +87,6 @@ class SignalViewWidget : public QWidget {
   double m_scroll_offset = 0.0;
 
   // Qt parent-child owned (parent = this or a splitter/layout).
-  QPushButton* m_btn_theme = nullptr;
   PlotCanvas* m_canvas;
   YAxisPanel* m_y_axis_panel;
   QSplitter* m_main_splitter;

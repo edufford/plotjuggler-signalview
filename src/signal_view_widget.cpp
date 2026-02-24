@@ -165,10 +165,9 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_overlay);
   toolbar->addSeparator();
 
-  m_btn_theme = new QPushButton("Dark/Light", this);
-  m_btn_theme->setCheckable(true);
-  m_btn_theme->setToolTip("Toggle Dark/Light theme");
-  toolbar->addWidget(m_btn_theme);
+  auto* btn_theme = new QPushButton("Dark/Light", this);
+  btn_theme->setToolTip("Toggle Dark/Light theme");
+  toolbar->addWidget(btn_theme);
   toolbar->addSeparator();
   toolbar->addWidget(btn_close);
 
@@ -279,11 +278,11 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   // Dark/Light theme toggle: apply HSL lightness mirror (L → 0.9 − L) to
   // every signal color.  Applying it twice restores the original color, so
   // toggling back and forth is lossless for all colors.
-  connect(m_btn_theme, &QPushButton::toggled, this, [this](bool checked) {
+  connect(btn_theme, &QPushButton::clicked, this, [this]() {
     for (auto& sig : m_signals) {
       sig.color = mirrorLightness(sig.color);
     }
-    m_theme = checked ? Theme::Light : Theme::Dark;
+    m_theme = (m_theme == Theme::Dark) ? Theme::Light : Theme::Dark;
     m_canvas->setTheme(m_theme);
     m_y_axis_panel->setTheme(m_theme);
     refreshViews();
@@ -672,9 +671,6 @@ void SignalViewWidget::setSnapIndex(int index) {
 
 void SignalViewWidget::applyTheme(Theme t) {
   m_theme = t;
-  m_btn_theme->blockSignals(true);
-  m_btn_theme->setChecked(t == Theme::Light);
-  m_btn_theme->blockSignals(false);
   m_canvas->setTheme(t);
   m_y_axis_panel->setTheme(t);
 }
