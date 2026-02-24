@@ -29,7 +29,7 @@ void OverlayManager::setBaseData(PJ::PlotDataMapRef* data) {
     m_layers.insert(m_layers.begin(), std::move(base));
 
     // Re-number if needed
-    for (int i = 0; i < (int)m_layers.size(); i++) {
+    for (int i = 0; i < static_cast<int>(m_layers.size()); i++) {
       m_layers[i].index = i + 1;
     }
   }

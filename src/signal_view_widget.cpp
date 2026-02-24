@@ -460,7 +460,7 @@ void SignalViewWidget::onCursorMoved(double time) {
 }
 
 void SignalViewWidget::onYRangeChanged(int index, double y_min, double y_max) {
-  if (index < 0 || index >= (int)m_signals.size()) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
     return;
   }
 
@@ -486,7 +486,7 @@ void SignalViewWidget::onYRangeChanged(int index, double y_min, double y_max) {
 }
 
 void SignalViewWidget::onBandOffsetChanged(int index, double new_center) {
-  if (index < 0 || index >= (int)m_signals.size()) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
     return;
   }
 
@@ -545,7 +545,7 @@ void SignalViewWidget::onBandOffsetChanged(int index, double new_center) {
 
 void SignalViewWidget::onBandResized(int index, double new_center,
                                      double new_height) {
-  if (index < 0 || index >= (int)m_signals.size()) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
     return;
   }
 
@@ -608,7 +608,7 @@ void SignalViewWidget::onBandResized(int index, double new_center,
 }
 
 void SignalViewWidget::onBarXChanged(int index, double new_bar_x) {
-  if (index < 0 || index >= (int)m_signals.size()) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
     return;
   }
 
@@ -682,7 +682,7 @@ void SignalViewWidget::refreshOverlayUI() {
 }
 
 void SignalViewWidget::onRemoveSignalByIndex(int index) {
-  if (index < 0 || index >= (int)m_signals.size()) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
     return;
   }
   m_signals.erase(m_signals.begin() + index);
@@ -709,10 +709,10 @@ void SignalViewWidget::updateScrollBar() {
   // Ensure at least 2 screens worth of scrollable space
   double max_extent = std::max(max_bottom, 2.0);
   // Scrollable range: from 0 to (max_extent - 1.0), scaled by 1000
-  int range = std::max(0, (int)((max_extent - 1.0) * 1000));
+  int range = std::max(0, static_cast<int>((max_extent - 1.0) * 1000));
   m_scrollbar->blockSignals(true);
   m_scrollbar->setRange(0, range);
-  m_scrollbar->setValue((int)(m_scroll_offset * 1000));
+  m_scrollbar->setValue(static_cast<int>(m_scroll_offset * 1000));
   m_scrollbar->blockSignals(false);
 }
 
@@ -793,8 +793,8 @@ static EditRowWidgets populateEditRow(QTableWidget* table, int row,
   w.style_combo = new QComboBox(parent);
   int current_style_idx = 0;
   const auto& ls = lineStyleOptions();
-  for (int s = 0; s < (int)ls.size(); s++) {
-    w.style_combo->addItem(ls[s].label, (int)ls[s].style);
+  for (int s = 0; s < static_cast<int>(ls.size()); s++) {
+    w.style_combo->addItem(ls[s].label, static_cast<int>(ls[s].style));
     if (ls[s].style == sig.line_style) {
       current_style_idx = s;
     }
@@ -806,8 +806,8 @@ static EditRowWidgets populateEditRow(QTableWidget* table, int row,
   w.marker_combo = new QComboBox(parent);
   int current_marker_idx = 0;
   const auto& ms = markerStyleOptions();
-  for (int m = 0; m < (int)ms.size(); m++) {
-    w.marker_combo->addItem(ms[m].label, (int)ms[m].style);
+  for (int m = 0; m < static_cast<int>(ms.size()); m++) {
+    w.marker_combo->addItem(ms[m].label, static_cast<int>(ms[m].style));
     if (ms[m].style == sig.marker_style) {
       current_marker_idx = m;
     }
@@ -882,7 +882,7 @@ static void wireEditTablePropagation(QTableWidget* table,
     return false;
   };
 
-  for (int row = 0; row < (int)rows.size(); row++) {
+  for (int row = 0; row < static_cast<int>(rows.size()); row++) {
     // Text edits: width, min, max, divisions
     QObject::connect(rows[row].width_edit, &QLineEdit::textEdited, dlg,
                      [propagateText, row]() { propagateText(row, 4); });
@@ -973,14 +973,14 @@ static void wireEditTablePropagation(QTableWidget* table,
 static void applyEditTableResults(const std::vector<EditRowWidgets>& rows,
                                   const std::vector<int>& row_to_idx,
                                   std::vector<SignalEntry>& entries) {
-  for (int row = 0; row < (int)row_to_idx.size(); row++) {
+  for (int row = 0; row < static_cast<int>(row_to_idx.size()); row++) {
     int sig_idx = row_to_idx[row];
     const auto& w = rows[row];
     entries[sig_idx].color = w.color;
     entries[sig_idx].line_style =
-        (Qt::PenStyle)w.style_combo->currentData().toInt();
+        static_cast<Qt::PenStyle>(w.style_combo->currentData().toInt());
     entries[sig_idx].marker_style =
-        (MarkerStyle)w.marker_combo->currentData().toInt();
+        static_cast<MarkerStyle>(w.marker_combo->currentData().toInt());
     bool ok_w = false;
     double new_w = w.width_edit->text().toDouble(&ok_w);
     if (ok_w && new_w >= 0.1 && new_w <= 10.0) {
@@ -1002,7 +1002,8 @@ static void applyEditTableResults(const std::vector<EditRowWidgets>& rows,
 }
 
 void SignalViewWidget::onEditYRange(int clicked_index) {
-  if (clicked_index < 0 || clicked_index >= (int)m_signals.size()) {
+  if (clicked_index < 0 ||
+      clicked_index >= static_cast<int>(m_signals.size())) {
     return;
   }
 
@@ -1015,7 +1016,7 @@ void SignalViewWidget::onEditYRange(int clicked_index) {
   dlg.setWindowTitle("Edit Y Range");
   auto* layout = new QVBoxLayout(&dlg);
 
-  auto* table = new QTableWidget((int)row_to_idx.size(), 8, &dlg);
+  auto* table = new QTableWidget(static_cast<int>(row_to_idx.size()), 8, &dlg);
   table->setHorizontalHeaderLabels({"Signal", "Color", "Line Style", "Marker",
                                     "Line Width", "Y Min", "Y Max",
                                     "Divisions"});
@@ -1034,7 +1035,7 @@ void SignalViewWidget::onEditYRange(int clicked_index) {
   // Populate rows
   std::vector<EditRowWidgets> rows;
   rows.reserve(row_to_idx.size());
-  for (int row = 0; row < (int)row_to_idx.size(); row++) {
+  for (int row = 0; row < static_cast<int>(row_to_idx.size()); row++) {
     rows.push_back(
         populateEditRow(table, row, m_signals[row_to_idx[row]], &dlg));
   }
@@ -1049,7 +1050,7 @@ void SignalViewWidget::onEditYRange(int clicked_index) {
   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
   layout->addWidget(table);
   layout->addWidget(buttons);
-  dlg.resize(920, 50 + 30 * (int)row_to_idx.size() + 60);
+  dlg.resize(920, 50 + 30 * static_cast<int>(row_to_idx.size()) + 60);
 
   if (dlg.exec() != QDialog::Accepted) {
     return;
@@ -1069,7 +1070,7 @@ void SignalViewWidget::onDeleteSelected() {
   std::vector<int> indices(sel.begin(), sel.end());
   std::sort(indices.rbegin(), indices.rend());
   for (int i : indices) {
-    if (i >= 0 && i < (int)m_signals.size()) {
+    if (i >= 0 && i < static_cast<int>(m_signals.size())) {
       m_signals.erase(m_signals.begin() + i);
     }
   }
@@ -1122,7 +1123,7 @@ void SignalViewWidget::onAutoScale() {
   const auto& sel = m_y_axis_panel->selection();
   bool changed = false;
 
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     if (!sel.empty() && sel.count(i) == 0) {
       continue;
     }
@@ -1178,7 +1179,7 @@ void SignalViewWidget::onAutoScale() {
 }
 
 void SignalViewWidget::autoAssignBands() {
-  int n = (int)m_signals.size();
+  int n = static_cast<int>(m_signals.size());
   if (n == 0) {
     return;
   }
@@ -1212,7 +1213,7 @@ void SignalViewWidget::onVerticalScroll(double delta) {
   m_canvas->setScrollOffset(m_scroll_offset);
   m_y_axis_panel->setScrollOffset(m_scroll_offset);
   m_scrollbar->blockSignals(true);
-  m_scrollbar->setValue((int)(m_scroll_offset * 1000));
+  m_scrollbar->setValue(static_cast<int>(m_scroll_offset * 1000));
   m_scrollbar->blockSignals(false);
 }
 
@@ -1375,7 +1376,7 @@ void SignalViewWidget::onStyleLayer(int layer_index) {
   style_layout->addWidget(new QLabel("Line Style:", &dlg));
   auto* style_combo = new QComboBox(&dlg);
   for (const auto& opt : lineStyleOptions()) {
-    style_combo->addItem(opt.label, (int)opt.style);
+    style_combo->addItem(opt.label, static_cast<int>(opt.style));
   }
   style_layout->addWidget(style_combo);
   layout->addLayout(style_layout);
@@ -1400,7 +1401,8 @@ void SignalViewWidget::onStyleLayer(int layer_index) {
   }
 
   // Apply to all signals from this layer
-  Qt::PenStyle new_style = (Qt::PenStyle)style_combo->currentData().toInt();
+  Qt::PenStyle new_style =
+      static_cast<Qt::PenStyle>(style_combo->currentData().toInt());
   bool ok_w;
   double new_width = width_edit->text().toDouble(&ok_w);
   if (!ok_w || new_width < 0.1) {
@@ -1431,7 +1433,7 @@ void SignalViewWidget::updateSelectedLayers() {
   std::set<int> layers;
   const auto& sel = m_y_axis_panel->selection();
   for (int idx : sel) {
-    if (idx >= 0 && idx < (int)m_signals.size()) {
+    if (idx >= 0 && idx < static_cast<int>(m_signals.size())) {
       auto parsed = OverlayManager::parsePrefixedName(m_signals[idx].name);
       int layer = (parsed.layer == 0) ? 1 : parsed.layer;
       layers.insert(layer);

@@ -59,7 +59,7 @@ int SignalColumnBase::effectiveDragIndex() const {
 int SignalColumnBase::hitTestSignal(const QPoint& pos) const {
   auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
                                              TEXT_ROW_HEIGHT, m_scroll_offset);
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     double top = AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
     double row_y = top + offsets[i];
     if (pos.y() >= row_y && pos.y() <= row_y + TEXT_ROW_HEIGHT) {
@@ -78,7 +78,7 @@ void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
   auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
                                              TEXT_ROW_HEIGHT, m_scroll_offset);
 
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     double top = AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
     double row_y = top + offsets[i];
     if (m_selected.count(i)) {
@@ -208,7 +208,7 @@ SignalNameColumn::SignalNameColumn(QWidget* parent)
 
 void SignalNameColumn::paintContent(QPainter& painter,
                                     const std::vector<double>& offsets) {
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (size_t i = 0; i < m_signals.size(); i++) {
     const auto& sig = m_signals[i];
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double row_y = top + offsets[i];
@@ -247,12 +247,12 @@ void SignalValueColumn::setCursorValues(const std::vector<double>& values,
 
 void SignalValueColumn::paintContent(QPainter& painter,
                                      const std::vector<double>& offsets) {
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (size_t i = 0; i < m_signals.size(); i++) {
     const auto& sig = m_signals[i];
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double row_y = top + offsets[i];
 
-    if (i < (int)m_cursor_valid.size()) {
+    if (i < m_cursor_valid.size()) {
       painter.setPen(sig.color);
       QFont readout_font("monospace", 10, QFont::Bold);
       painter.setFont(readout_font);
@@ -384,7 +384,7 @@ void YAxisBarColumn::setSignalEntries(const std::vector<SignalEntry>& entries) {
   m_signals = entries;
   // Prune selected indices that are now out of range
   for (auto it = m_selected.begin(); it != m_selected.end();) {
-    if (*it >= (int)entries.size()) {
+    if (*it >= static_cast<int>(entries.size())) {
       it = m_selected.erase(it);
     } else {
       ++it;
@@ -407,7 +407,7 @@ void YAxisBarColumn::clearSelection() {
 
 void YAxisBarColumn::selectAll() {
   m_selected.clear();
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     m_selected.insert(i);
   }
   emit selectionChanged();
@@ -434,7 +434,7 @@ double YAxisBarColumn::axisX(double bar_x_norm) const {
 }
 
 YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
-  for (int i = 0; i < (int)m_signals.size(); i++) {
+  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     double ax = axisX(m_signals[i].bar_x_norm);
 
     // Check horizontal proximity to this bar's axis
@@ -470,8 +470,7 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
   painter.fillRect(rect(), m_theme == Theme::Light ? QColor(250, 250, 250)
                                                    : QColor(30, 30, 30));
 
-  for (int i = 0; i < (int)m_signals.size(); i++) {
-    const auto& sig = m_signals[i];
+  for (const auto& sig : m_signals) {
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double bottom = AxisLayout::bandBottomY(sig, height(), m_scroll_offset);
     double band_pixel_h = bottom - top;
@@ -500,7 +499,7 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
                                            : QColor(170, 170, 170));
 
     for (int t = 0; t <= n_ticks; t++) {
-      double frac = (double)t / n_ticks;
+      double frac = static_cast<double>(t) / n_ticks;
       double y = bottom - frac * band_pixel_h;
       double val = sig.y_min + frac * (sig.y_max - sig.y_min);
 
@@ -662,7 +661,7 @@ void YAxisBarColumn::mouseReleaseEvent(QMouseEvent* /*event*/) {
       if (m_rubber_band_ctrl) {
         new_sel = m_selected;  // Ctrl: add to existing
       }
-      for (int i = 0; i < (int)m_signals.size(); i++) {
+      for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
         double top =
             AxisLayout::bandTopY(m_signals[i], height(), m_scroll_offset);
         double bottom =
@@ -818,7 +817,7 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
                 15;  // matches SignalNameColumn::TEXT_ROW_HEIGHT
             auto offsets = AxisLayout::textRowYOffsets(
                 m_signals, h, row_h, m_bar_col->scrollOffset());
-            for (int i = 0; i < (int)m_signals.size(); i++) {
+            for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
               double row_top = AxisLayout::bandTopY(m_signals[i], h,
                                                     m_bar_col->scrollOffset()) +
                                offsets[i];

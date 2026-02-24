@@ -50,8 +50,9 @@ struct SignalEntry {
   int tickCount(double band_pixel_h) const {
     return (divisions > 0)
                ? divisions
-               : std::clamp((int)(band_pixel_h / PIXELS_PER_AUTO_TICK), 2,
-                            MAX_DIVISIONS);
+               : std::clamp(
+                     static_cast<int>(band_pixel_h / PIXELS_PER_AUTO_TICK), 2,
+                     MAX_DIVISIONS);
   }
 };
 

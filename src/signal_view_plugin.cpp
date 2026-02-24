@@ -55,9 +55,9 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
     sig_elem.setAttribute("band_height_norm", sig.band_height_norm);
     sig_elem.setAttribute("bar_x_norm", sig.bar_x_norm);
     sig_elem.setAttribute("divisions", sig.divisions);
-    sig_elem.setAttribute("line_style", (int)sig.line_style);
+    sig_elem.setAttribute("line_style", static_cast<int>(sig.line_style));
     sig_elem.setAttribute("line_width", sig.line_width);
-    sig_elem.setAttribute("marker_style", (int)sig.marker_style);
+    sig_elem.setAttribute("marker_style", static_cast<int>(sig.marker_style));
     parent_element.appendChild(sig_elem);
   }
 
@@ -72,7 +72,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
 
   QDomElement settings_elem = doc.createElement("settings");
   settings_elem.setAttribute("snap", m_widget->snapAmount());
-  settings_elem.setAttribute("theme", (int)m_widget->theme());
+  settings_elem.setAttribute("theme", static_cast<int>(m_widget->theme()));
   parent_element.appendChild(settings_elem);
 
   // Overlay layers (including base layer time offset)
@@ -135,15 +135,17 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
         sig_elem.attribute("band_height_norm", "1.0").toDouble();
     entry.bar_x_norm = sig_elem.attribute("bar_x_norm", "1.0").toDouble();
     entry.divisions = sig_elem.attribute("divisions", "8").toInt();
-    entry.line_style =
-        (Qt::PenStyle)sig_elem
-            .attribute("line_style", QString::number((int)Qt::SolidLine))
-            .toInt();
+    entry.line_style = static_cast<Qt::PenStyle>(
+        sig_elem
+            .attribute("line_style",
+                       QString::number(static_cast<int>(Qt::SolidLine)))
+            .toInt());
     entry.line_width = sig_elem.attribute("line_width", "1.5").toDouble();
-    entry.marker_style =
-        (MarkerStyle)sig_elem
-            .attribute("marker_style", QString::number((int)MarkerStyle::None))
-            .toInt();
+    entry.marker_style = static_cast<MarkerStyle>(
+        sig_elem
+            .attribute("marker_style",
+                       QString::number(static_cast<int>(MarkerStyle::None)))
+            .toInt());
 
     // Don't check data existence here — data is loaded after plugins
     sig_entries.push_back(entry);
@@ -171,7 +173,8 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
   if (!settings_elem.isNull()) {
     double snap = settings_elem.attribute("snap", "0.01").toDouble();
     m_widget->setSnapAmount(snap);
-    Theme theme = (Theme)settings_elem.attribute("theme", "0").toInt();
+    Theme theme =
+        static_cast<Theme>(settings_elem.attribute("theme", "0").toInt());
     m_widget->applyTheme(theme);
   }
 
