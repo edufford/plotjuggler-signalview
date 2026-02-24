@@ -72,8 +72,8 @@ int SignalColumnBase::hitTestSignal(const QPoint& pos) const {
 void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), m_theme == Theme::Light ? QColor(245, 245, 248)
-                                                   : QColor(32, 32, 38));
+  painter.fillRect(rect(), m_theme == Theme::Light ? QColor(250, 250, 250)
+                                                   : QColor(30, 30, 30));
 
   auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
                                              TEXT_ROW_HEIGHT, m_scroll_offset);
