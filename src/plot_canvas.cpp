@@ -74,7 +74,7 @@ QCursor makeTimeShiftCursor() {
   constexpr double wave_w = 9, wave_h = 5;
   constexpr int steps = 20;
   for (int i = 0; i <= steps; i++) {
-    double t = (double)i / steps;
+    double t = static_cast<double>(i) / steps;
     double x = wave_cx - wave_w + 2 * wave_w * t;
     double y = wave_cy - wave_h * std::sin(t * 2 * M_PI);
     if (i == 0) {
@@ -388,7 +388,7 @@ void PlotCanvas::drawGrid(QPainter& painter) {
         Qt::DotLine));
 
     for (int t = 0; t <= n_ticks; t++) {
-      double frac = (double)t / n_ticks;
+      double frac = static_cast<double>(t) / n_ticks;
       double y = band_bottom - frac * band_pixel_h;
       painter.drawLine(QPointF(MARGIN_LEFT, y),
                        QPointF(width() - MARGIN_RIGHT, y));
@@ -457,7 +457,8 @@ void PlotCanvas::drawTimeAxis(QPainter& painter) {
     nice_step = 10.0 * magnitude;
   }
 
-  int decimals = std::max(0, (int)std::ceil(-std::log10(nice_step)));
+  int decimals =
+      std::max(0, static_cast<int>(std::ceil(-std::log10(nice_step))));
 
   painter.setFont(QFont("monospace", 8));
   painter.setPen(m_theme == Theme::Light ? QColor(60, 60, 60)
@@ -520,9 +521,11 @@ void PlotCanvas::drawSignals(QPainter& painter) {
     auto ub = std::lower_bound(
         series.begin(), series.end(), PJ::PlotData::Point(local_t_max, 0.0),
         [](const auto& a, const auto& b) { return a.x < b.x; });
-    size_t end_idx = std::min((size_t)(ub - series.begin() + 1), series.size());
+    size_t end_idx =
+        std::min(static_cast<size_t>(ub - series.begin() + 1), series.size());
     size_t visible_count = (end_idx > start_idx) ? (end_idx - start_idx) : 0;
-    bool downsample = (plot_w > 0 && visible_count > (size_t)(plot_w * 2));
+    bool downsample =
+        (plot_w > 0 && visible_count > static_cast<size_t>(plot_w * 2));
 
     // Build step-wise path with optional per-pixel downsampling
     QPainterPath path =
@@ -613,7 +616,7 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
       if (t > m_view_t_max) {
         // Flush current column
         if (prev_px_col >= 0 && !first) {
-          double cpx = (double)prev_px_col;
+          double cpx = static_cast<double>(prev_px_col);
           // Hold line from previous position
           path.lineTo(cpx, path.currentPosition().y());
           path.lineTo(cpx, col_first_y);
@@ -639,7 +642,7 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
 
       double px = timeToPixelX(t);
       double py = valueToPixelY(pt.y, sig);
-      int px_col = (int)std::round(px);
+      int px_col = static_cast<int>(std::round(px));
 
       if (first) {
         path.moveTo(px, py);
@@ -652,7 +655,7 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
 
       if (px_col == prev_px_col) {
         // Same pixel column — accumulate min/max
-        int idx = (int)(i - start_idx);
+        int idx = static_cast<int>(i - start_idx);
         if (py < col_min_y) {
           col_min_y = py;
           col_min_idx = idx;
@@ -664,7 +667,7 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
         col_last_y = py;
       } else {
         // Flush previous pixel column
-        double cpx = (double)prev_px_col;
+        double cpx = static_cast<double>(prev_px_col);
         path.lineTo(cpx, path.currentPosition().y());
         path.lineTo(cpx, col_first_y);
         if (col_min_idx < col_max_idx) {
@@ -679,13 +682,13 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
         // Start new column
         prev_px_col = px_col;
         col_first_y = col_min_y = col_max_y = col_last_y = py;
-        col_min_idx = col_max_idx = (int)(i - start_idx);
+        col_min_idx = col_max_idx = static_cast<int>(i - start_idx);
       }
     }
 
     // Flush last column if loop ended without exceeding view
     if (prev_px_col >= 0 && !first) {
-      double cpx = (double)prev_px_col;
+      double cpx = static_cast<double>(prev_px_col);
       path.lineTo(cpx, path.currentPosition().y());
       path.lineTo(cpx, col_first_y);
       if (col_min_idx < col_max_idx) {
@@ -787,10 +790,12 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
 
   // Zoom rubber band overlay
   if (m_drag_state == DragState::ZoomSelect) {
-    double x1 = std::max(m_zoom_select_start_x, (double)MARGIN_LEFT);
-    double x2 = std::max(m_zoom_select_current_x, (double)MARGIN_LEFT);
-    x1 = std::min(x1, (double)(width() - MARGIN_RIGHT));
-    x2 = std::min(x2, (double)(width() - MARGIN_RIGHT));
+    double x1 =
+        std::max(m_zoom_select_start_x, static_cast<double>(MARGIN_LEFT));
+    double x2 =
+        std::max(m_zoom_select_current_x, static_cast<double>(MARGIN_LEFT));
+    x1 = std::min(x1, static_cast<double>(width() - MARGIN_RIGHT));
+    x2 = std::min(x2, static_cast<double>(width() - MARGIN_RIGHT));
     double left = std::min(x1, x2);
     double right = std::max(x1, x2);
     QColor rb_fill = (m_theme == Theme::Light) ? QColor(220, 50, 50, 40)
