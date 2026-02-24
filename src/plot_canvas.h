@@ -24,6 +24,8 @@ enum class MarkerStyle : int {
   OpenTriangle,
 };
 
+enum class Theme : int { Dark = 0, Light = 1 };
+
 struct SignalEntry {
   std::string name;
   QColor color;
@@ -77,6 +79,8 @@ class PlotCanvas : public QWidget {
   void setTimeShiftMode(bool enabled);
   void setSelectedLayers(const std::set<int>& layers);
   void setDefaultShiftLayer(int layer_index);
+  void setTheme(Theme theme);
+  Theme theme() const { return m_theme; }
 
  signals:
   void cursorMoved(double time);
@@ -167,6 +171,9 @@ class PlotCanvas : public QWidget {
   QLineEdit* m_time_end_edit;
   void repositionTimeEdits();
   void updateTimeEditTexts();
+
+  Theme m_theme = Theme::Dark;
+  void applyThemeStylesheet();
 
  public:
   // Layout constants — public so YAxisPanel can align with the plot area

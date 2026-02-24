@@ -18,6 +18,7 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - **Customizable appearance**: per-signal color, line style, line width, marker style, and Y-axis divisions
 - **Layout persistence**: full save/restore of signal configuration, overlays, and view state via PlotJuggler layout files
 - **Plot cursor navigation**: double-click to jump the cursor, drag within 5 px to slide it, or use left/right arrow keys for single-pixel steps
+- **Dark/Light theme**: toggle between dark (default) and light mode; signal colors are converted via an invertible HSL lightness mirror so switching back always restores the original colors exactly; theme is saved and restored with the layout
 
 ## Requirements
 
@@ -107,6 +108,7 @@ Then go to **Tools > Signal View** to open the plugin.
 3. Click **Overlay** to load a CSV file for comparison
 4. Toggle **Time Shift** and drag on the canvas to align data layers
 5. Toggle **H. Zoom** and drag to zoom into a time range
+6. Click **Dark/Light** to switch themes
 
 ## Testing
 
@@ -118,7 +120,7 @@ Run the unit tests with:
 ./test.sh
 ```
 
-This builds with Google Test and runs all test suites via CTest. Tests cover name parsing, overlay manager logic, axis layout calculations, CSV parsing, and UI widget interactions.
+This builds with Google Test and runs all test suites via CTest. Tests cover name parsing, overlay manager logic, axis layout calculations, CSV parsing, UI widget interactions, and Dark/Light theme logic.
 
 To output JUnit XML results (used by CI for test reporting):
 

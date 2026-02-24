@@ -39,6 +39,11 @@ void SignalColumnBase::setScrollOffset(double offset) {
   update();
 }
 
+void SignalColumnBase::setTheme(Theme theme) {
+  m_theme = theme;
+  update();
+}
+
 int SignalColumnBase::effectiveDragIndex() const {
   // Only apply drag demotion after movement starts, not on initial press.
   if (m_drag_index >= 0 && m_drag_moved) {
@@ -67,7 +72,8 @@ int SignalColumnBase::hitTestSignal(const QPoint& pos) const {
 void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), QColor(32, 32, 38));
+  painter.fillRect(rect(), m_theme == Theme::Light ? QColor(250, 250, 250)
+                                                   : QColor(30, 30, 30));
 
   auto offsets = AxisLayout::textRowYOffsets(m_signals, height(),
                                              TEXT_ROW_HEIGHT, m_scroll_offset);
@@ -77,7 +83,7 @@ void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
     double row_y = top + offsets[i];
     if (m_selected.count(i)) {
       painter.fillRect(QRectF(0, row_y, width(), TEXT_ROW_HEIGHT),
-                       QColor(255, 255, 255, 20));
+                       QColor(160, 160, 160, 80));
     }
   }
 
@@ -357,6 +363,14 @@ void YAxisLabelColumn::setCanvasHeight(int /*h*/) {
   m_value_col->update();
 }
 
+void YAxisLabelColumn::setTheme(Theme theme) {
+  m_name_col->setTheme(theme);
+  m_value_col->setTheme(theme);
+  const char* handle_bg = (theme == Theme::Light) ? "#bbb" : "#444";
+  m_splitter->setStyleSheet(
+      QString("QSplitter::handle { background: %1; }").arg(handle_bg));
+}
+
 // ============================================================================
 // YAxisBarColumn
 // ============================================================================
@@ -409,6 +423,11 @@ void YAxisBarColumn::setScrollOffset(double offset) {
 
 void YAxisBarColumn::setSnapAmount(double snap) { m_snap_amount = snap; }
 
+void YAxisBarColumn::setTheme(Theme theme) {
+  m_theme = theme;
+  update();
+}
+
 double YAxisBarColumn::axisX(double bar_x_norm) const {
   return AXIS_PAD_LEFT +
          bar_x_norm * (width() - AXIS_PAD_LEFT - AXIS_PAD_RIGHT);
@@ -448,7 +467,8 @@ YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
 void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
-  painter.fillRect(rect(), QColor(30, 30, 30));
+  painter.fillRect(rect(), m_theme == Theme::Light ? QColor(250, 250, 250)
+                                                   : QColor(30, 30, 30));
 
   for (int i = 0; i < (int)m_signals.size(); i++) {
     const auto& sig = m_signals[i];
@@ -461,7 +481,6 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     }
 
     double ax = axisX(sig.bar_x_norm);
-
     // Color stripe (right of axis)
     painter.fillRect(QRectF(ax + 2, top, 4, band_pixel_h), sig.color);
 
@@ -477,7 +496,8 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     // Tick marks and value labels
     int n_ticks = sig.tickCount(band_pixel_h);
     painter.setFont(QFont("monospace", 7));
-    painter.setPen(QColor(170, 170, 170));
+    painter.setPen(m_theme == Theme::Light ? QColor(60, 60, 60)
+                                           : QColor(170, 170, 170));
 
     for (int t = 0; t <= n_ticks; t++) {
       double frac = (double)t / n_ticks;
@@ -865,6 +885,14 @@ void YAxisPanel::setScrollOffset(double offset) {
 }
 
 void YAxisPanel::setSnapAmount(double snap) { m_bar_col->setSnapAmount(snap); }
+
+void YAxisPanel::setTheme(Theme theme) {
+  m_label_col->setTheme(theme);
+  m_bar_col->setTheme(theme);
+  const char* handle_bg = (theme == Theme::Light) ? "#ccc" : "#555";
+  m_splitter->setStyleSheet(
+      QString("QSplitter::handle { background: %1; }").arg(handle_bg));
+}
 
 const std::set<int>& YAxisPanel::selection() const {
   return m_bar_col->selection();

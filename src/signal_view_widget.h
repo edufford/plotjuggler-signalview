@@ -37,6 +37,11 @@ class SignalViewWidget : public QWidget {
   void refreshOverlayUI();  // call after programmatic overlay changes (e.g. XML
                             // restore)
 
+  Theme theme() const { return m_theme; }
+  // Apply theme without transforming signal colors (for XML restore, where
+  // colors are already in the correct mode).
+  void applyTheme(Theme t);
+
  signals:
   void closeRequested();
 
@@ -97,6 +102,8 @@ class SignalViewWidget : public QWidget {
 
   static constexpr double DEFAULT_BAND_HEIGHT = 0.20;
 
-  // Predefined signal colors
+  // Predefined signal colors (dark-mode palette; light mode uses HSL mirror).
   static const std::vector<QColor>& signalColors();
+
+  Theme m_theme = Theme::Dark;
 };
