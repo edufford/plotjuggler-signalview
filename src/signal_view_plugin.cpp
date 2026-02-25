@@ -204,6 +204,10 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
   // Restore overlay layers
   auto overlay_mgr = m_widget->overlayManager();
   if (overlay_mgr) {
+    // Clear existing overlay layers before restoring from layout, so that
+    // loading the same layout multiple times doesn't stack up overlays.
+    overlay_mgr->clearOverlays();
+
     QDomElement overlay_elem = parent_element.firstChildElement("overlay");
     while (!overlay_elem.isNull()) {
       int layer_index = overlay_elem.attribute("layer", "0").toInt();

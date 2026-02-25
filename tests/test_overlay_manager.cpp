@@ -183,6 +183,55 @@ TEST_F(OverlayManagerTest, RemoveOverlay_CannotRemoveBaseLayer) {
   EXPECT_EQ(m_mgr.layerCount(), 1);
 }
 
+// Returns false when the layer index does not exist.
+TEST_F(OverlayManagerTest, RemoveOverlay_NonexistentLayer) {
+  m_mgr.setBaseData(&m_base_data);
+  EXPECT_FALSE(m_mgr.removeOverlay(99));
+}
+
+// A file-loaded overlay layer can be removed; layer count decreases.
+TEST_F(OverlayManagerTest, RemoveOverlay_RemovesFileLayer) {
+  m_mgr.setBaseData(&m_base_data);
+  std::string fixture = std::string(TEST_FIXTURE_DIR) + "/comma.csv";
+  int layer = m_mgr.loadOverlayFile(fixture);
+  ASSERT_GT(layer, 0);
+  EXPECT_EQ(m_mgr.layerCount(), 2);
+
+  EXPECT_TRUE(m_mgr.removeOverlay(layer));
+  EXPECT_EQ(m_mgr.layerCount(), 1);
+  EXPECT_FALSE(m_mgr.hasOverlays());
+}
+
+// clearOverlays removes all file-loaded layers and leaves the base layer.
+TEST_F(OverlayManagerTest, ClearOverlays_LeavesBaseLayer) {
+  m_mgr.setBaseData(&m_base_data);
+  std::string fixture = std::string(TEST_FIXTURE_DIR) + "/comma.csv";
+  ASSERT_GT(m_mgr.loadOverlayFile(fixture), 0);
+  ASSERT_GT(m_mgr.loadOverlayFile(fixture), 0);
+  EXPECT_EQ(m_mgr.layerCount(), 3);
+
+  m_mgr.clearOverlays();
+
+  EXPECT_EQ(m_mgr.layerCount(), 1);
+  EXPECT_FALSE(m_mgr.hasOverlays());
+}
+
+// Simulates loading a layout twice: clearing before reload prevents stacking.
+TEST_F(OverlayManagerTest, ClearOverlays_PreventStackingOnReload) {
+  m_mgr.setBaseData(&m_base_data);
+  std::string fixture = std::string(TEST_FIXTURE_DIR) + "/comma.csv";
+
+  // First "layout load": add two overlays.
+  ASSERT_GT(m_mgr.loadOverlayFile(fixture), 0);
+  ASSERT_GT(m_mgr.loadOverlayFile(fixture), 0);
+  EXPECT_EQ(m_mgr.layerCount(), 3);
+
+  // Second "layout load": clear first, then add one overlay.
+  m_mgr.clearOverlays();
+  ASSERT_GT(m_mgr.loadOverlayFile(fixture), 0);
+  EXPECT_EQ(m_mgr.layerCount(), 2);
+}
+
 // --- layerByIndex ---
 
 // Returns a pointer to the layer with the given index.
