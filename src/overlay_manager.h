@@ -45,6 +45,9 @@ class OverlayManager {
   /// Remove an overlay layer by index. Returns true if removed.
   bool removeOverlay(int layer_index);
 
+  /// Remove all overlay layers, keeping the base PJ layer.
+  void clearOverlays();
+
   /// Get all layers (read-only).
   const std::vector<OverlayLayer>& layers() const { return m_layers; }
 

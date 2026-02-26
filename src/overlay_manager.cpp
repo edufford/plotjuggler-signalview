@@ -63,6 +63,16 @@ int OverlayManager::loadOverlayFile(const std::string& file_path) {
   return new_index;
 }
 
+void OverlayManager::clearOverlays() {
+  std::vector<int> indices;
+  for (const auto& layer : m_layers) {
+    indices.push_back(layer.index);
+  }
+  for (int idx : indices) {
+    removeOverlay(idx);  // no-op for base layer
+  }
+}
+
 bool OverlayManager::removeOverlay(int layer_index) {
   auto it = std::find_if(
       m_layers.begin(), m_layers.end(),

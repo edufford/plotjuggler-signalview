@@ -37,6 +37,9 @@ add_executable(test_overlay_manager
 )
 target_include_directories(test_overlay_manager PRIVATE ${TEST_INCLUDE_DIRS})
 target_link_libraries(test_overlay_manager PRIVATE ${TEST_LINK_LIBS})
+target_compile_definitions(test_overlay_manager PRIVATE
+    TEST_FIXTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/fixtures"
+)
 add_test(NAME OverlayManager COMMAND test_overlay_manager)
 
 # Test 3: AxisLayout namespace (band geometry)
