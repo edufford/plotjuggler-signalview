@@ -30,6 +30,9 @@ class DataSetsPanel : public QWidget {
   /// User requested to remove an overlay layer.
   void removeOverlayRequested(int layer_index);
 
+  /// User requested to remove all overlay layers.
+  void clearOverlaysRequested();
+
   /// User requested to style all signals from a layer.
   void styleLayerRequested(int layer_index);
 

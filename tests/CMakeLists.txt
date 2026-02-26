@@ -125,3 +125,15 @@ add_executable(test_theme
 target_include_directories(test_theme PRIVATE ${TEST_INCLUDE_DIRS})
 target_link_libraries(test_theme PRIVATE ${UI_TEST_LINK_LIBS})
 add_test(NAME Theme COMMAND test_theme)
+
+# Test 10: DataSetsPanel context menu
+add_executable(test_data_sets_panel_ui
+    test_data_sets_panel_ui.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_data_sets_panel_ui PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_data_sets_panel_ui PRIVATE ${UI_TEST_LINK_LIBS})
+target_compile_definitions(test_data_sets_panel_ui PRIVATE
+    TEST_FIXTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/fixtures"
+)
+add_test(NAME DataSetsPanelUI COMMAND test_data_sets_panel_ui)

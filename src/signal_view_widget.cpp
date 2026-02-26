@@ -252,6 +252,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onLoadOverlay);
   connect(m_data_sets_panel, &DataSetsPanel::removeOverlayRequested, this,
           &SignalViewWidget::onRemoveOverlay);
+  connect(m_data_sets_panel, &DataSetsPanel::clearOverlaysRequested, this,
+          &SignalViewWidget::onClearOverlays);
   connect(m_data_sets_panel, &DataSetsPanel::styleLayerRequested, this,
           &SignalViewWidget::onStyleLayer);
   connect(m_data_sets_panel, &DataSetsPanel::layerRenamed, this,
@@ -1310,26 +1312,42 @@ void SignalViewWidget::onLoadOverlay() {
   refreshViews();
 }
 
-void SignalViewWidget::onRemoveOverlay(int layer_index) {
-  // Remove all signals from this layer
-  auto it = std::remove_if(m_signals.begin(), m_signals.end(),
-                           [layer_index](const SignalEntry& sig) {
-                             auto parsed =
-                                 OverlayManager::parsePrefixedName(sig.name);
-                             return parsed.layer == layer_index;
-                           });
-  m_signals.erase(it, m_signals.end());
-
-  m_overlay_mgr->removeOverlay(layer_index);
-
-  // If no overlays remain, un-prefix signal names
+void SignalViewWidget::afterOverlayChange() {
+  // If all overlays are gone, strip the "#N/" prefixes from signal names.
   if (!m_overlay_mgr->hasOverlays()) {
     migrateSignalNames(false);
   }
-
+  // Rebuild the data-sets footer to reflect the new layer list.
   m_data_sets_panel->refresh(m_overlay_mgr);
+  // Keep the time-shift layer combo in sync.
   updateShiftLayerCombo();
+  // Redraw all plots.
   refreshViews();
+}
+
+void SignalViewWidget::onRemoveOverlay(int layer_index) {
+  // Drop signal entries that belong to this layer.
+  auto it = std::remove_if(
+      m_signals.begin(), m_signals.end(),
+      [layer_index](const SignalEntry& sig) {
+        return OverlayManager::parsePrefixedName(sig.name).layer == layer_index;
+      });
+  m_signals.erase(it, m_signals.end());
+  // Remove the layer's data from the manager.
+  m_overlay_mgr->removeOverlay(layer_index);
+  afterOverlayChange();
+}
+
+void SignalViewWidget::onClearOverlays() {
+  // Drop all signal entries that belong to any overlay layer (index > 1).
+  auto it = std::remove_if(
+      m_signals.begin(), m_signals.end(), [](const SignalEntry& sig) {
+        return OverlayManager::parsePrefixedName(sig.name).layer > 1;
+      });
+  m_signals.erase(it, m_signals.end());
+  // Remove all overlay layers from the manager.
+  m_overlay_mgr->clearOverlays();
+  afterOverlayChange();
 }
 
 void SignalViewWidget::onStyleLayer(int layer_index) {
