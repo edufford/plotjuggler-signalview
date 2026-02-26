@@ -466,6 +466,11 @@ Removing an overlay:
   - All signals from that layer are removed.
   - If no overlays remain, signal names are un-prefixed.
 
+Clearing all overlays at once:
+  - Right-click any layer in the Data Sets Panel → "Clear All Overlays".
+  - All overlay layers (2+) and their signals are removed in one step.
+  - Signal names are un-prefixed after the operation.
+
 
 DATA SETS PANEL
 ---------------
@@ -486,6 +491,8 @@ Interactions:
       Line Width for all signals from that layer.
     - "Rename...": opens an input dialog to rename the layer.
     - "Remove Overlay": removes the overlay layer (only for layers 2+).
+    - "Clear All Overlays": removes all overlay layers at once (only shown
+      when at least one overlay is loaded).
     - "Load Overlay...": opens the file picker to add another overlay.
 
 When PlotJuggler provides no data, the first overlay file loaded becomes

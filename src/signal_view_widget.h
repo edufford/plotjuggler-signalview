@@ -64,10 +64,15 @@ class SignalViewWidget : public QWidget {
   void onVerticalScroll(double delta);
   void onLoadOverlay();
   void onRemoveOverlay(int layer_index);
+  void onClearOverlays();
   void onStyleLayer(int layer_index);
   void onLayerRenamed(int layer_index, const QString& name);
 
  private:
+  /// Call after any overlay layer change: un-prefix names if no overlays
+  /// remain, then refresh the panel, combo, and views.
+  void afterOverlayChange();
+
   double snapValue(double val) const;
   void refreshViews();
   void autoAssignBands();

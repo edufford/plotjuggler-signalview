@@ -135,6 +135,13 @@ void DataSetsPanel::contextMenuEvent(QContextMenuEvent* event) {
     });
   }
 
+  // Show "Clear All Overlays" only when more than the base layer is present
+  if (m_rows.size() > 1) {
+    auto* clear_action = menu.addAction("Clear All Overlays");
+    connect(clear_action, &QAction::triggered, this,
+            [this]() { emit clearOverlaysRequested(); });
+  }
+
   menu.addSeparator();
   auto* load_action = menu.addAction("Load Overlay...");
   connect(load_action, &QAction::triggered, this,
