@@ -129,6 +129,24 @@ TEST_F(AutoScaleTest, ConstantSignal_FallbackMargin) {
   EXPECT_NEAR(flat.y_max, 6.0, 1e-9);
 }
 
+// When only some signals are selected, Auto Scale only applies to them.
+TEST_F(AutoScaleTest, WithSelection_OnlyScalesSelected) {
+  m_spin->setValue(0);
+  // Select only the first signal (speed, index 0).
+  m_widget->yAxisPanel()->setSelection({0});
+  QTest::mouseClick(m_btn, Qt::LeftButton);
+
+  // speed should be scaled to its data extents.
+  const auto& speed = m_widget->signalEntries()[0];
+  EXPECT_DOUBLE_EQ(speed.y_min, 2.0);
+  EXPECT_DOUBLE_EQ(speed.y_max, 8.0);
+
+  // flat should be untouched (still has sentinel values).
+  const auto& flat = m_widget->signalEntries()[1];
+  EXPECT_DOUBLE_EQ(flat.y_min, -999.0);
+  EXPECT_DOUBLE_EQ(flat.y_max, 999.0);
+}
+
 // When the view is entirely before all data (no step-wise hold point either),
 // the signal entries are left unchanged.
 TEST_F(AutoScaleTest, NoDataInView_EntryUnchanged) {
@@ -140,6 +158,31 @@ TEST_F(AutoScaleTest, NoDataInView_EntryUnchanged) {
   const auto& speed = m_widget->signalEntries()[0];
   EXPECT_DOUBLE_EQ(speed.y_min, -999.0);
   EXPECT_DOUBLE_EQ(speed.y_max, 999.0);
+}
+
+// Clicking Group with 2 selected signals copies topmost signal's band
+// properties to all others in the selection.
+TEST_F(AutoScaleTest, GroupSignals_CopiesTopmost) {
+  // Give the two signals distinct band positions.
+  // speed (index 0): top at 0.25 - 0.15 = 0.10 → topmost.
+  // flat  (index 1): top at 0.75 - 0.15 = 0.60.
+  auto& sigs = m_widget->signalEntriesMutable();
+  sigs[0].band_center_norm = 0.25;
+  sigs[0].band_height_norm = 0.30;
+  sigs[1].band_center_norm = 0.75;
+  sigs[1].band_height_norm = 0.30;
+
+  m_widget->yAxisPanel()->setSelection({0, 1});
+
+  auto* btn_group = findButton(m_widget, "Group");
+  ASSERT_NE(btn_group, nullptr);
+  QTest::mouseClick(btn_group, Qt::LeftButton);
+
+  // flat should now share speed's band position and height.
+  const auto& s0 = m_widget->signalEntries()[0];
+  const auto& s1 = m_widget->signalEntries()[1];
+  EXPECT_DOUBLE_EQ(s1.band_center_norm, s0.band_center_norm);
+  EXPECT_DOUBLE_EQ(s1.band_height_norm, s0.band_height_norm);
 }
 
 // ---------------------------------------------------------------------------

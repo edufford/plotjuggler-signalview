@@ -78,11 +78,11 @@ TEST_F(YAxisBarUITest, CtrlClickTogglesSelection) {
   EXPECT_EQ(m_bar->selection().count(0), 0u);
 }
 
-// Right-clicking on a bar emits removeSignalRequested.
-TEST_F(YAxisBarUITest, RightClickEmitsRemoveRequest) {
+// Right-clicking on a bar emits contextMenuRequested with the correct index.
+TEST_F(YAxisBarUITest, RightClickEmitsContextMenuRequested) {
   auto entry = makeEntry(0.5, 1.0);
   m_bar->setSignalEntries({entry});
-  QSignalSpy spy(m_bar, &YAxisBarColumn::removeSignalRequested);
+  QSignalSpy spy(m_bar, &YAxisBarColumn::contextMenuRequested);
 
   QPoint pos(barPixelX(1.0), bandCenterY(entry));
   QTest::mouseClick(m_bar, Qt::RightButton, Qt::NoModifier, pos);

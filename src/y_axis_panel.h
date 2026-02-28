@@ -101,6 +101,7 @@ class SignalColumnBase : public QWidget {
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
   void verticalScrollRequested(double delta);
+  void contextMenuRequested(int index, QPoint global_pos);
 
  protected:
   void paintEvent(QPaintEvent* event) override;
@@ -192,6 +193,7 @@ class YAxisLabelColumn : public QWidget {
   void clickSelect(int index, bool toggle);
   void boxSelect(double y_top, double y_bottom, bool add);
   void verticalScrollRequested(double delta);
+  void contextMenuRequested(int index, QPoint global_pos);
 
  private:
   QSplitter* m_splitter;
@@ -223,7 +225,7 @@ class YAxisBarColumn : public QWidget {
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
-  void removeSignalRequested(int index);
+  void contextMenuRequested(int index, QPoint global_pos);
   void dragIndexChanged(int index);
   void selectionChanged();
   void editYRangeRequested(int clicked_index);
@@ -284,6 +286,7 @@ class YAxisPanel : public QWidget {
   void setSnapAmount(double snap);
   void setScrollOffset(double offset);
   const std::set<int>& selection() const;
+  void setSelection(const std::set<int>& sel);
   void clearSelection();
   void selectAll();
 
@@ -302,7 +305,7 @@ class YAxisPanel : public QWidget {
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
-  void removeSignalRequested(int index);
+  void contextMenuRequested(int index, QPoint global_pos);
   void editYRangeRequested(int clicked_index);
   void addSignalRequested(double band_center_norm);
   void selectionChanged();
