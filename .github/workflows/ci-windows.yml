@@ -60,8 +60,9 @@ jobs:
         run: test.bat vs2022
 
       - name: Publish test results
-        uses: mikepenz/action-junit-report@v4
+        uses: dorny/test-reporter@v1
         if: always()
         with:
-          report_paths: ${{ github.workspace }}\test-results.xml
-          check_name: JUnit Test Report (Windows)
+          name: JUnit Test Report (Windows)
+          path: ${{ github.workspace }}\test-results.xml
+          reporter: java-junit

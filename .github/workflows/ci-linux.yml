@@ -64,8 +64,9 @@ jobs:
         run: xvfb-run env JUNIT_OUTPUT=${{ github.workspace }}/test-results.xml ./test.sh
 
       - name: Publish test results
-        uses: mikepenz/action-junit-report@v4
+        uses: dorny/test-reporter@v1
         if: always()
         with:
-          report_paths: ${{ github.workspace }}/test-results.xml
-          check_name: JUnit Test Report (Linux)
+          name: JUnit Test Report (Linux)
+          path: ${{ github.workspace }}/test-results.xml
+          reporter: java-junit
