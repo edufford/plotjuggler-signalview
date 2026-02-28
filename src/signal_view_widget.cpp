@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QShortcut>
@@ -246,8 +247,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onBandResized);
   connect(m_y_axis_panel, &YAxisPanel::barXChanged, this,
           &SignalViewWidget::onBarXChanged);
-  connect(m_y_axis_panel, &YAxisPanel::removeSignalRequested, this,
-          &SignalViewWidget::onRemoveSignalByIndex);
+  connect(m_y_axis_panel, &YAxisPanel::contextMenuRequested, this,
+          &SignalViewWidget::onSignalContextMenu);
   connect(m_y_axis_panel, &YAxisPanel::editYRangeRequested, this,
           &SignalViewWidget::onEditYRange);
   connect(m_y_axis_panel, &YAxisPanel::addSignalRequested, this,
@@ -463,7 +464,6 @@ void SignalViewWidget::onRemoveSignal() {
                      [&](const SignalEntry& s) { return s.name == name; }),
       m_signals.end());
 
-  autoAssignBands();
   refreshViews();
 }
 
@@ -700,8 +700,32 @@ void SignalViewWidget::onRemoveSignalByIndex(int index) {
     return;
   }
   m_signals.erase(m_signals.begin() + index);
-  autoAssignBands();
   refreshViews();
+}
+
+void SignalViewWidget::onSignalContextMenu(int index, QPoint global_pos) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) return;
+
+  // If the right-clicked signal is part of the current selection, all actions
+  // apply to the full selection. Otherwise they apply only to that one signal.
+  std::set<int> sel = m_y_axis_panel->selection();
+  const bool in_selection = sel.count(index) > 0;
+  if (!in_selection) {
+    sel = {index};
+  }
+
+  QMenu menu(this);
+  menu.addAction("Auto Scale", [this, sel]() { autoScaleIndices(sel); });
+  menu.addAction("Change Style...", [this, index]() { onEditYRange(index); });
+  menu.addSeparator();
+  menu.addAction("Remove", [this, index, in_selection]() {
+    if (in_selection) {
+      onDeleteSelected();
+    } else {
+      onRemoveSignalByIndex(index);
+    }
+  });
+  menu.exec(global_pos);
 }
 
 void SignalViewWidget::refreshViews() {
@@ -1128,17 +1152,15 @@ void SignalViewWidget::onGroupSignals() {
   refreshViews();
 }
 
-void SignalViewWidget::onAutoScale() {
-  if (!m_overlay_mgr || m_signals.empty()) {
+void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
+  if (!m_overlay_mgr || m_signals.empty() || indices.empty()) {
     return;
   }
 
-  // Auto-scale selected signals, or all signals if none selected
-  const auto& sel = m_y_axis_panel->selection();
   bool changed = false;
 
-  for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
-    if (!sel.empty() && sel.count(i) == 0) {
+  for (int i : indices) {
+    if (i < 0 || i >= static_cast<int>(m_signals.size())) {
       continue;
     }
 
@@ -1193,33 +1215,21 @@ void SignalViewWidget::onAutoScale() {
   }
 }
 
-void SignalViewWidget::autoAssignBands() {
-  int n = static_cast<int>(m_signals.size());
-  if (n == 0) {
+void SignalViewWidget::onAutoScale() {
+  if (!m_overlay_mgr || m_signals.empty()) {
     return;
   }
 
-  if (n == 1) {
-    double top = snapValue(0.0);
-    double bottom = snapValue(1.0);
-    if (bottom - top < 0.02) {
-      top = 0.0;
-      bottom = 1.0;
-    }
-    m_signals[0].band_center_norm = (top + bottom) * 0.5;
-    m_signals[0].band_height_norm = bottom - top;
+  // Auto-scale selected signals, or all signals if none selected
+  const auto& sel = m_y_axis_panel->selection();
+  if (!sel.empty()) {
+    autoScaleIndices(sel);
   } else {
-    double band_h = 1.0 / n;
-    for (int i = 0; i < n; i++) {
-      double top = snapValue(i * band_h);
-      double bottom = snapValue((i + 1) * band_h);
-      if (bottom - top < 0.02) {
-        top = i * band_h;
-        bottom = (i + 1) * band_h;
-      }
-      m_signals[i].band_center_norm = (top + bottom) * 0.5;
-      m_signals[i].band_height_norm = bottom - top;
+    std::set<int> all;
+    for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
+      all.insert(i);
     }
+    autoScaleIndices(all);
   }
 }
 

@@ -68,6 +68,7 @@ class SignalViewWidget : public QWidget {
   void onClearOverlays();
   void onStyleLayer(int layer_index);
   void onLayerRenamed(int layer_index, const QString& name);
+  void onSignalContextMenu(int index, QPoint global_pos);
 
  private:
   /// Call after any overlay layer change: un-prefix names if no overlays
@@ -76,7 +77,7 @@ class SignalViewWidget : public QWidget {
 
   double snapValue(double val) const;
   void refreshViews();
-  void autoAssignBands();
+  void autoScaleIndices(const std::set<int>& indices);
   void updateScrollBar();
   void migrateSignalNames(bool add_prefix);
   void updateSelectedLayers();

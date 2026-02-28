@@ -98,6 +98,13 @@ void SignalColumnBase::paintEvent(QPaintEvent* /*event*/) {
 }
 
 void SignalColumnBase::mousePressEvent(QMouseEvent* event) {
+  if (event->button() == Qt::RightButton) {
+    int hit = hitTestSignal(event->pos());
+    if (hit >= 0) {
+      emit contextMenuRequested(hit, event->globalPos());
+    }
+    return;
+  }
   if (event->button() == Qt::LeftButton) {
     m_drag_index = hitTestSignal(event->pos());
     if (m_drag_index >= 0) {
@@ -308,6 +315,12 @@ YAxisLabelColumn::YAxisLabelColumn(QWidget* parent) : QWidget(parent) {
           &YAxisLabelColumn::editYRangeRequested);
   connect(m_value_col, &SignalValueColumn::editYRangeRequested, this,
           &YAxisLabelColumn::editYRangeRequested);
+
+  // Forward contextMenuRequested from sub-columns
+  connect(m_name_col, &SignalNameColumn::contextMenuRequested, this,
+          &YAxisLabelColumn::contextMenuRequested);
+  connect(m_value_col, &SignalValueColumn::contextMenuRequested, this,
+          &YAxisLabelColumn::contextMenuRequested);
 
   // Forward addSignalRequested from sub-columns
   connect(m_name_col, &SignalNameColumn::addSignalRequested, this,
@@ -573,7 +586,7 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event) {
   } else if (event->button() == Qt::RightButton) {
     auto hit = hitTest(event->pos());
     if (hit.index >= 0) {
-      emit removeSignalRequested(hit.index);
+      emit contextMenuRequested(hit.index, event->globalPos());
     }
   }
 }
@@ -750,8 +763,10 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
           &YAxisPanel::bandResized);
   connect(m_bar_col, &YAxisBarColumn::barXChanged, this,
           &YAxisPanel::barXChanged);
-  connect(m_bar_col, &YAxisBarColumn::removeSignalRequested, this,
-          &YAxisPanel::removeSignalRequested);
+  connect(m_bar_col, &YAxisBarColumn::contextMenuRequested, this,
+          &YAxisPanel::contextMenuRequested);
+  connect(m_label_col, &YAxisLabelColumn::contextMenuRequested, this,
+          &YAxisPanel::contextMenuRequested);
 
   // Forward editYRangeRequested from both bar and label columns
   connect(m_bar_col, &YAxisBarColumn::editYRangeRequested, this,
