@@ -342,11 +342,10 @@ OK applies changes; Cancel discards. Changes are only applied if Y Max > Y Min.
 SIGNAL CONTEXT MENU
 -------------------
 Right-clicking any signal in the name, value, or Y-axis bar column opens a
-context menu with three actions. Which signals are affected depends on the
-current selection:
+context menu. Which signals are affected depends on the current selection:
   - If the right-clicked signal is part of the current selection, all
-    three actions apply to all selected signals.
-  - If the right-clicked signal is not selected, all three actions apply
+    actions apply to all selected signals.
+  - If the right-clicked signal is not selected, all actions apply
     only to that one signal.
 
 Actions:
@@ -355,6 +354,10 @@ Actions:
     to clicking the toolbar "Auto Scale" button, but scoped to the target
     signals above (never falls back to all signals).
   - "Change Style...": opens the Y-range table dialog for the target signal(s).
+  - "Group": overlaps all target signals onto the same band position, height,
+    Y range, and bar_x, copying from the topmost signal. Identical to the
+    toolbar "Group" button. Only enabled when 2 or more signals are selected
+    and the right-clicked signal is part of the selection.
   - "Remove": removes the target signal(s). Remaining signals keep their
     current band positions.
 

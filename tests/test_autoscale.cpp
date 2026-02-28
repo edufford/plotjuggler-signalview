@@ -160,6 +160,31 @@ TEST_F(AutoScaleTest, NoDataInView_EntryUnchanged) {
   EXPECT_DOUBLE_EQ(speed.y_max, 999.0);
 }
 
+// Clicking Group with 2 selected signals copies topmost signal's band
+// properties to all others in the selection.
+TEST_F(AutoScaleTest, GroupSignals_CopiesTopmost) {
+  // Give the two signals distinct band positions.
+  // speed (index 0): top at 0.25 - 0.15 = 0.10 → topmost.
+  // flat  (index 1): top at 0.75 - 0.15 = 0.60.
+  auto& sigs = m_widget->signalEntriesMutable();
+  sigs[0].band_center_norm = 0.25;
+  sigs[0].band_height_norm = 0.30;
+  sigs[1].band_center_norm = 0.75;
+  sigs[1].band_height_norm = 0.30;
+
+  m_widget->yAxisPanel()->setSelection({0, 1});
+
+  auto* btn_group = findButton(m_widget, "Group");
+  ASSERT_NE(btn_group, nullptr);
+  QTest::mouseClick(btn_group, Qt::LeftButton);
+
+  // flat should now share speed's band position and height.
+  const auto& s0 = m_widget->signalEntries()[0];
+  const auto& s1 = m_widget->signalEntries()[1];
+  EXPECT_DOUBLE_EQ(s1.band_center_norm, s0.band_center_norm);
+  EXPECT_DOUBLE_EQ(s1.band_height_norm, s0.band_height_norm);
+}
+
 // ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {

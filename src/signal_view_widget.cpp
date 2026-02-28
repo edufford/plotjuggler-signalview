@@ -717,6 +717,8 @@ void SignalViewWidget::onSignalContextMenu(int index, QPoint global_pos) {
   QMenu menu(this);
   menu.addAction("Auto Scale", [this, sel]() { autoScaleIndices(sel); });
   menu.addAction("Change Style...", [this, index]() { onEditYRange(index); });
+  auto* group_action = menu.addAction("Group", [this]() { onGroupSignals(); });
+  group_action->setEnabled(in_selection && sel.size() >= 2);
   menu.addSeparator();
   menu.addAction("Remove", [this, index, in_selection]() {
     if (in_selection) {
