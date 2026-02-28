@@ -137,3 +137,13 @@ target_compile_definitions(test_data_sets_panel_ui PRIVATE
     TEST_FIXTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/fixtures"
 )
 add_test(NAME DataSetsPanelUI COMMAND test_data_sets_panel_ui)
+
+# Test 11: Auto Scale margin calculation
+add_executable(test_autoscale
+    test_autoscale.cpp
+    ${CMAKE_SOURCE_DIR}/src/signal_view_widget.cpp
+    ${UI_WIDGET_SOURCES}
+)
+target_include_directories(test_autoscale PRIVATE ${TEST_INCLUDE_DIRS})
+target_link_libraries(test_autoscale PRIVATE ${UI_TEST_LINK_LIBS})
+add_test(NAME AutoScale COMMAND test_autoscale)
