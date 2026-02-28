@@ -14,7 +14,7 @@ TOOLBAR
   Y range is auto-detected from data with 10% margin. New signals are added
   with 20% height bands at the top without changing existing signals.
 - "Remove Signal" button: opens a dropdown listing currently added signals.
-  Selecting one removes it and re-assigns band positions for remaining signals.
+  Selecting one removes it. Remaining signals keep their current band positions.
 - "Group" button: groups all currently selected signals so they overlap.
   Copies band position, band height, bar_x, divisions, Y min, and Y max from the topmost
   selected signal (lowest band_top) to all other selected signals. No-op if
@@ -127,10 +127,9 @@ Bands are defined by:
   - divisions: number of Y-axis tick divisions, default 8. 0 = auto-scale.
 
 When a signal is added, it gets a 20% height band at the top.
-Existing signals are not moved. When signals are removed, bands are
-auto-assigned evenly among the remaining signals. Positions are snapped
-to the current snap grid. Dragging and top-edge resizing are clamped so
-the top edge of a band cannot go above position 0 (absolute top).
+When a signal is removed, remaining signals keep their current band positions.
+Positions are snapped to the current snap grid. Dragging and top-edge resizing
+are clamped so the top edge of a band cannot go above position 0 (absolute top).
 
 Band positions are shared between the canvas and all Y-axis panel columns
 using the AxisLayout::bandTopY / bandBottomY helpers, which account for
@@ -245,6 +244,7 @@ MOUSE INTERACTION: SIGNAL NAME COLUMN
   - Drag index is propagated to the value column so stacking stays
     consistent across all columns during the drag.
 - Left click + drag on empty area: rubber band selection.
+- Right click on signal: opens a context menu (see SIGNAL CONTEXT MENU).
 - Mouse wheel: scrolls the view vertically (see VERTICAL SCROLLING).
 - Double click on signal: opens the Y-range table dialog for the clicked
   signal (plus any selected signals).
@@ -261,6 +261,7 @@ MOUSE INTERACTION: SIGNAL VALUE COLUMN
   - Shows OpenHandCursor on hover, ClosedHandCursor while dragging.
   - Drag index is propagated to the name column.
 - Left click + drag on empty area: rubber band selection.
+- Right click on signal: opens a context menu (see SIGNAL CONTEXT MENU).
 - Mouse wheel: scrolls the view vertically (see VERTICAL SCROLLING).
 - Double click on signal: opens the Y-range table dialog (same as name column).
 - Double click on empty area: opens the Add Signal dialog. The new signal's
@@ -292,7 +293,7 @@ MOUSE INTERACTION: Y-AXIS BAR COLUMN
   - Same behavior as top edge but in the opposite direction.
   - Shows SizeVerCursor.
 
-- Right click on a band: removes that signal immediately.
+- Right click on a band: opens a context menu (see SIGNAL CONTEXT MENU).
 
 - Double click on a band: opens the Y-range table dialog.
 
@@ -336,6 +337,26 @@ already selected. If the row is not selected, the selection is cleared
 and only that row becomes selected.
 
 OK applies changes; Cancel discards. Changes are only applied if Y Max > Y Min.
+
+
+SIGNAL CONTEXT MENU
+-------------------
+Right-clicking any signal in the name, value, or Y-axis bar column opens a
+context menu with three actions. Which signals are affected depends on the
+current selection:
+  - If the right-clicked signal is part of the current selection, all
+    three actions apply to all selected signals.
+  - If the right-clicked signal is not selected, all three actions apply
+    only to that one signal.
+
+Actions:
+  - "Auto Scale": sets Y min/max to fit the signal's data within the
+    current view time range, using the current Margin % setting. Identical
+    to clicking the toolbar "Auto Scale" button, but scoped to the target
+    signals above (never falls back to all signals).
+  - "Change Style...": opens the Y-range table dialog for the target signal(s).
+  - "Remove": removes the target signal(s). Remaining signals keep their
+    current band positions.
 
 
 MOUSE INTERACTION: PLOT CANVAS
