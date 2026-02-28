@@ -21,10 +21,13 @@ TOOLBAR
   fewer than 2 signals are selected.
 - "Auto Scale" button: sets the Y min/max of each selected signal (or all
   signals if none are selected) to automatically fit the Y range to the data
-  within the current view time range (respecting time zoom) with 10% margin.
-  The last data point before the view start is included for step-wise hold
-  value accuracy. Signals with no data in view or constant data use a
-  fallback margin of 1.0.
+  within the current view time range (respecting time zoom). The margin added
+  above and below the data extents is controlled by the adjacent "Margin:"
+  spin box (0–100%, default 0%). The last data point before the view start is
+  included for step-wise hold value accuracy. Signals with no data in view or
+  constant data use a fallback margin of 1.0 regardless of the margin setting.
+- "Margin:" spin box: percentage of the Y range added as padding above and
+  below signal extents when auto-scaling. Range 0–100%, default 0%.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
 - "Snap" dropdown: selects the position snapping grid size for bar and band
   dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.

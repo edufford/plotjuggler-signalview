@@ -106,8 +106,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   auto* btn_reset_cursor = new QPushButton("Reset Cursor", this);
   auto* btn_close = new QPushButton("Close", this);
 
+  auto* margin_label = new QLabel("Margin:", this);
+  margin_label->setStyleSheet("color: #000; font-size: 9px; padding: 0 2px;");
+  m_autoscale_margin_spin = new QSpinBox(this);
+  m_autoscale_margin_spin->setRange(0, 100);
+  m_autoscale_margin_spin->setValue(0);
+  m_autoscale_margin_spin->setSuffix("%");
+  m_autoscale_margin_spin->setFixedWidth(60);
+  m_autoscale_margin_spin->setToolTip(
+      "Margin added above and below signal extents when auto-scaling");
+
   auto* snap_label = new QLabel("Snap:", this);
-  snap_label->setStyleSheet("color: #ccc; font-size: 9px; padding: 0 2px;");
+  snap_label->setStyleSheet("color: #000; font-size: 9px; padding: 0 2px;");
   m_snap_combo = new QComboBox(this);
   m_snap_combo->addItem("Off", 0.0);
   m_snap_combo->addItem("0.002", 0.002);
@@ -121,7 +131,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   auto* version_label =
       new QLabel(QString("Signal View v%1").arg(PLUGIN_VERSION), this);
-  version_label->setStyleSheet("color: #888; font-size: 9px; padding: 0 6px;");
+  version_label->setStyleSheet("color: #000; font-size: 9px; padding: 0 6px;");
 
   toolbar->addWidget(version_label);
   toolbar->addSeparator();
@@ -129,6 +139,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_remove);
   toolbar->addWidget(btn_group);
   toolbar->addWidget(btn_autoscale);
+  toolbar->addWidget(margin_label);
+  toolbar->addWidget(m_autoscale_margin_spin);
   toolbar->addSeparator();
   toolbar->addWidget(btn_reset);
   toolbar->addWidget(btn_reset_cursor);
@@ -152,7 +164,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
 
   auto* shift_layer_label = new QLabel("Layer:", this);
   shift_layer_label->setStyleSheet(
-      "color: #ccc; font-size: 9px; padding: 0 2px;");
+      "color: #000; font-size: 9px; padding: 0 2px;");
   toolbar->addWidget(shift_layer_label);
   m_shift_layer_combo = new QComboBox(this);
   m_shift_layer_combo->setToolTip(
@@ -1166,9 +1178,10 @@ void SignalViewWidget::onAutoScale() {
       continue;
     }
 
-    double margin = (y_hi - y_lo) * 0.1;
-    if (margin < 1e-9) {
-      margin = 1.0;
+    double range = y_hi - y_lo;
+    double margin = range * (m_autoscale_margin_spin->value() / 100.0);
+    if (range < 1e-9) {
+      margin = 1.0;  // fallback for constant signals regardless of margin %
     }
     m_signals[i].y_min = y_lo - margin;
     m_signals[i].y_max = y_hi + margin;

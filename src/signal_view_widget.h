@@ -2,6 +2,7 @@
 
 #include <QComboBox>
 #include <QScrollBar>
+#include <QSpinBox>
 #include <QSplitter>
 #include <QWidget>
 #include <map>
@@ -96,6 +97,7 @@ class SignalViewWidget : public QWidget {
   YAxisPanel* m_y_axis_panel;
   QSplitter* m_main_splitter;
   QComboBox* m_snap_combo;
+  QSpinBox* m_autoscale_margin_spin;
   QComboBox* m_shift_layer_combo;
   QScrollBar* m_scrollbar;
   DataSetsPanel* m_data_sets_panel;
