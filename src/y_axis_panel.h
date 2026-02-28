@@ -286,6 +286,7 @@ class YAxisPanel : public QWidget {
   void setSnapAmount(double snap);
   void setScrollOffset(double offset);
   const std::set<int>& selection() const;
+  void setSelection(const std::set<int>& sel);
   void clearSelection();
   void selectAll();
 

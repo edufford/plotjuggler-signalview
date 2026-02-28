@@ -129,6 +129,24 @@ TEST_F(AutoScaleTest, ConstantSignal_FallbackMargin) {
   EXPECT_NEAR(flat.y_max, 6.0, 1e-9);
 }
 
+// When only some signals are selected, Auto Scale only applies to them.
+TEST_F(AutoScaleTest, WithSelection_OnlyScalesSelected) {
+  m_spin->setValue(0);
+  // Select only the first signal (speed, index 0).
+  m_widget->yAxisPanel()->setSelection({0});
+  QTest::mouseClick(m_btn, Qt::LeftButton);
+
+  // speed should be scaled to its data extents.
+  const auto& speed = m_widget->signalEntries()[0];
+  EXPECT_DOUBLE_EQ(speed.y_min, 2.0);
+  EXPECT_DOUBLE_EQ(speed.y_max, 8.0);
+
+  // flat should be untouched (still has sentinel values).
+  const auto& flat = m_widget->signalEntries()[1];
+  EXPECT_DOUBLE_EQ(flat.y_min, -999.0);
+  EXPECT_DOUBLE_EQ(flat.y_max, 999.0);
+}
+
 // When the view is entirely before all data (no step-wise hold point either),
 // the signal entries are left unchanged.
 TEST_F(AutoScaleTest, NoDataInView_EntryUnchanged) {

@@ -88,6 +88,16 @@ TEST_F(SignalNameUITest, DoubleClickEmptyEmitsAddRequest) {
   ASSERT_GE(spy.count(), 1);
 }
 
+// Right-clicking on a signal name emits contextMenuRequested with that index.
+TEST_F(SignalNameUITest, RightClickEmitsContextMenuRequested) {
+  QSignalSpy spy(m_col, &SignalNameColumn::contextMenuRequested);
+  QPoint pos(W / 2, signalRowY(m_entries, 0));
+  QTest::mouseClick(m_col, Qt::RightButton, Qt::NoModifier, pos);
+
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_EQ(spy.first().at(0).toInt(), 0);
+}
+
 // Dragging a signal name vertically emits bandOffsetChanged.
 TEST_F(SignalNameUITest, DragSignalEmitsBandOffsetChanged) {
   QSignalSpy spy(m_col, &SignalNameColumn::bandOffsetChanged);

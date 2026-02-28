@@ -912,6 +912,10 @@ const std::set<int>& YAxisPanel::selection() const {
   return m_bar_col->selection();
 }
 
+void YAxisPanel::setSelection(const std::set<int>& sel) {
+  m_bar_col->setSelection(sel);
+}
+
 void YAxisPanel::clearSelection() { m_bar_col->clearSelection(); }
 
 void YAxisPanel::selectAll() { m_bar_col->selectAll(); }
