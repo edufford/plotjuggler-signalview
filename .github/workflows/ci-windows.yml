@@ -18,6 +18,7 @@ jobs:
 
     env:
       PJ_INSTALL_DIR: ${{ github.workspace }}\plotjuggler-install
+      PJ_VERSION: 3.15.0
 
     steps:
       - uses: actions/checkout@v4
@@ -28,22 +29,18 @@ jobs:
           version: '5.15.2'
           arch: win64_msvc2019_64
 
-      - name: Compute week number
-        shell: bash
-        run: echo "WEEK=$(date +%Y-%U)" >> $GITHUB_ENV
-
       - name: Cache PlotJuggler
         id: cache-pj
         uses: actions/cache@v4
         with:
           path: ${{ env.PJ_INSTALL_DIR }}
-          key: plotjuggler-${{ runner.os }}-week${{ env.WEEK }}-${{ hashFiles('.github/workflows/ci-windows.yml') }}
+          key: plotjuggler-${{ runner.os }}-${{ env.PJ_VERSION }}-${{ hashFiles('.github/workflows/ci-windows.yml') }}
 
       - name: Build PlotJuggler
         if: steps.cache-pj.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          git clone --depth 1 https://github.com/facontidavide/PlotJuggler.git $env:RUNNER_TEMP\PlotJuggler
+          git clone --depth 1 --branch $env:PJ_VERSION https://github.com/facontidavide/PlotJuggler.git $env:RUNNER_TEMP\PlotJuggler
           cmake -S $env:RUNNER_TEMP\PlotJuggler -B $env:RUNNER_TEMP\PlotJuggler\build `
             -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_INSTALL_PREFIX="${{ env.PJ_INSTALL_DIR }}" `

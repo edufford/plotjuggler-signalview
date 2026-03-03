@@ -18,6 +18,7 @@ jobs:
 
     env:
       PJ_INSTALL_DIR: ${{ github.workspace }}/plotjuggler-install
+      PJ_VERSION: 3.15.0
 
     steps:
       - uses: actions/checkout@v4
@@ -29,15 +30,12 @@ jobs:
           sudo apt-get install -y \
             qtbase5-dev cmake xvfb
 
-      - name: Compute week number
-        run: echo "WEEK=$(date +%Y-%U)" >> $GITHUB_ENV
-
       - name: Cache PlotJuggler
         id: cache-pj
         uses: actions/cache@v4
         with:
           path: ${{ env.PJ_INSTALL_DIR }}
-          key: plotjuggler-${{ runner.os }}-week${{ env.WEEK }}-${{ hashFiles('.github/workflows/ci-linux.yml') }}
+          key: plotjuggler-${{ runner.os }}-${{ env.PJ_VERSION }}-${{ hashFiles('.github/workflows/ci-linux.yml') }}
 
       - name: Install PlotJuggler build dependencies
         if: steps.cache-pj.outputs.cache-hit != 'true'
@@ -49,7 +47,7 @@ jobs:
       - name: Build PlotJuggler
         if: steps.cache-pj.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/facontidavide/PlotJuggler.git /tmp/PlotJuggler
+          git clone --depth 1 --branch $PJ_VERSION https://github.com/facontidavide/PlotJuggler.git /tmp/PlotJuggler
           cd /tmp/PlotJuggler
           mkdir build && cd build
           cmake .. \
