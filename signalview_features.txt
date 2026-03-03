@@ -26,6 +26,10 @@ TOOLBAR
   spin box (0–100%, default 0%). The last data point before the view start is
   included for step-wise hold value accuracy. Signals with no data in view or
   constant data use a fallback margin of 1.0 regardless of the margin setting.
+  Grouped signals (those sharing the same band position, height, and bar_x) are
+  auto-scaled together: their data extents are combined across all signals in
+  the group and a single common Y min/max is applied to all of them, so the
+  group continues to display on a shared Y range after scaling.
 - "Margin:" spin box: percentage of the Y range added as padding above and
   below signal extents when auto-scaling. Range 0–100%, default 0%.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
@@ -352,7 +356,8 @@ Actions:
   - "Auto Scale": sets Y min/max to fit the signal's data within the
     current view time range, using the current Margin % setting. Identical
     to clicking the toolbar "Auto Scale" button, but scoped to the target
-    signals above (never falls back to all signals).
+    signals above (never falls back to all signals). Grouped signals among
+    the targets share a combined Y range (see toolbar Auto Scale).
   - "Change Style...": opens the Y-range table dialog for the target signal(s).
   - "Group": overlaps all target signals onto the same band position, height,
     Y range, and bar_x, copying from the topmost signal. Identical to the

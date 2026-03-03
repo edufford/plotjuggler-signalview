@@ -53,17 +53,23 @@ class AutoScaleTest : public ::testing::Test {
     m_widget->canvas()->setViewRange(0.0, 10.0);
 
     // Inject signal entries with sentinel y values so we can detect changes.
+    // Give each signal a distinct band position so they are NOT grouped by
+    // default; grouped behaviour is tested separately.
     auto& sigs = m_widget->signalEntriesMutable();
     SignalEntry speed_entry;
     speed_entry.name = "speed";
     speed_entry.y_min = -999.0;
     speed_entry.y_max = 999.0;
+    speed_entry.band_center_norm = 0.25;
+    speed_entry.band_height_norm = 0.30;
     sigs.push_back(speed_entry);
 
     SignalEntry flat_entry;
     flat_entry.name = "flat";
     flat_entry.y_min = -999.0;
     flat_entry.y_max = 999.0;
+    flat_entry.band_center_norm = 0.75;
+    flat_entry.band_height_norm = 0.30;
     sigs.push_back(flat_entry);
 
     m_spin = m_widget->findChild<QSpinBox*>();
@@ -183,6 +189,54 @@ TEST_F(AutoScaleTest, GroupSignals_CopiesTopmost) {
   const auto& s1 = m_widget->signalEntries()[1];
   EXPECT_DOUBLE_EQ(s1.band_center_norm, s0.band_center_norm);
   EXPECT_DOUBLE_EQ(s1.band_height_norm, s0.band_height_norm);
+}
+
+// Grouped signals (same band geometry) are auto-scaled to their combined data
+// extents so both signals share a common Y range.
+TEST_F(AutoScaleTest, GroupedSignals_CombinedExtents) {
+  m_spin->setValue(0);
+  // Place both signals in the same band — this is what the Group button does.
+  auto& sigs = m_widget->signalEntriesMutable();
+  sigs[0].band_center_norm = 0.5;
+  sigs[0].band_height_norm = 0.5;
+  sigs[0].bar_x_norm = 1.0;
+  sigs[1].band_center_norm = 0.5;
+  sigs[1].band_height_norm = 0.5;
+  sigs[1].bar_x_norm = 1.0;
+
+  QTest::mouseClick(m_btn, Qt::LeftButton);
+
+  // speed: y in [2, 8]; flat: y = 5. Combined extents: [2, 8].
+  // Both signals must share that range.
+  const auto& speed = m_widget->signalEntries()[0];
+  const auto& flat = m_widget->signalEntries()[1];
+  EXPECT_DOUBLE_EQ(speed.y_min, 2.0);
+  EXPECT_DOUBLE_EQ(speed.y_max, 8.0);
+  EXPECT_DOUBLE_EQ(flat.y_min, 2.0);
+  EXPECT_DOUBLE_EQ(flat.y_max, 8.0);
+}
+
+// Grouped signals with a margin: combined extents are computed first, then the
+// margin is applied once to the combined range — not per signal.
+TEST_F(AutoScaleTest, GroupedSignals_SharedMargin) {
+  m_spin->setValue(25);
+  auto& sigs = m_widget->signalEntriesMutable();
+  sigs[0].band_center_norm = 0.5;
+  sigs[0].band_height_norm = 0.5;
+  sigs[0].bar_x_norm = 1.0;
+  sigs[1].band_center_norm = 0.5;
+  sigs[1].band_height_norm = 0.5;
+  sigs[1].bar_x_norm = 1.0;
+
+  QTest::mouseClick(m_btn, Qt::LeftButton);
+
+  // Combined: y_lo=2, y_hi=8, range=6. Margin = 6 * 0.25 = 1.5.
+  const auto& speed = m_widget->signalEntries()[0];
+  const auto& flat = m_widget->signalEntries()[1];
+  EXPECT_NEAR(speed.y_min, 0.5, 1e-9);
+  EXPECT_NEAR(speed.y_max, 9.5, 1e-9);
+  EXPECT_NEAR(flat.y_min, 0.5, 1e-9);
+  EXPECT_NEAR(flat.y_max, 9.5, 1e-9);
 }
 
 // ---------------------------------------------------------------------------
