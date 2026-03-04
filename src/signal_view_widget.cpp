@@ -199,7 +199,7 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   m_main_splitter->addWidget(m_canvas);
   m_main_splitter->setStretchFactor(0, 0);  // panel: don't stretch
   m_main_splitter->setStretchFactor(1, 1);  // canvas: stretch
-  m_main_splitter->setSizes({173, 700});
+  m_main_splitter->setSizes({400, 700});
   m_main_splitter->setHandleWidth(4);
 
   m_scrollbar = new QScrollBar(Qt::Vertical, this);
