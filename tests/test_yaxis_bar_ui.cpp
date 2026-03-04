@@ -204,6 +204,51 @@ TEST_F(YAxisBarUITest, StackedBars_ZOrderFollowsLastClick) {
   EXPECT_GT(second_z, first_z);
 }
 
+// Clicking a stacked group selects the bar with the highest z_order (the one
+// visually on top), not the first by index order.
+TEST_F(YAxisBarUITest, StackedBars_ClickSelectsHighestZOrder) {
+  auto e0 = makeEntry(0.5, 1.0);
+  auto e1 = makeEntry(0.5, 1.0);
+  e0.z_order = 0;  // lower index, lower z_order → painted underneath
+  e1.z_order = 1;  // higher index, higher z_order → painted on top
+  m_bar->setSignalEntries({e0, e1});
+
+  QSignalSpy spy(m_bar, &YAxisBarColumn::zOrderChanged);
+  QPoint pos(barPixelX(1.0), bandCenterY(e0));
+  QTest::mouseClick(m_bar, Qt::LeftButton, Qt::NoModifier, pos);
+
+  // hitTest must return index 1 (highest z_order), not index 0.
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_EQ(spy.first().at(0).toInt(), 1);
+}
+
+// Dragging the top edge of a stacked group targets the bar with the highest
+// z_order, not the first by index order.
+TEST_F(YAxisBarUITest, StackedBars_EdgeGrabSelectsHighestZOrder) {
+  auto e0 = makeEntry(0.5, 0.5);
+  auto e1 = makeEntry(0.5, 0.5);
+  e0.z_order = 0;
+  e1.z_order = 1;
+  m_bar->setSignalEntries({e0, e1});
+
+  QSignalSpy spy(m_bar, &YAxisBarColumn::bandResized);
+
+  int ax = barPixelX(1.0);
+  int top_y = static_cast<int>(AxisLayout::bandTopY(e0, H));
+  QPoint start(ax, top_y);
+  QPoint end(ax, top_y + 30);
+
+  QTest::mousePress(m_bar, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_bar->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_bar, &move);
+  QTest::mouseRelease(m_bar, Qt::LeftButton, Qt::NoModifier, end);
+
+  // bandResized must target index 1 (highest z_order).
+  ASSERT_GE(spy.count(), 1);
+  EXPECT_EQ(spy.last().at(0).toInt(), 1);
+}
+
 // ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
