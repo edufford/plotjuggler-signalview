@@ -158,6 +158,8 @@ class PlotCanvas : public QWidget {
   QPoint m_pan_start;
   double m_pan_t_min_start = 0.0;
   double m_pan_t_max_start = 0.0;
+  bool m_pan_pushed_to_stack =
+      false;  // true once the pan range is on the stack
 
   // Zoom history stack (for right-click undo in zoom mode)
   std::vector<std::pair<double, double>> m_zoom_stack;

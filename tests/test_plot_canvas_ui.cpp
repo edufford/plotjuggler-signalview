@@ -359,6 +359,62 @@ TEST_F(PlotCanvasUITest, ResetZoomDoesNotPushWhenViewUnchanged) {
   EXPECT_EQ(spy.count(), 0);
 }
 
+// Right-click drag pushes the pre-pan range onto the zoom stack on first move.
+TEST_F(PlotCanvasUITest, RightClickPanPushesToStack) {
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  // No push yet — pan hasn't actually moved.
+  EXPECT_EQ(stack_spy.count(), 0);
+
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  // Push happens on first move.
+  ASSERT_EQ(stack_spy.count(), 1);
+  EXPECT_TRUE(stack_spy.first().at(0).toBool());
+
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  ASSERT_GE(range_spy.count(), 1);
+  double new_min = range_spy.last().at(0).toDouble();
+  double new_max = range_spy.last().at(1).toDouble();
+  EXPECT_LT(new_min, 0.0);
+  EXPECT_LT(new_max, 10.0);
+}
+
+// Right-click without dragging does NOT push to the zoom stack.
+TEST_F(PlotCanvasUITest, RightClickWithoutDragDoesNotPushStack) {
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  QTest::mouseClick(m_canvas, Qt::RightButton, Qt::NoModifier,
+                    QPoint(200, H / 2));
+  EXPECT_EQ(stack_spy.count(), 0);
+}
+
+// prevZoom() after a right-click pan restores the pre-pan range.
+TEST_F(PlotCanvasUITest, PrevZoomAfterPanRestoresRange) {
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  m_canvas->prevZoom();
+
+  ASSERT_EQ(range_spy.count(), 1);
+  EXPECT_NEAR(range_spy.first().at(0).toDouble(), 0.0, 1e-9);
+  EXPECT_NEAR(range_spy.first().at(1).toDouble(), 10.0, 1e-9);
+}
+
 // Right-click still pans even when zoom mode is active.
 TEST_F(PlotCanvasUITest, RightClickPansInZoomMode) {
   m_canvas->setZoomMode(true);

@@ -422,7 +422,8 @@ MOUSE INTERACTION: PLOT CANVAS
   "Layer:" combo box is shifted.
 
 - Right click + drag: pans the time axis. Disables auto-fit. Applies in all
-  modes (default, H. Zoom, and Time Shift).
+  modes (default, H. Zoom, and Time Shift). Pushes the pre-pan range onto the
+  zoom history stack on press, so "Prev Zoom" can return to it.
   - Shows ClosedHandCursor while panning.
 
 - Mouse wheel (default): scrolls the view vertically (see VERTICAL SCROLLING).

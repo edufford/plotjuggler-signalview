@@ -13,7 +13,7 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - **Three-column Y-axis panel**: signal names, cursor readout values, and draggable Y-axis bars with tick marks
 - **Multi-file data overlay**: load CSV files on top of PlotJuggler data for side-by-side comparison; right-click the data-sets footer to remove individual overlays or clear all at once
 - **Time shifting**: drag to shift any data layer's time offset for alignment
-- **Horizontal zoom**: rubber-band drag or scroll wheel to zoom the time axis; right-click to pan; **Prev Zoom** button steps back through the full zoom history
+- **Horizontal zoom**: rubber-band drag or scroll wheel to zoom the time axis; right-click to pan (pre-pan range saved to history); **Prev Zoom** button steps back through the full zoom history
 - **Flexible signal bands**: independently position, resize, and group signal display regions
 - **Signal context menu**: right-click any signal's name, value, or Y-axis bar to auto-scale, change style, group, or remove — applies to all selected signals when the right-clicked signal is part of the selection
 - **Selection and batch editing**: select signals with click, Ctrl+click, rubber band, or Ctrl+A; edit properties in bulk via the Y-range table dialog

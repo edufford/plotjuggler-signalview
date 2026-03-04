@@ -934,6 +934,7 @@ void PlotCanvas::mousePressEvent(QMouseEvent* event) {
     m_pan_start = event->pos();
     m_pan_t_min_start = m_view_t_min;
     m_pan_t_max_start = m_view_t_max;
+    m_pan_pushed_to_stack = false;
     setCursor(Qt::ClosedHandCursor);
   }
 }
@@ -976,6 +977,11 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
       if (plot_w <= 0) {
         return;
+      }
+      if (!m_pan_pushed_to_stack) {
+        m_zoom_stack.push_back({m_pan_t_min_start, m_pan_t_max_start});
+        emit zoomStackChanged(true);
+        m_pan_pushed_to_stack = true;
       }
       double dt = -dx_pixels / plot_w * (m_pan_t_max_start - m_pan_t_min_start);
       m_view_t_min = m_pan_t_min_start + dt;
