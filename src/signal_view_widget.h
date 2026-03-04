@@ -55,6 +55,7 @@ class SignalViewWidget : public QWidget {
   void onBandOffsetChanged(int index, double new_center);
   void onBandResized(int index, double new_center, double new_height);
   void onBarXChanged(int index, double new_bar_x);
+  void onZOrderChanged(int index, int new_z_order);
   void onRemoveSignalByIndex(int index);
   void onCanvasResized();
   void onSnapComboChanged(int combo_index);
@@ -77,6 +78,7 @@ class SignalViewWidget : public QWidget {
 
   double snapValue(double val) const;
   void refreshViews();
+  void normalizeZOrders();
   void autoScaleIndices(const std::set<int>& indices);
   void updateScrollBar();
   void migrateSignalNames(bool add_prefix);

@@ -225,6 +225,7 @@ class YAxisBarColumn : public QWidget {
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
+  void zOrderChanged(int index, int new_z_order);
   void contextMenuRequested(int index, QPoint global_pos);
   void dragIndexChanged(int index);
   void selectionChanged();
@@ -305,6 +306,7 @@ class YAxisPanel : public QWidget {
   void bandOffsetChanged(int index, double new_center);
   void bandResized(int index, double new_center, double new_height);
   void barXChanged(int index, double new_bar_x);
+  void zOrderChanged(int index, int new_z_order);
   void contextMenuRequested(int index, QPoint global_pos);
   void editYRangeRequested(int clicked_index);
   void addSignalRequested(double band_center_norm);

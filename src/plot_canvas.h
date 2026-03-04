@@ -38,6 +38,7 @@ struct SignalEntry {
   double bar_x_norm =
       1.0;            // horizontal position of Y-axis bar [0=left, 1=right]
   int divisions = 8;  // Y-axis tick divisions (0 = auto)
+  int z_order = 0;    // paint order within a stacked group; higher = on top
   Qt::PenStyle line_style = Qt::SolidLine;
   double line_width = 1.5;
   MarkerStyle marker_style = MarkerStyle::None;

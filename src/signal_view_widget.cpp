@@ -25,6 +25,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <numeric>
 
 static constexpr const char* PLUGIN_VERSION = "0.9.0";
 
@@ -248,6 +249,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onBandResized);
   connect(m_y_axis_panel, &YAxisPanel::barXChanged, this,
           &SignalViewWidget::onBarXChanged);
+  connect(m_y_axis_panel, &YAxisPanel::zOrderChanged, this,
+          &SignalViewWidget::onZOrderChanged);
   connect(m_y_axis_panel, &YAxisPanel::contextMenuRequested, this,
           &SignalViewWidget::onSignalContextMenu);
   connect(m_y_axis_panel, &YAxisPanel::editYRangeRequested, this,
@@ -437,6 +440,9 @@ void SignalViewWidget::onAddSignal(double band_center_norm) {
 
     m_signals.push_back(entry);
   }
+  // Assign distinct z_orders so stacked signals have a defined visual order
+  // from the start. Higher index (painted on top) gets the higher z_order.
+  normalizeZOrders();
   refreshViews();
 }
 
@@ -645,6 +651,35 @@ void SignalViewWidget::onBarXChanged(int index, double new_bar_x) {
   } else {
     m_signals[index].bar_x_norm = snapValue(new_bar_x);
   }
+  m_canvas->setSignalEntries(m_signals);
+  m_y_axis_panel->setSignalEntries(m_signals);
+}
+
+void SignalViewWidget::normalizeZOrders() {
+  // Assign each signal a unique z_order in [0, n-1] that preserves the
+  // current relative ranking. Ties are broken by index order (higher index
+  // gets higher z_order), which matches the stable-sort paint order so the
+  // visually topmost bar in a fresh stack is also the one with the highest
+  // z_order.
+  std::vector<int> idx(m_signals.size());
+  std::iota(idx.begin(), idx.end(), 0);
+  std::stable_sort(idx.begin(), idx.end(), [&](int a, int b) {
+    return m_signals[a].z_order < m_signals[b].z_order;
+  });
+  for (int rank = 0; rank < static_cast<int>(idx.size()); ++rank) {
+    m_signals[idx[rank]].z_order = rank;
+  }
+}
+
+void SignalViewWidget::onZOrderChanged(int index, int new_z_order) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
+    return;
+  }
+  m_signals[index].z_order = new_z_order;
+
+  // Renormalize to [0, n-1] so values never grow unboundedly.
+  normalizeZOrders();
+
   m_canvas->setSignalEntries(m_signals);
   m_y_axis_panel->setSignalEntries(m_signals);
 }
@@ -1152,6 +1187,9 @@ void SignalViewWidget::onGroupSignals() {
     m_signals[i].bar_x_norm = m_signals[topmost].bar_x_norm;
     m_signals[i].divisions = m_signals[topmost].divisions;
   }
+  // After stacking, ensure signals have distinct z_orders so the one painted
+  // on top (highest index) also has the highest z_order.
+  normalizeZOrders();
   refreshViews();
 }
 

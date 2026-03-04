@@ -6,6 +6,7 @@
 #include <QTest>
 
 #include "signal_view_widget.h"
+#include "y_axis_panel.h"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -237,6 +238,44 @@ TEST_F(AutoScaleTest, GroupedSignals_SharedMargin) {
   EXPECT_NEAR(speed.y_max, 9.5, 1e-9);
   EXPECT_NEAR(flat.y_min, 0.5, 1e-9);
   EXPECT_NEAR(flat.y_max, 9.5, 1e-9);
+}
+
+// After a bar-body click, SignalViewWidget::onZOrderChanged must renormalize
+// all z_order values to [0, n-1] so they never grow unboundedly.
+TEST_F(AutoScaleTest, ZOrder_NormalizedAfterClick) {
+  // Seed with large non-contiguous values to confirm they get compacted.
+  auto& sigs = m_widget->signalEntriesMutable();
+  sigs[0].z_order = 100;
+  sigs[1].z_order = 200;
+  // Sync the panel so the bar column's hitTest sees the signals and
+  // onZOrderChanged's normalization applies to the seeded values.
+  m_widget->yAxisPanel()->setSignalEntries(m_widget->signalEntries());
+
+  // Click the speed bar (index 0) via the YAxisBarColumn widget.
+  auto* bar_col = m_widget->yAxisPanel()->findChild<YAxisBarColumn*>();
+  ASSERT_NE(bar_col, nullptr);
+
+  // Compute a click position inside the speed band (band_center_norm = 0.25).
+  int bar_h = bar_col->height();
+  double top = AxisLayout::bandTopY(sigs[0], bar_h);
+  double bot = AxisLayout::bandBottomY(sigs[0], bar_h);
+  int cy = static_cast<int>((top + bot) / 2.0);
+  // bar_x_norm = 1.0 → pixel x mirrors test_yaxis_bar_ui constants.
+  constexpr int AXIS_PAD_LEFT = 4;
+  constexpr int AXIS_PAD_RIGHT = 10;
+  int ax = AXIS_PAD_LEFT +
+           static_cast<int>(
+               1.0 * (bar_col->width() - AXIS_PAD_LEFT - AXIS_PAD_RIGHT));
+  QTest::mouseClick(bar_col, Qt::LeftButton, Qt::NoModifier, QPoint(ax, cy));
+
+  // All z_orders must now be in [0, n-1].
+  const auto& result = m_widget->signalEntries();
+  for (const auto& s : result) {
+    EXPECT_GE(s.z_order, 0);
+    EXPECT_LT(s.z_order, static_cast<int>(result.size()));
+  }
+  // The clicked signal (index 0) must have the highest z_order.
+  EXPECT_GT(result[0].z_order, result[1].z_order);
 }
 
 // ---------------------------------------------------------------------------
