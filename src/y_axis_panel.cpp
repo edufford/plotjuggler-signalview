@@ -477,17 +477,27 @@ YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
     }
 
     if (std::abs(pos.y() - top) <= EDGE_GRAB_PIXELS) {
-      if (better({i, TOP_EDGE}, best_top)) best_top = {i, TOP_EDGE};
+      if (better({i, TOP_EDGE}, best_top)) {
+        best_top = {i, TOP_EDGE};
+      }
     } else if (std::abs(pos.y() - bottom) <= EDGE_GRAB_PIXELS) {
-      if (better({i, BOTTOM_EDGE}, best_bot)) best_bot = {i, BOTTOM_EDGE};
+      if (better({i, BOTTOM_EDGE}, best_bot)) {
+        best_bot = {i, BOTTOM_EDGE};
+      }
     } else if (pos.y() >= top && pos.y() <= bottom) {
-      if (better({i, BODY}, best_body)) best_body = {i, BODY};
+      if (better({i, BODY}, best_body)) {
+        best_body = {i, BODY};
+      }
     }
   }
 
   // Edge hits take priority over body hits.
-  if (best_top.index >= 0) return best_top;
-  if (best_bot.index >= 0) return best_bot;
+  if (best_top.index >= 0) {
+    return best_top;
+  }
+  if (best_bot.index >= 0) {
+    return best_bot;
+  }
   return best_body;
 }
 
@@ -504,7 +514,9 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
   std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
     bool a_sel = m_selected.count(a) > 0;
     bool b_sel = m_selected.count(b) > 0;
-    if (a_sel != b_sel) return !a_sel;  // unselected before selected
+    if (a_sel != b_sel) {
+      return !a_sel;  // unselected before selected
+    }
     return m_signals[a].z_order < m_signals[b].z_order;
   });
 
@@ -513,7 +525,9 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double bottom = AxisLayout::bandBottomY(sig, height(), m_scroll_offset);
     double band_pixel_h = bottom - top;
-    if (band_pixel_h < 4) continue;
+    if (band_pixel_h < 4) {
+      continue;
+    }
 
     double ax = axisX(sig.bar_x_norm);
     // Single colored axis stripe, centered on ax
@@ -570,7 +584,9 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event) {
       // maximum suffices; SignalViewWidget::onZOrderChanged normalizes all
       // values to [0, n-1] after applying the update.
       int max_z = 0;
-      for (const auto& s : m_signals) max_z = std::max(max_z, s.z_order);
+      for (const auto& s : m_signals) {
+        max_z = std::max(max_z, s.z_order);
+      }
       emit zOrderChanged(m_drag_hit.index, max_z + 1);
       if (event->modifiers() & Qt::ControlModifier) {
         // Ctrl+click: toggle
@@ -844,8 +860,9 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
             // click). SignalViewWidget::onZOrderChanged normalizes to [0, n-1].
             if (index >= 0 && sel.count(index)) {
               int max_z = 0;
-              for (const auto& s : m_signals)
+              for (const auto& s : m_signals) {
                 max_z = std::max(max_z, s.z_order);
+              }
               emit zOrderChanged(index, max_z + 1);
             }
           });

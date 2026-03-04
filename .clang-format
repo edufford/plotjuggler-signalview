@@ -1,1 +1,3 @@
 BasedOnStyle: Google
+AllowShortLoopsOnASingleLine: false
+InsertBraces: true

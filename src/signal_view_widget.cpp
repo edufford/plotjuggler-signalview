@@ -740,7 +740,9 @@ void SignalViewWidget::onRemoveSignalByIndex(int index) {
 }
 
 void SignalViewWidget::onSignalContextMenu(int index, QPoint global_pos) {
-  if (index < 0 || index >= static_cast<int>(m_signals.size())) return;
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
+    return;
+  }
 
   // If the right-clicked signal is part of the current selection, all actions
   // apply to the full selection. Otherwise they apply only to that one signal.
@@ -1204,15 +1206,21 @@ void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
   struct BandKey {
     double center, height, bar_x;
     bool operator<(const BandKey& o) const {
-      if (center != o.center) return center < o.center;
-      if (height != o.height) return height < o.height;
+      if (center != o.center) {
+        return center < o.center;
+      }
+      if (height != o.height) {
+        return height < o.height;
+      }
       return bar_x < o.bar_x;
     }
   };
 
   std::map<BandKey, std::vector<int>> groups;
   for (int i : indices) {
-    if (i < 0 || i >= static_cast<int>(m_signals.size())) continue;
+    if (i < 0 || i >= static_cast<int>(m_signals.size())) {
+      continue;
+    }
     const auto& sig = m_signals[i];
     groups[{sig.band_center_norm, sig.band_height_norm, sig.bar_x_norm}]
         .push_back(i);
@@ -1228,7 +1236,9 @@ void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
 
     for (int i : group) {
       auto resolved = m_overlay_mgr->resolveSignal(m_signals[i].name);
-      if (!resolved || resolved->series->size() == 0) continue;
+      if (!resolved || resolved->series->size() == 0) {
+        continue;
+      }
 
       const auto& series = *resolved->series;
       double t_offset = resolved->time_offset;
@@ -1241,7 +1251,9 @@ void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
           [](const auto& a, const auto& b) { return a.x < b.x; });
 
       // Include the last point before t_min for step-wise hold value
-      if (lb != series.begin()) --lb;
+      if (lb != series.begin()) {
+        --lb;
+      }
 
       for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max;
            ++pt_it) {
@@ -1251,7 +1263,9 @@ void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
       }
     }
 
-    if (!found_any) continue;
+    if (!found_any) {
+      continue;
+    }
 
     double range = y_hi - y_lo;
     double margin = range * (m_autoscale_margin_spin->value() / 100.0);
