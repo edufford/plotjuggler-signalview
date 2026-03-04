@@ -78,6 +78,7 @@ class SignalViewWidget : public QWidget {
 
   double snapValue(double val) const;
   void refreshViews();
+  void normalizeZOrders();
   void autoScaleIndices(const std::set<int>& indices);
   void updateScrollBar();
   void migrateSignalNames(bool add_prefix);
