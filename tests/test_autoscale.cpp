@@ -14,7 +14,9 @@
 
 static QPushButton* findButton(QWidget* root, const QString& text) {
   for (auto* btn : root->findChildren<QPushButton*>()) {
-    if (btn->text() == text) return btn;
+    if (btn->text() == text) {
+      return btn;
+    }
   }
   return nullptr;
 }
