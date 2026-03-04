@@ -78,6 +78,7 @@ class PlotCanvas : public QWidget {
 
   void setScrollOffset(double offset);
   void setZoomMode(bool enabled);
+  void prevZoom();
   void setTimeShiftMode(bool enabled);
   void setSelectedLayers(const std::set<int>& layers);
   void setDefaultShiftLayer(int layer_index);
@@ -91,6 +92,7 @@ class PlotCanvas : public QWidget {
   void verticalScrollRequested(double delta);
   void
   timeShiftChanged();  // emitted when a layer's time offset is modified by drag
+  void zoomStackChanged(bool has_entries);
 
  protected:
   void paintEvent(QPaintEvent* event) override;
@@ -156,6 +158,9 @@ class PlotCanvas : public QWidget {
   QPoint m_pan_start;
   double m_pan_t_min_start = 0.0;
   double m_pan_t_max_start = 0.0;
+
+  // Zoom history stack (for right-click undo in zoom mode)
+  std::vector<std::pair<double, double>> m_zoom_stack;
 
   // Zoom-select (rubber band) state
   double m_zoom_select_start_x = 0.0;    // pixel X of press

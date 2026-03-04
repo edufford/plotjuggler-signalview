@@ -194,8 +194,14 @@ void PlotCanvas::setViewRange(double t_min, double t_max) {
 }
 
 void PlotCanvas::resetZoom() {
+  double prev_min = m_view_t_min;
+  double prev_max = m_view_t_max;
   m_auto_fit = true;
   autoFitTimeRange();
+  if (m_view_t_min != prev_min || m_view_t_max != prev_max) {
+    m_zoom_stack.push_back({prev_min, prev_max});
+    emit zoomStackChanged(true);
+  }
   update();
   emit viewRangeChanged(m_view_t_min, m_view_t_max);
 }
@@ -250,6 +256,21 @@ void PlotCanvas::setScrollOffset(double offset) {
 void PlotCanvas::setZoomMode(bool enabled) {
   m_mode = enabled ? InteractionMode::Zoom : InteractionMode::Normal;
   updateIdleCursor();
+}
+
+void PlotCanvas::prevZoom() {
+  if (m_zoom_stack.empty()) {
+    return;
+  }
+  auto [t_min, t_max] = m_zoom_stack.back();
+  m_zoom_stack.pop_back();
+  m_view_t_min = t_min;
+  m_view_t_max = t_max;
+  m_auto_fit = false;
+  updateTimeEditTexts();
+  emit viewRangeChanged(m_view_t_min, m_view_t_max);
+  emit zoomStackChanged(!m_zoom_stack.empty());
+  update();
 }
 
 void PlotCanvas::setTimeShiftMode(bool enabled) {
@@ -997,11 +1018,13 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event) {
       double new_max = std::max(t1, t2);
       // Only zoom if the selection spans a meaningful range
       if (new_max - new_min > 1e-9) {
+        m_zoom_stack.push_back({m_view_t_min, m_view_t_max});
         m_view_t_min = new_min;
         m_view_t_max = new_max;
         m_auto_fit = false;
         updateTimeEditTexts();
         emit viewRangeChanged(m_view_t_min, m_view_t_max);
+        emit zoomStackChanged(true);
       }
       update();
       return;
@@ -1034,11 +1057,13 @@ void PlotCanvas::wheelEvent(QWheelEvent* event) {
   double new_max = mouse_t + (m_view_t_max - mouse_t) * factor;
 
   if (new_max - new_min > 1e-9) {
+    m_zoom_stack.push_back({m_view_t_min, m_view_t_max});
     m_view_t_min = new_min;
     m_view_t_max = new_max;
     m_auto_fit = false;
     updateTimeEditTexts();
     emit viewRangeChanged(m_view_t_min, m_view_t_max);
+    emit zoomStackChanged(true);
     update();
   }
 }

@@ -34,6 +34,8 @@ TOOLBAR
 - "Margin:" spin box: percentage of the Y range added as padding above and
   below signal extents when auto-scaling. Range 0–100%, default 0%.
 - "Reset Zoom" button: resets the time axis to auto-fit all loaded data.
+  Pushes the current zoom range onto the zoom history stack (if the view
+  changes), so "Prev Zoom" can return to the pre-reset state.
 - "Snap" dropdown: selects the position snapping grid size for bar and band
   dragging. Available values: Off, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20.
   Default: 0.01. Snapping is based on the top edge of the band (vertical)
@@ -44,6 +46,15 @@ TOOLBAR
   zoom (centered on mouse position). When unchecked (default), the scroll
   wheel scrolls the view vertically. Button turns bright yellow when active.
   Canvas shows a custom cursor (arrow with magnifying glass).
+  In H. Zoom mode, right-click drag continues to pan the time axis (same as
+  default mode). Each zoom operation (rubber-band or scroll wheel) pushes the
+  previous range onto the zoom history stack.
+- "Prev Zoom" button: steps back through the zoom history one range at a time.
+  Restores the view to the range before the most recent rubber-band zoom,
+  scroll-wheel zoom, or "Reset Zoom". Disabled when the stack is empty;
+  enabled automatically after any zoom operation that changes the view range.
+  The stack persists for the entire application session and is not cleared
+  when zoom mode is toggled off.
 - "Time Shift" toggle button: when checked, left-click+drag on the canvas
   shifts the time offset of target data layers. The target layers are
   determined by the current signal selection (see DATA OVERLAY section).
@@ -410,13 +421,15 @@ MOUSE INTERACTION: PLOT CANVAS
   shift simultaneously. If no signals are selected, the layer from the
   "Layer:" combo box is shifted.
 
-- Right click + drag: pans the time axis. Disables auto-fit.
+- Right click + drag: pans the time axis. Disables auto-fit. Applies in all
+  modes (default, H. Zoom, and Time Shift).
   - Shows ClosedHandCursor while panning.
 
 - Mouse wheel (default): scrolls the view vertically (see VERTICAL SCROLLING).
 
 - Mouse wheel (H. Zoom mode): zooms the time axis in/out (0.8x / 1.25x
-  factor), centered on the mouse position. Disables auto-fit.
+  factor), centered on the mouse position. Disables auto-fit. Pushes the
+  previous range onto the zoom history stack.
 
 
 KEYBOARD INTERACTION: PLOT CANVAS
