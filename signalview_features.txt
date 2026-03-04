@@ -18,7 +18,8 @@ TOOLBAR
 - "Group" button: groups all currently selected signals so they overlap.
   Copies band position, band height, bar_x, divisions, Y min, and Y max from the topmost
   selected signal (lowest band_top) to all other selected signals. No-op if
-  fewer than 2 signals are selected.
+  fewer than 2 signals are selected. After grouping, z_orders are reassigned
+  so the highest-index signal in the group is immediately on top.
 - "Auto Scale" button: sets the Y min/max of each selected signal (or all
   signals if none are selected) to automatically fit the Y range to the data
   within the current view time range (respecting time zoom). The margin added
@@ -117,9 +118,14 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
      - Z-order: each signal has a z_order value (saved with the layout).
        Bars are painted unselected-first then selected-on-top, and within each
        tier in ascending z_order so the most recently interacted bar in a stack
-       is always visible. Clicking a signal in any column (name, value, or bar
+       is always visible. When signals are first added or stacked together,
+       z_orders are immediately assigned so the highest-index signal (painted
+       on top) has the highest z_order — no click is needed to establish the
+       initial ordering. Clicking a signal in any column (name, value, or bar
        body) bumps its z_order above all others; the topmost bar persists even
-       after the selection is cleared. After each update, all z_order values are
+       after the selection is cleared. Hit-testing (click or edge-grab on a
+       stacked group) always targets the bar with the highest z_order, matching
+       the visual stacking. After each update, all z_order values are
        renormalized to [0, n-1] so they never grow unboundedly.
 
 All three columns and the panel/canvas boundary are independently resizable
@@ -548,7 +554,7 @@ Saved state includes:
   - Widget visibility (visible="0" or "1").
   - For each signal: name (with layer prefix if overlays exist), color, y_min,
     y_max, band_center, band_height, bar_x, divisions, line_style, line_width,
-    marker_style.
+    marker_style, z_order.
   - Cursor time position.
   - View time range (t_min, t_max).
   - Settings: snap amount, theme (0=Dark, 1=Light).
