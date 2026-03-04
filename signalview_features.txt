@@ -104,8 +104,7 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
 
   3. Y-Axis Bar Column (rightmost)
      - Displays a vertical axis bar for each signal with:
-       - A colored stripe to the right of the axis line.
-       - A vertical axis line in the signal's color.
+       - A single colored vertical stripe serving as the axis line.
        - Horizontal grab handles at the top and bottom edges.
        - Tick marks and numeric value labels along the axis.
        - Number of ticks: uses the signal's divisions setting (default 8).

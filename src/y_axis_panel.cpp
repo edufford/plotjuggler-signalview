@@ -493,21 +493,17 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     }
 
     double ax = axisX(sig.bar_x_norm);
-    // Color stripe (right of axis)
-    painter.fillRect(QRectF(ax + 2, top, 4, band_pixel_h), sig.color);
-
-    // Axis line
-    painter.setPen(QPen(sig.color.lighter(130), 1.5));
-    painter.drawLine(QPointF(ax, top), QPointF(ax, bottom));
+    // Single colored axis stripe, centered on ax
+    painter.fillRect(QRectF(ax - 2, top, 4, band_pixel_h), sig.color);
 
     // Edge grab handles
     painter.setPen(QPen(sig.color, 2));
-    painter.drawLine(QPointF(ax - 10, top), QPointF(ax + 6, top));
-    painter.drawLine(QPointF(ax - 10, bottom), QPointF(ax + 6, bottom));
+    painter.drawLine(QPointF(ax - 4, top), QPointF(ax + 4, top));
+    painter.drawLine(QPointF(ax - 4, bottom), QPointF(ax + 4, bottom));
 
     // Tick marks and value labels
     int n_ticks = sig.tickCount(band_pixel_h);
-    painter.setFont(QFont("monospace", 7));
+    painter.setFont(QFont("monospace", 8));
     painter.setPen(m_theme == Theme::Light ? QColor(60, 60, 60)
                                            : QColor(170, 170, 170));
 
@@ -519,7 +515,7 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
       painter.drawLine(QPointF(ax - 3, y), QPointF(ax + 3, y));
 
       QString label = QString::number(val, 'g', 4);
-      QRectF text_rect(ax - 48, y - 8, 40, 16);
+      QRectF text_rect(ax - 52, y - 8, 40, 16);
       painter.drawText(text_rect, Qt::AlignRight | Qt::AlignVCenter, label);
     }
   }
@@ -748,7 +744,6 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
   layout->addWidget(m_splitter);
 
   setMinimumWidth(120);
-  setMaximumWidth(400);
   resize(YAxisLabelColumn::DEFAULT_WIDTH + YAxisBarColumn::DEFAULT_WIDTH + 3,
          height());
 
