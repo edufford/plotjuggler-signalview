@@ -6,6 +6,7 @@
 #include <QWheelEvent>
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 #include "overlay_manager.h"
 
@@ -483,14 +484,23 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
   painter.fillRect(rect(), m_theme == Theme::Light ? QColor(250, 250, 250)
                                                    : QColor(30, 30, 30));
 
-  for (const auto& sig : m_signals) {
+  // Paint order: unselected first, selected on top; within each tier sort by
+  // z_order so the most recently clicked bar in a stack is always visible.
+  std::vector<int> order(m_signals.size());
+  std::iota(order.begin(), order.end(), 0);
+  std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+    bool a_sel = m_selected.count(a) > 0;
+    bool b_sel = m_selected.count(b) > 0;
+    if (a_sel != b_sel) return !a_sel;  // unselected before selected
+    return m_signals[a].z_order < m_signals[b].z_order;
+  });
+
+  for (int i : order) {
+    const SignalEntry& sig = m_signals[i];
     double top = AxisLayout::bandTopY(sig, height(), m_scroll_offset);
     double bottom = AxisLayout::bandBottomY(sig, height(), m_scroll_offset);
     double band_pixel_h = bottom - top;
-
-    if (band_pixel_h < 4) {
-      continue;
-    }
+    if (band_pixel_h < 4) continue;
 
     double ax = axisX(sig.bar_x_norm);
     // Single colored axis stripe, centered on ax
@@ -506,17 +516,14 @@ void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
     painter.setFont(QFont("monospace", 8));
     painter.setPen(m_theme == Theme::Light ? QColor(60, 60, 60)
                                            : QColor(170, 170, 170));
-
     for (int t = 0; t <= n_ticks; t++) {
       double frac = static_cast<double>(t) / n_ticks;
       double y = bottom - frac * band_pixel_h;
       double val = sig.y_min + frac * (sig.y_max - sig.y_min);
-
       painter.drawLine(QPointF(ax - 3, y), QPointF(ax + 3, y));
-
       QString label = QString::number(val, 'g', 4);
-      QRectF text_rect(ax - 52, y - 8, 40, 16);
-      painter.drawText(text_rect, Qt::AlignRight | Qt::AlignVCenter, label);
+      painter.drawText(QRectF(ax - 52, y - 8, 40, 16),
+                       Qt::AlignRight | Qt::AlignVCenter, label);
     }
   }
 
@@ -546,6 +553,12 @@ void YAxisBarColumn::mousePressEvent(QMouseEvent* event) {
 
     // Update selection on body clicks
     if (m_drag_hit.zone == BODY) {
+      // Bring this bar to the top of its stack. Any value above the current
+      // maximum suffices; SignalViewWidget::onZOrderChanged normalizes all
+      // values to [0, n-1] after applying the update.
+      int max_z = 0;
+      for (const auto& s : m_signals) max_z = std::max(max_z, s.z_order);
+      emit zOrderChanged(m_drag_hit.index, max_z + 1);
       if (event->modifiers() & Qt::ControlModifier) {
         // Ctrl+click: toggle
         if (m_selected.count(m_drag_hit.index)) {
@@ -758,6 +771,8 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
           &YAxisPanel::bandResized);
   connect(m_bar_col, &YAxisBarColumn::barXChanged, this,
           &YAxisPanel::barXChanged);
+  connect(m_bar_col, &YAxisBarColumn::zOrderChanged, this,
+          &YAxisPanel::zOrderChanged);
   connect(m_bar_col, &YAxisBarColumn::contextMenuRequested, this,
           &YAxisPanel::contextMenuRequested);
   connect(m_label_col, &YAxisLabelColumn::contextMenuRequested, this,
@@ -812,6 +827,14 @@ YAxisPanel::YAxisPanel(QWidget* parent) : QWidget(parent) {
             // If already selected without toggle: don't change (preserves for
             // double-click)
             m_bar_col->setSelection(sel);
+            // Bring this bar to the top of its stack (same logic as bar body
+            // click). SignalViewWidget::onZOrderChanged normalizes to [0, n-1].
+            if (index >= 0 && sel.count(index)) {
+              int max_z = 0;
+              for (const auto& s : m_signals)
+                max_z = std::max(max_z, s.z_order);
+              emit zOrderChanged(index, max_z + 1);
+            }
           });
 
   // Handle box-select from label columns — use text row positions (not full

@@ -55,6 +55,7 @@ class SignalViewWidget : public QWidget {
   void onBandOffsetChanged(int index, double new_center);
   void onBandResized(int index, double new_center, double new_height);
   void onBarXChanged(int index, double new_bar_x);
+  void onZOrderChanged(int index, int new_z_order);
   void onRemoveSignalByIndex(int index);
   void onCanvasResized();
   void onSnapComboChanged(int combo_index);

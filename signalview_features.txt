@@ -114,6 +114,13 @@ The Y-axis panel itself contains three columns joined by nested QSplitters:
      - Each bar has a horizontal position (bar_x) within the column.
        Bars default to the right edge (bar_x=1.0) and can be dragged
        horizontally to any position, allowing bars to be placed side by side.
+     - Z-order: each signal has a z_order value (saved with the layout).
+       Bars are painted unselected-first then selected-on-top, and within each
+       tier in ascending z_order so the most recently interacted bar in a stack
+       is always visible. Clicking a signal in any column (name, value, or bar
+       body) bumps its z_order above all others; the topmost bar persists even
+       after the selection is cleared. After each update, all z_order values are
+       renormalized to [0, n-1] so they never grow unboundedly.
 
 All three columns and the panel/canvas boundary are independently resizable
 via QSplitter drag handles.
@@ -224,6 +231,9 @@ Signals can be selected in any Y-axis panel column:
     existing selection.
   - Selected signals get a neutral gray highlight (160,160,160 at 31% opacity)
     in the name and value columns, visible on both dark and light backgrounds.
+  - Clicking a signal in any column (name, value, or bar body) bumps its
+    z_order to the top of its stack so its bar remains visible. The z_order
+    persists after the selection is cleared and is saved with the layout.
 
 Multi-signal operations (when multiple signals are selected):
   - Dragging a selected signal moves all selected signals together,

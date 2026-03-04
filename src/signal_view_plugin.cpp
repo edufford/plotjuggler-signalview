@@ -55,6 +55,7 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
     sig_elem.setAttribute("band_height_norm", sig.band_height_norm);
     sig_elem.setAttribute("bar_x_norm", sig.bar_x_norm);
     sig_elem.setAttribute("divisions", sig.divisions);
+    sig_elem.setAttribute("z_order", sig.z_order);
     sig_elem.setAttribute("line_style", static_cast<int>(sig.line_style));
     sig_elem.setAttribute("line_width", sig.line_width);
     sig_elem.setAttribute("marker_style", static_cast<int>(sig.marker_style));
@@ -135,6 +136,7 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
         sig_elem.attribute("band_height_norm", "1.0").toDouble();
     entry.bar_x_norm = sig_elem.attribute("bar_x_norm", "1.0").toDouble();
     entry.divisions = sig_elem.attribute("divisions", "8").toInt();
+    entry.z_order = sig_elem.attribute("z_order", "0").toInt();
     entry.line_style = static_cast<Qt::PenStyle>(
         sig_elem
             .attribute("line_style",

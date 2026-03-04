@@ -156,6 +156,56 @@ TEST_F(YAxisBarUITest, ClickEmptySpaceClearsSelection) {
   EXPECT_TRUE(m_bar->selection().empty());
 }
 
+// Clicking a bar body emits zOrderChanged with the clicked index.
+TEST_F(YAxisBarUITest, ClickBarBody_EmitsZOrderChanged) {
+  auto entry = makeEntry(0.5, 1.0);
+  m_bar->setSignalEntries({entry});
+  QSignalSpy spy(m_bar, &YAxisBarColumn::zOrderChanged);
+
+  QPoint pos(barPixelX(1.0), bandCenterY(entry));
+  QTest::mouseClick(m_bar, Qt::LeftButton, Qt::NoModifier, pos);
+
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_EQ(spy.first().at(0).toInt(), 0);  // index 0
+}
+
+// Clicking stacked bars in sequence brings each one to the top z_order.
+// Both signals occupy the same band; clicking the second should give it a
+// higher z_order than the first, and clicking back should reverse that.
+TEST_F(YAxisBarUITest, StackedBars_ZOrderFollowsLastClick) {
+  // Two signals stacked at the same band position and bar_x.
+  auto e0 = makeEntry(0.5, 1.0);
+  auto e1 = makeEntry(0.5, 1.0);
+  e0.z_order = 0;
+  e1.z_order = 0;
+  m_bar->setSignalEntries({e0, e1});
+
+  QSignalSpy spy(m_bar, &YAxisBarColumn::zOrderChanged);
+
+  QPoint pos(barPixelX(1.0), bandCenterY(e0));
+
+  // First click — one of the two stacked signals gets a bump.
+  QTest::mouseClick(m_bar, Qt::LeftButton, Qt::NoModifier, pos);
+  ASSERT_EQ(spy.count(), 1);
+  int first_idx = spy.first().at(0).toInt();
+  int first_z = spy.first().at(1).toInt();
+  EXPECT_GT(first_z, 0);
+
+  // Propagate the z_order update back into the bar column (mirrors what
+  // SignalViewWidget::onZOrderChanged does in the full application).
+  std::vector<SignalEntry> updated = {e0, e1};
+  updated[first_idx].z_order = first_z;
+  m_bar->setSignalEntries(updated);
+
+  // Second click — another bump must exceed first_z so the new bar is on top.
+  QTest::mouseClick(m_bar, Qt::LeftButton, Qt::NoModifier, pos);
+  ASSERT_GE(spy.count(), 2);
+  int second_z = spy.last().at(1).toInt();
+  EXPECT_GT(second_z, first_z);
+}
+
+// ---------------------------------------------------------------------------
+
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
   ::testing::InitGoogleTest(&argc, argv);

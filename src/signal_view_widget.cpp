@@ -25,6 +25,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <numeric>
 
 static constexpr const char* PLUGIN_VERSION = "0.9.0";
 
@@ -248,6 +249,8 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onBandResized);
   connect(m_y_axis_panel, &YAxisPanel::barXChanged, this,
           &SignalViewWidget::onBarXChanged);
+  connect(m_y_axis_panel, &YAxisPanel::zOrderChanged, this,
+          &SignalViewWidget::onZOrderChanged);
   connect(m_y_axis_panel, &YAxisPanel::contextMenuRequested, this,
           &SignalViewWidget::onSignalContextMenu);
   connect(m_y_axis_panel, &YAxisPanel::editYRangeRequested, this,
@@ -645,6 +648,27 @@ void SignalViewWidget::onBarXChanged(int index, double new_bar_x) {
   } else {
     m_signals[index].bar_x_norm = snapValue(new_bar_x);
   }
+  m_canvas->setSignalEntries(m_signals);
+  m_y_axis_panel->setSignalEntries(m_signals);
+}
+
+void SignalViewWidget::onZOrderChanged(int index, int new_z_order) {
+  if (index < 0 || index >= static_cast<int>(m_signals.size())) {
+    return;
+  }
+  m_signals[index].z_order = new_z_order;
+
+  // Renormalize all z_order values to 0..n-1 (preserving relative order) so
+  // values never grow unboundedly regardless of how many clicks occur.
+  std::vector<int> idx(m_signals.size());
+  std::iota(idx.begin(), idx.end(), 0);
+  std::stable_sort(idx.begin(), idx.end(), [&](int a, int b) {
+    return m_signals[a].z_order < m_signals[b].z_order;
+  });
+  for (int rank = 0; rank < static_cast<int>(idx.size()); ++rank) {
+    m_signals[idx[rank]].z_order = rank;
+  }
+
   m_canvas->setSignalEntries(m_signals);
   m_y_axis_panel->setSignalEntries(m_signals);
 }
