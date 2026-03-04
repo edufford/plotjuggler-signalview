@@ -448,10 +448,21 @@ double YAxisBarColumn::axisX(double bar_x_norm) const {
 }
 
 YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
+  // Collect all hits and pick the topmost (highest z_order) in each zone.
+  // Edge hits take priority over body hits; within each zone the highest
+  // z_order wins so the visually topmost bar in a stacked group is targeted.
+  HitResult best_top{-1, NONE};
+  HitResult best_bot{-1, NONE};
+  HitResult best_body{-1, NONE};
+
+  auto better = [&](const HitResult& candidate, const HitResult& current) {
+    return current.index == -1 || m_signals[candidate.index].z_order >
+                                      m_signals[current.index].z_order;
+  };
+
   for (int i = 0; i < static_cast<int>(m_signals.size()); i++) {
     double ax = axisX(m_signals[i].bar_x_norm);
 
-    // Check horizontal proximity to this bar's axis
     if (pos.x() < ax - 30 || pos.x() > ax + 10) {
       continue;
     }
@@ -466,16 +477,18 @@ YAxisBarColumn::HitResult YAxisBarColumn::hitTest(const QPoint& pos) const {
     }
 
     if (std::abs(pos.y() - top) <= EDGE_GRAB_PIXELS) {
-      return {i, TOP_EDGE};
-    }
-    if (std::abs(pos.y() - bottom) <= EDGE_GRAB_PIXELS) {
-      return {i, BOTTOM_EDGE};
-    }
-    if (pos.y() >= top && pos.y() <= bottom) {
-      return {i, BODY};
+      if (better({i, TOP_EDGE}, best_top)) best_top = {i, TOP_EDGE};
+    } else if (std::abs(pos.y() - bottom) <= EDGE_GRAB_PIXELS) {
+      if (better({i, BOTTOM_EDGE}, best_bot)) best_bot = {i, BOTTOM_EDGE};
+    } else if (pos.y() >= top && pos.y() <= bottom) {
+      if (better({i, BODY}, best_body)) best_body = {i, BODY};
     }
   }
-  return {-1, NONE};
+
+  // Edge hits take priority over body hits.
+  if (best_top.index >= 0) return best_top;
+  if (best_bot.index >= 0) return best_bot;
+  return best_body;
 }
 
 void YAxisBarColumn::paintEvent(QPaintEvent* /*event*/) {
