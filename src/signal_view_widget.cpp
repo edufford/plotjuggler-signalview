@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 
 static constexpr const char* PLUGIN_VERSION = "0.9.0";
 
@@ -1159,57 +1160,72 @@ void SignalViewWidget::autoScaleIndices(const std::set<int>& indices) {
     return;
   }
 
+  // Group indices by band geometry (center, height, bar_x). Signals with
+  // identical band geometry are considered grouped and share a combined Y
+  // range.
+  struct BandKey {
+    double center, height, bar_x;
+    bool operator<(const BandKey& o) const {
+      if (center != o.center) return center < o.center;
+      if (height != o.height) return height < o.height;
+      return bar_x < o.bar_x;
+    }
+  };
+
+  std::map<BandKey, std::vector<int>> groups;
+  for (int i : indices) {
+    if (i < 0 || i >= static_cast<int>(m_signals.size())) continue;
+    const auto& sig = m_signals[i];
+    groups[{sig.band_center_norm, sig.band_height_norm, sig.bar_x_norm}]
+        .push_back(i);
+  }
+
   bool changed = false;
 
-  for (int i : indices) {
-    if (i < 0 || i >= static_cast<int>(m_signals.size())) {
-      continue;
-    }
-
-    auto resolved = m_overlay_mgr->resolveSignal(m_signals[i].name);
-    if (!resolved || resolved->series->size() == 0) {
-      continue;
-    }
-
-    // Find Y range within the current view time range, accounting for time
-    // offset
-    const auto& series = *resolved->series;
-    double t_offset = resolved->time_offset;
-    double t_min = m_canvas->viewMinTime() - t_offset;
-    double t_max = m_canvas->viewMaxTime() - t_offset;
-
-    // Find first point at or after t_min (in local time)
-    auto lb = std::lower_bound(
-        series.begin(), series.end(), PJ::PlotData::Point(t_min, 0.0),
-        [](const auto& a, const auto& b) { return a.x < b.x; });
-
-    // Include the last point before t_min for step-wise hold value
-    if (lb != series.begin()) {
-      --lb;
-    }
-
+  for (auto& [key, group] : groups) {
+    // Compute combined Y extents over all signals in this group.
     double y_lo = std::numeric_limits<double>::max();
     double y_hi = std::numeric_limits<double>::lowest();
-    bool found = false;
+    bool found_any = false;
 
-    for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max; ++pt_it) {
-      y_lo = std::min(y_lo, pt_it->y);
-      y_hi = std::max(y_hi, pt_it->y);
-      found = true;
+    for (int i : group) {
+      auto resolved = m_overlay_mgr->resolveSignal(m_signals[i].name);
+      if (!resolved || resolved->series->size() == 0) continue;
+
+      const auto& series = *resolved->series;
+      double t_offset = resolved->time_offset;
+      double t_min = m_canvas->viewMinTime() - t_offset;
+      double t_max = m_canvas->viewMaxTime() - t_offset;
+
+      // Find first point at or after t_min (in local time)
+      auto lb = std::lower_bound(
+          series.begin(), series.end(), PJ::PlotData::Point(t_min, 0.0),
+          [](const auto& a, const auto& b) { return a.x < b.x; });
+
+      // Include the last point before t_min for step-wise hold value
+      if (lb != series.begin()) --lb;
+
+      for (auto pt_it = lb; pt_it != series.end() && pt_it->x <= t_max;
+           ++pt_it) {
+        y_lo = std::min(y_lo, pt_it->y);
+        y_hi = std::max(y_hi, pt_it->y);
+        found_any = true;
+      }
     }
 
-    if (!found) {
-      continue;
-    }
+    if (!found_any) continue;
 
     double range = y_hi - y_lo;
     double margin = range * (m_autoscale_margin_spin->value() / 100.0);
     if (range < 1e-9) {
-      margin = 1.0;  // fallback for constant signals regardless of margin %
+      margin = 1.0;  // fallback for constant/all-constant groups
     }
-    m_signals[i].y_min = y_lo - margin;
-    m_signals[i].y_max = y_hi + margin;
-    changed = true;
+
+    for (int i : group) {
+      m_signals[i].y_min = y_lo - margin;
+      m_signals[i].y_max = y_hi + margin;
+      changed = true;
+    }
   }
 
   if (changed) {
