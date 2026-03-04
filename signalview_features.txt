@@ -51,7 +51,8 @@ TOOLBAR
   previous range onto the zoom history stack.
 - "Prev Zoom" button: steps back through the zoom history one range at a time.
   Restores the view to the range before the most recent rubber-band zoom,
-  scroll-wheel zoom, or "Reset Zoom". Disabled when the stack is empty;
+  scroll-wheel zoom, "Reset Zoom", right-click pan, or manual time field edit.
+  Disabled when the stack is empty;
   enabled automatically after any zoom operation that changes the view range.
   The stack persists for the entire application session and is not cleared
   when zoom mode is toggled off.
@@ -218,6 +219,8 @@ Time axis:
     - Fields update live during pan, zoom, and auto-fit.
     - Editing a value and pressing Enter (or losing focus) sets the view
       range and disables auto-fit. Invalid values are reverted.
+    - A successful edit pushes the previous range onto the zoom history
+      stack so "Prev Zoom" can return to it.
 
 Cursor:
   - Dark mode: vertical dashed yellow line with a small yellow triangle handle.

@@ -130,7 +130,9 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   connect(m_time_start_edit, &QLineEdit::editingFinished, this, [this]() {
     bool ok;
     double val = m_time_start_edit->text().toDouble(&ok);
-    if (ok && val < m_view_t_max) {
+    if (ok && val < m_view_t_max && val != m_view_t_min) {
+      m_zoom_stack.push_back({m_view_t_min, m_view_t_max});
+      emit zoomStackChanged(true);
       m_view_t_min = val;
       m_auto_fit = false;
       emit viewRangeChanged(m_view_t_min, m_view_t_max);
@@ -142,7 +144,9 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   connect(m_time_end_edit, &QLineEdit::editingFinished, this, [this]() {
     bool ok;
     double val = m_time_end_edit->text().toDouble(&ok);
-    if (ok && val > m_view_t_min) {
+    if (ok && val > m_view_t_min && val != m_view_t_max) {
+      m_zoom_stack.push_back({m_view_t_min, m_view_t_max});
+      emit zoomStackChanged(true);
       m_view_t_max = val;
       m_auto_fit = false;
       emit viewRangeChanged(m_view_t_min, m_view_t_max);
