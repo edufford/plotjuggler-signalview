@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build (e.g. v1.0.0) — must already exist'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  PJ_VERSION: 3.15.0
+
+jobs:
+  build-linux:
+    name: Build Plugin (Linux)
+    runs-on: ubuntu-latest
+
+    env:
+      PJ_INSTALL_DIR: ${{ github.workspace }}/plotjuggler-install
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install plugin dependencies
+        run: sudo apt-get update && sudo apt-get install -y qtbase5-dev cmake
+
+      - name: Cache PlotJuggler
+        id: cache-pj
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PJ_INSTALL_DIR }}
+          key: plotjuggler-${{ runner.os }}-${{ env.PJ_VERSION }}-release
+
+      - name: Install PlotJuggler build dependencies
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y \
+            libqt5svg5-dev libqt5opengl5-dev libqt5websockets5-dev \
+            libqt5x11extras5-dev libcurl4-openssl-dev
+
+      - name: Build PlotJuggler
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch $PJ_VERSION https://github.com/facontidavide/PlotJuggler.git /tmp/PlotJuggler
+          cd /tmp/PlotJuggler && mkdir build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=$PJ_INSTALL_DIR -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc) && make install
+
+      - name: Build plugin (Release)
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=$PJ_INSTALL_DIR -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc) && make install
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-linux
+          path: ${{ env.PJ_INSTALL_DIR }}/lib/plotjuggler/plugins/libSignalViewPlugin.so
+
+  build-windows:
+    name: Build Plugin (Windows)
+    runs-on: windows-latest
+
+    env:
+      PJ_INSTALL_DIR: ${{ github.workspace }}\plotjuggler-install
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install Qt 5.15
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          arch: win64_msvc2019_64
+
+      - name: Cache PlotJuggler
+        id: cache-pj
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PJ_INSTALL_DIR }}
+          key: plotjuggler-${{ runner.os }}-${{ env.PJ_VERSION }}-release
+
+      - name: Build PlotJuggler
+        if: steps.cache-pj.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch $env:PJ_VERSION https://github.com/facontidavide/PlotJuggler.git $env:RUNNER_TEMP\PlotJuggler
+          cmake -S $env:RUNNER_TEMP\PlotJuggler -B $env:RUNNER_TEMP\PlotJuggler\build `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_INSTALL_PREFIX="${{ env.PJ_INSTALL_DIR }}" `
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build $env:RUNNER_TEMP\PlotJuggler\build --config Release -j $env:NUMBER_OF_PROCESSORS
+          cmake --install $env:RUNNER_TEMP\PlotJuggler\build --config Release
+
+      - name: Build plugin (Release)
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_INSTALL_PREFIX="${{ env.PJ_INSTALL_DIR }}" `
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+          cmake --install build --config Release
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-windows
+          path: ${{ env.PJ_INSTALL_DIR }}\lib\plotjuggler\plugins\SignalViewPlugin.dll
+
+  release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-windows
+
+      - name: Rename artifacts with version info
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          mv libSignalViewPlugin.so libSignalViewPlugin-${TAG}-pj${{ env.PJ_VERSION }}.so
+          mv SignalViewPlugin.dll SignalViewPlugin-${TAG}-pj${{ env.PJ_VERSION }}.dll
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            libSignalViewPlugin-*.so
+            SignalViewPlugin-*.dll
+          body: |
+            ## Installation
+
+            These plugins were built against **PlotJuggler ${{ env.PJ_VERSION }}** and require that version or a compatible release.
+
+            Copy the plugin file for your OS to PlotJuggler's plugins directory, then restart PlotJuggler.
+
+            | OS | File | Plugins directory |
+            |----|------|-------------------|
+            | Linux | `libSignalViewPlugin-<version>-pj${{ env.PJ_VERSION }}.so` | `<plotjuggler>/lib/plotjuggler/plugins/` |
+            | Windows | `SignalViewPlugin-<version>-pj${{ env.PJ_VERSION }}.dll` | `<plotjuggler>\lib\plotjuggler\plugins\` |
+
+            The typical install locations are:
+            - **Linux (apt):** `/opt/ros/<distro>/lib/plotjuggler/plugins/` or `/usr/lib/plotjuggler/plugins/`
+            - **Windows:** `C:\Program Files\PlotJuggler\lib\plotjuggler\plugins\`
+
+            After copying, open PlotJuggler and the **Signal View** panel will appear in the Toolbox menu.
