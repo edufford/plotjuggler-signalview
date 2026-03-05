@@ -27,7 +27,7 @@
 #include <map>
 #include <numeric>
 
-static constexpr const char* PLUGIN_VERSION = "0.9.0";
+static constexpr const char* PLUGIN_VERSION = "1.0.0";
 
 // Shared style option definitions used by onEditYRange and onStyleLayer.
 struct LineStyleOption {
