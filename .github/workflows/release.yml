@@ -56,7 +56,7 @@ jobs:
       - name: Build plugin (Release)
         run: |
           mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=$PJ_INSTALL_DIR -DCMAKE_BUILD_TYPE=Release
+          cmake .. -DPJ_INSTALL_DIR=$PJ_INSTALL_DIR -DCMAKE_PREFIX_PATH=$PJ_INSTALL_DIR -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc) && make install
 
       - name: Upload Linux artifact
@@ -107,7 +107,8 @@ jobs:
         run: |
           cmake -S . -B build `
             -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_INSTALL_PREFIX="${{ env.PJ_INSTALL_DIR }}" `
+            -DPJ_INSTALL_DIR="${{ env.PJ_INSTALL_DIR }}" `
+            -DCMAKE_PREFIX_PATH="${{ env.PJ_INSTALL_DIR }}" `
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
           cmake --install build --config Release
