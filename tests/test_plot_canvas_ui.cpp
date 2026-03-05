@@ -223,6 +223,219 @@ TEST_F(PlotCanvasUITest, WheelInZoomModeChangesViewRange) {
   EXPECT_LT(new_max, 10.0);
 }
 
+// ---- Zoom stack tests -------------------------------------------------------
+
+// After a rubber-band zoom, zoomStackChanged(true) is emitted and the stack
+// holds the previous range.
+TEST_F(PlotCanvasUITest, RubberBandZoomPushesToStack) {
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  int y = H / 2;
+  QPoint start(timeToPixelX(2.0), y);
+  QPoint end(timeToPixelX(8.0), y);
+
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_TRUE(spy.first().at(0).toBool());
+}
+
+// prevZoom() after a rubber-band zoom restores the original range and emits
+// zoomStackChanged(false) when the stack is exhausted.
+TEST_F(PlotCanvasUITest, PrevZoomAfterRubberBandRestoresRange) {
+  m_canvas->setZoomMode(true);
+  int y = H / 2;
+  QPoint start(timeToPixelX(2.0), y);
+  QPoint end(timeToPixelX(8.0), y);
+
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  m_canvas->prevZoom();
+
+  ASSERT_EQ(range_spy.count(), 1);
+  EXPECT_NEAR(range_spy.first().at(0).toDouble(), 0.0, 1e-9);
+  EXPECT_NEAR(range_spy.first().at(1).toDouble(), 10.0, 1e-9);
+  ASSERT_EQ(stack_spy.count(), 1);
+  EXPECT_FALSE(stack_spy.first().at(0).toBool());
+}
+
+// After a scroll-wheel zoom, zoomStackChanged(true) is emitted.
+TEST_F(PlotCanvasUITest, WheelZoomPushesToStack) {
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  QPoint center(W / 2, H / 2);
+  QWheelEvent event(center, m_canvas->mapToGlobal(center), QPoint(0, 0),
+                    QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
+                    Qt::NoScrollPhase, false);
+  QApplication::sendEvent(m_canvas, &event);
+
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_TRUE(spy.first().at(0).toBool());
+}
+
+// prevZoom() after a scroll-wheel zoom restores the original range.
+TEST_F(PlotCanvasUITest, PrevZoomAfterWheelZoomRestoresRange) {
+  m_canvas->setZoomMode(true);
+  QPoint center(W / 2, H / 2);
+  QWheelEvent event(center, m_canvas->mapToGlobal(center), QPoint(0, 0),
+                    QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
+                    Qt::NoScrollPhase, false);
+  QApplication::sendEvent(m_canvas, &event);
+
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  m_canvas->prevZoom();
+
+  ASSERT_EQ(range_spy.count(), 1);
+  EXPECT_NEAR(range_spy.first().at(0).toDouble(), 0.0, 1e-9);
+  EXPECT_NEAR(range_spy.first().at(1).toDouble(), 10.0, 1e-9);
+}
+
+// prevZoom() on an empty stack is a no-op (no signals emitted).
+TEST_F(PlotCanvasUITest, PrevZoomOnEmptyStackIsNoop) {
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  m_canvas->prevZoom();
+  EXPECT_EQ(range_spy.count(), 0);
+  EXPECT_EQ(stack_spy.count(), 0);
+}
+
+// Multiple zooms build a stack; prevZoom() unwinds them one at a time.
+TEST_F(PlotCanvasUITest, PrevZoomUnwindsMultipleZooms) {
+  m_canvas->setZoomMode(true);
+
+  // First zoom: [0,10] -> ~[2,8]
+  {
+    int y = H / 2;
+    QPoint start(timeToPixelX(2.0), y);
+    QPoint end(timeToPixelX(8.0), y);
+    QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+    QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(m_canvas, &move);
+    QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+  }
+
+  double mid_min = m_canvas->viewMinTime();
+  double mid_max = m_canvas->viewMaxTime();
+
+  // Second zoom: further in
+  {
+    int y = H / 2;
+    QPoint start(timeToPixelX(3.0), y);
+    QPoint end(timeToPixelX(7.0), y);
+    QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+    QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(m_canvas, &move);
+    QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+  }
+
+  // First prevZoom: should return to mid range
+  m_canvas->prevZoom();
+  EXPECT_NEAR(m_canvas->viewMinTime(), mid_min, 1e-9);
+  EXPECT_NEAR(m_canvas->viewMaxTime(), mid_max, 1e-9);
+
+  // Second prevZoom: should return to original [0, 10]
+  m_canvas->prevZoom();
+  EXPECT_NEAR(m_canvas->viewMinTime(), 0.0, 1e-9);
+  EXPECT_NEAR(m_canvas->viewMaxTime(), 10.0, 1e-9);
+}
+
+// resetZoom() does not push to the stack when the view range is unchanged
+// (e.g. no data loaded so autoFitTimeRange is a no-op).
+TEST_F(PlotCanvasUITest, ResetZoomDoesNotPushWhenViewUnchanged) {
+  QSignalSpy spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  m_canvas->resetZoom();
+  EXPECT_EQ(spy.count(), 0);
+}
+
+// Right-click drag pushes the pre-pan range onto the zoom stack on first move.
+TEST_F(PlotCanvasUITest, RightClickPanPushesToStack) {
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  // No push yet — pan hasn't actually moved.
+  EXPECT_EQ(stack_spy.count(), 0);
+
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  // Push happens on first move.
+  ASSERT_EQ(stack_spy.count(), 1);
+  EXPECT_TRUE(stack_spy.first().at(0).toBool());
+
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  ASSERT_GE(range_spy.count(), 1);
+  double new_min = range_spy.last().at(0).toDouble();
+  double new_max = range_spy.last().at(1).toDouble();
+  EXPECT_LT(new_min, 0.0);
+  EXPECT_LT(new_max, 10.0);
+}
+
+// Right-click without dragging does NOT push to the zoom stack.
+TEST_F(PlotCanvasUITest, RightClickWithoutDragDoesNotPushStack) {
+  QSignalSpy stack_spy(m_canvas, &PlotCanvas::zoomStackChanged);
+  QTest::mouseClick(m_canvas, Qt::RightButton, Qt::NoModifier,
+                    QPoint(200, H / 2));
+  EXPECT_EQ(stack_spy.count(), 0);
+}
+
+// prevZoom() after a right-click pan restores the pre-pan range.
+TEST_F(PlotCanvasUITest, PrevZoomAfterPanRestoresRange) {
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  QSignalSpy range_spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  m_canvas->prevZoom();
+
+  ASSERT_EQ(range_spy.count(), 1);
+  EXPECT_NEAR(range_spy.first().at(0).toDouble(), 0.0, 1e-9);
+  EXPECT_NEAR(range_spy.first().at(1).toDouble(), 10.0, 1e-9);
+}
+
+// Right-click still pans even when zoom mode is active.
+TEST_F(PlotCanvasUITest, RightClickPansInZoomMode) {
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::viewRangeChanged);
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  ASSERT_GE(spy.count(), 1);
+  double new_min = spy.last().at(0).toDouble();
+  double new_max = spy.last().at(1).toDouble();
+  EXPECT_LT(new_min, 0.0);
+  EXPECT_LT(new_max, 10.0);
+}
+
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
   ::testing::InitGoogleTest(&argc, argv);

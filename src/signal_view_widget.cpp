@@ -158,6 +158,10 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   btn_zoom->setToolTip("Toggle horizontal (time) zoom on scroll wheel");
   btn_zoom->setStyleSheet(toggle_style);
   toolbar->addWidget(btn_zoom);
+  auto* btn_prev_zoom = new QPushButton("Prev Zoom", this);
+  btn_prev_zoom->setToolTip("Return to previous zoom range");
+  btn_prev_zoom->setEnabled(false);
+  toolbar->addWidget(btn_prev_zoom);
   toolbar->addSeparator();
   auto* btn_time_shift = new QPushButton("Time Shift", this);
   btn_time_shift->setCheckable(true);
@@ -275,6 +279,12 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onStyleLayer);
   connect(m_data_sets_panel, &DataSetsPanel::layerRenamed, this,
           &SignalViewWidget::onLayerRenamed);
+
+  // Prev Zoom button
+  connect(btn_prev_zoom, &QPushButton::clicked, m_canvas,
+          &PlotCanvas::prevZoom);
+  connect(m_canvas, &PlotCanvas::zoomStackChanged, btn_prev_zoom,
+          &QPushButton::setEnabled);
 
   // Zoom mode toggle
   connect(btn_zoom, &QPushButton::toggled, this,
