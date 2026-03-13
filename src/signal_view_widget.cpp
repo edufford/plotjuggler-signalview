@@ -20,6 +20,7 @@
 #include <QSplitter>
 #include <QStringList>
 #include <QTableWidget>
+#include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -400,6 +401,11 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           [this]() { m_y_axis_panel->selectAll(); });
 
   updateScrollBar();
+
+  // Deferred: find PJ's streaming pause button and install event filter
+  // so we can auto-enable streaming when PJ starts a data streamer.
+  // Uses a single-shot timer because MainWindow may not be fully set up yet.
+  QTimer::singleShot(0, this, [this]() { setPjStreamingPaused(false); });
 }
 
 void SignalViewWidget::onAddSignal(double band_center_norm) {
@@ -795,14 +801,48 @@ void SignalViewWidget::setStreamBufferSeconds(double secs) {
 
 void SignalViewWidget::setPjStreamingPaused(bool paused) {
   // Find PlotJuggler's MainWindow streaming pause button and toggle it.
-  for (auto* w : QApplication::topLevelWidgets()) {
-    if (auto* btn = w->findChild<QPushButton*>("buttonStreamingPause")) {
-      if (btn->isEnabled() && btn->isChecked() != paused) {
-        btn->setChecked(paused);
+  // Cache the pointer and install an event filter so we can detect when
+  // PJ starts streaming (button becomes enabled).
+  if (!m_pj_pause_btn) {
+    for (auto* w : QApplication::topLevelWidgets()) {
+      if (auto* btn = w->findChild<QPushButton*>("buttonStreamingPause")) {
+        m_pj_pause_btn = btn;
+        btn->installEventFilter(this);
+        break;
       }
-      return;
     }
   }
+  if (m_pj_pause_btn && m_pj_pause_btn->isEnabled() &&
+      m_pj_pause_btn->isChecked() != paused) {
+    m_pj_pause_btn->setChecked(paused);
+  }
+}
+
+bool SignalViewWidget::eventFilter(QObject* obj, QEvent* event) {
+  if (obj == m_pj_pause_btn && event->type() == QEvent::EnabledChange) {
+    if (m_pj_pause_btn->isEnabled()) {
+      // PJ streaming just started — fresh start (not a resume)
+      if (!m_canvas->streamingMode()) {
+        // Clear stale data buffers so the new stream starts clean
+        for (auto* w : QApplication::topLevelWidgets()) {
+          if (auto* action = w->findChild<QAction*>("actionClearBuffer")) {
+            action->trigger();
+            break;
+          }
+        }
+        m_canvas->resetStreamState();
+        m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+        m_canvas->setStreamingMode(true);
+      }
+    } else {
+      // PJ streaming stopped — disable our streaming mode and clear state
+      if (m_canvas->streamingMode()) {
+        m_canvas->setStreamingMode(false);
+        m_canvas->resetStreamState();
+      }
+    }
+  }
+  return QWidget::eventFilter(obj, event);
 }
 
 void SignalViewWidget::refreshOverlayUI() {

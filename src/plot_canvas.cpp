@@ -405,8 +405,9 @@ void PlotCanvas::setStreamingMode(bool enabled) {
   }
   m_streaming = enabled;
   if (enabled) {
-    // If we had a previous session, resume directly into scroll mode
-    // so that new data appears at the right edge immediately.
+    // If resuming after user-interaction pause (t0 was previously set),
+    // jump to scroll mode so new data appears at the right edge.
+    // A fresh PJ start resets t0_set via resetStreamState() first.
     m_stream_resuming = m_stream_t0_set;
     m_stream_t0_set = false;
     m_stream_timer->start();
@@ -414,6 +415,11 @@ void PlotCanvas::setStreamingMode(bool enabled) {
     m_stream_timer->stop();
   }
   emit streamingModeChanged(enabled);
+}
+
+void PlotCanvas::resetStreamState() {
+  m_stream_t0_set = false;
+  m_stream_resuming = false;
 }
 
 void PlotCanvas::setStreamBufferSeconds(double secs) {
@@ -445,11 +451,17 @@ void PlotCanvas::updateStreamingView() {
   // Record t0 on first data arrival
   if (!m_stream_t0_set) {
     if (m_stream_resuming) {
-      // Resuming after pause: set t0 so we're immediately in scroll mode
-      // (elapsed >= buf), placing existing data at the right edge.
-      m_stream_t0 = t_max_data - m_stream_buffer_secs;
+      // Resuming after user-interaction pause.
+      // Only jump to scroll mode if the buffer was already full when paused;
+      // otherwise continue the fill phase with the original t0.
+      double elapsed = t_max_data - m_stream_t0;
+      if (elapsed > m_stream_buffer_secs) {
+        m_stream_t0 = t_max_data - m_stream_buffer_secs;
+      }
+      // else: keep m_stream_t0 from the original session (still filling)
       m_stream_resuming = false;
     } else {
+      // Fresh start: data begins at right edge, fills leftward.
       m_stream_t0 = t_max_data;
     }
     m_stream_t0_set = true;

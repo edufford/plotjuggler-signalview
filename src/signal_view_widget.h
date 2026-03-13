@@ -50,6 +50,9 @@ class SignalViewWidget : public QWidget {
   void setStreamingMode(bool enabled);
   void setStreamBufferSeconds(double secs);
 
+ protected:
+  bool eventFilter(QObject* obj, QEvent* event) override;
+
  signals:
   void closeRequested();
 
@@ -114,6 +117,7 @@ class SignalViewWidget : public QWidget {
   DataSetsPanel* m_data_sets_panel;
   QPushButton* m_btn_stream;
   QDoubleSpinBox* m_stream_buffer_spin;
+  QPushButton* m_pj_pause_btn = nullptr;  // PJ's MainWindow streaming pause btn
 
   // Multi-drag state: original positions captured at drag start
   int m_multi_drag_index = -1;
