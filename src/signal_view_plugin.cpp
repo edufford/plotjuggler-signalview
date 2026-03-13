@@ -74,6 +74,9 @@ bool SignalViewPlugin::xmlSaveState(QDomDocument& doc,
   QDomElement settings_elem = doc.createElement("settings");
   settings_elem.setAttribute("snap", m_widget->snapAmount());
   settings_elem.setAttribute("theme", static_cast<int>(m_widget->theme()));
+  settings_elem.setAttribute("streaming",
+                             m_widget->streamingMode() ? "1" : "0");
+  settings_elem.setAttribute("stream_buffer", m_widget->streamBufferSeconds());
   parent_element.appendChild(settings_elem);
 
   // Overlay layers (including base layer time offset)
@@ -178,6 +181,12 @@ bool SignalViewPlugin::xmlLoadState(const QDomElement& parent_element) {
     Theme theme =
         static_cast<Theme>(settings_elem.attribute("theme", "0").toInt());
     m_widget->applyTheme(theme);
+    double stream_buf =
+        settings_elem.attribute("stream_buffer", "30").toDouble();
+    m_widget->setStreamBufferSeconds(stream_buf);
+    if (settings_elem.attribute("streaming", "0") == "1") {
+      m_widget->setStreamingMode(true);
+    }
   }
 
   // Restore splitter sizes

@@ -148,6 +148,29 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_reset);
   toolbar->addWidget(btn_reset_cursor);
   toolbar->addSeparator();
+
+  // Streaming mode toggle + buffer time
+  m_btn_stream = new QPushButton("Stream", this);
+  m_btn_stream->setCheckable(true);
+  m_btn_stream->setToolTip(
+      "Toggle streaming mode: auto-scroll time axis to follow live data");
+  m_btn_stream->setStyleSheet(
+      "QPushButton:checked { background: #ffdd00; color: #000; }");
+  toolbar->addWidget(m_btn_stream);
+
+  auto* buf_label = new QLabel("Buf:", this);
+  buf_label->setStyleSheet("color: #000; font-size: 9px; padding: 0 2px;");
+  toolbar->addWidget(buf_label);
+  m_stream_buffer_spin = new QDoubleSpinBox(this);
+  m_stream_buffer_spin->setRange(1.0, 3600.0);
+  m_stream_buffer_spin->setValue(30.0);
+  m_stream_buffer_spin->setSuffix(" s");
+  m_stream_buffer_spin->setDecimals(1);
+  m_stream_buffer_spin->setFixedWidth(80);
+  m_stream_buffer_spin->setToolTip("Stream buffer time window (seconds)");
+  toolbar->addWidget(m_stream_buffer_spin);
+  toolbar->addSeparator();
+
   toolbar->addWidget(snap_label);
   toolbar->addWidget(m_snap_combo);
   toolbar->addSeparator();
@@ -340,6 +363,18 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           &SignalViewWidget::onVerticalScroll);
   connect(m_y_axis_panel, &YAxisPanel::verticalScrollRequested, this,
           &SignalViewWidget::onVerticalScroll);
+
+  // Streaming mode
+  connect(m_btn_stream, &QPushButton::toggled, this, [this](bool checked) {
+    m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+    m_canvas->setStreamingMode(checked);
+  });
+  connect(m_stream_buffer_spin,
+          QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+          [this](double val) { m_canvas->setStreamBufferSeconds(val); });
+  // Sync button state when streaming is cancelled by user interaction
+  connect(m_canvas, &PlotCanvas::streamingModeChanged, m_btn_stream,
+          &QPushButton::setChecked);
 
   // Scrollbar
   connect(m_scrollbar, &QScrollBar::valueChanged, this, [this](int value) {
@@ -733,6 +768,23 @@ void SignalViewWidget::applyTheme(Theme t) {
   m_theme = t;
   m_canvas->setTheme(t);
   m_y_axis_panel->setTheme(t);
+}
+
+bool SignalViewWidget::streamingMode() const {
+  return m_canvas->streamingMode();
+}
+
+double SignalViewWidget::streamBufferSeconds() const {
+  return m_stream_buffer_spin->value();
+}
+
+void SignalViewWidget::setStreamingMode(bool enabled) {
+  m_btn_stream->setChecked(enabled);
+}
+
+void SignalViewWidget::setStreamBufferSeconds(double secs) {
+  m_stream_buffer_spin->setValue(secs);
+  m_canvas->setStreamBufferSeconds(secs);
 }
 
 void SignalViewWidget::refreshOverlayUI() {

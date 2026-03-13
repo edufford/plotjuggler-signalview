@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QTimer>
 #include <QWidget>
 #include <algorithm>
 #include <map>
@@ -85,7 +86,14 @@ class PlotCanvas : public QWidget {
   void setTheme(Theme theme);
   Theme theme() const { return m_theme; }
 
+  // Streaming mode: continuously scrolls the time axis to follow live data
+  void setStreamingMode(bool enabled);
+  bool streamingMode() const { return m_streaming; }
+  void setStreamBufferSeconds(double secs);
+  double streamBufferSeconds() const { return m_stream_buffer_secs; }
+
  signals:
+  void streamingModeChanged(bool enabled);
   void cursorMoved(double time);
   void viewRangeChanged(double t_min, double t_max);
   void canvasResized(int new_height);
@@ -183,6 +191,14 @@ class PlotCanvas : public QWidget {
 
   Theme m_theme = Theme::Dark;
   void applyThemeStylesheet();
+
+  // Streaming mode
+  bool m_streaming = false;
+  double m_stream_buffer_secs = 30.0;
+  double m_stream_t0 = 0.0;      // timestamp of first data point received
+  bool m_stream_t0_set = false;  // true once first data point is observed
+  QTimer* m_stream_timer = nullptr;
+  void updateStreamingView();
 
  public:
   // Layout constants — public so YAxisPanel can align with the plot area
