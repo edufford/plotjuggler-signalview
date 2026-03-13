@@ -1076,6 +1076,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       update();
       return;
     case DragState::CursorDrag: {
+      if (m_streaming) {
+        setStreamingMode(false);
+      }
       double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
       if (plot_w > 0) {
         double dx = event->pos().x() - m_cursor_drag_start_x;
