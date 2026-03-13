@@ -18,7 +18,8 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - **Signal context menu**: right-click any signal's name, value, or Y-axis bar to auto-scale, change style, group, or remove — applies to all selected signals when the right-clicked signal is part of the selection
 - **Selection and batch editing**: select signals with click, Ctrl+click, rubber band, or Ctrl+A; edit properties in bulk via the Y-range table dialog
 - **Customizable appearance**: per-signal color, line style, line width, marker style, and Y-axis divisions
-- **Layout persistence**: full save/restore of signal configuration, overlays, and view state via PlotJuggler layout files
+- **Streaming mode**: auto-scroll the time axis to follow live DataStreamer data with configurable buffer time; auto-enables on stream start, pauses data on user interaction, and resumes cleanly
+- **Layout persistence**: full save/restore of signal configuration, overlays, streaming state, and view state via PlotJuggler layout files
 - **Plot cursor navigation**: double-click to jump the cursor, drag within 5 px to slide it, or use left/right arrow keys for single-pixel steps
 - **Dark/Light theme**: toggle between dark (default) and light mode; signal colors are converted via an invertible HSL lightness mirror so switching back always restores the original colors exactly; theme is saved and restored with the layout
 
@@ -112,7 +113,8 @@ Then go to **Tools > Signal View** to open the plugin.
 5. Toggle **Time Shift** and drag on the canvas to align data layers
 6. Toggle **H. Zoom** and drag to zoom into a time range, or scroll the wheel to zoom centered on the mouse; right-click to pan
 7. Click **Prev Zoom** to step back through previous zoom ranges one at a time
-8. Click **Dark/Light** to switch themes
+8. Toggle **Stream** for live data: auto-scrolls with incoming data; pan/zoom/cursor drag pauses the stream; click **Stream** again to resume
+9. Click **Dark/Light** to switch themes
 
 ## Testing
 

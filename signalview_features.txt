@@ -65,6 +65,31 @@ TOOLBAR
 - "Layer:" combo box: selects the default layer to shift when no signals
   are selected in the Y-axis panel. Defaults to the highest layer index.
   Updated automatically when overlays are loaded or removed.
+- "Stream" toggle button: enables streaming mode for live data visualization.
+  When active, the time axis auto-scrolls to follow incoming DataStreamer data.
+  Button turns bright yellow when active. Behavior:
+  - Phase 1 (fill): the view spans [t0, t0 + buffer]. Data starts at the
+    left edge and fills rightward as new data arrives.
+  - Phase 2 (scroll): once elapsed time exceeds the buffer, the view
+    continuously scrolls as [t_max - buffer, t_max].
+  - The vertical cursor automatically tracks the latest data point time,
+    keeping signal value readouts current.
+  - Streaming is auto-enabled when PlotJuggler starts a DataStreamer and
+    auto-disabled when the DataStreamer stops.
+  - On a fresh DataStreamer start, stale data buffers are cleared
+    (PJ's "Clear Buffer" action is triggered automatically).
+  - Any user interaction that changes the view (pan, zoom, scroll-wheel
+    zoom, time field edit, rubber-band zoom, cursor drag) cancels streaming
+    mode and pauses PJ's data streaming. This freezes the data while the
+    user controls the view.
+  - Re-enabling streaming unpauses PJ's data streaming. If the buffer
+    was already full when cancelled, the view jumps so the latest data
+    appears at the right edge. If still in the fill phase, the fill
+    continues from where it left off.
+- "Buf:" spin box: stream buffer time window in seconds (1–3600s, default
+  30s, 1 decimal place). Controls how much time is visible in the plot
+  during streaming. Changing the value takes effect on the next streaming
+  update.
 - "Overlay" button: opens a file picker to load a CSV overlay data file
   for comparison (see DATA OVERLAY section).
 - "Dark/Light" toggle button: switches between dark mode (default) and light
@@ -225,6 +250,9 @@ Time axis:
 Cursor:
   - Dark mode: vertical dashed yellow line with a small yellow triangle handle.
   - Light mode: vertical dashed red line with a small red triangle handle.
+  - Drawn outside the plot area clip rect so it remains visible even when
+    positioned at the exact left or right edge of the plot. The cursor x
+    position is clamped to the plot boundaries rather than hidden.
   - In default mode, shows SizeHorCursor when hovering within 5px of the cursor line.
   - In H. Zoom mode, shows a custom magnifying glass cursor.
   - In Time Shift mode, shows a custom sine wave + arrow cursor.
@@ -406,7 +434,8 @@ MOUSE INTERACTION: PLOT CANVAS
 
 - Left click + drag on cursor line (default mode): drags the cursor along
   the time axis. Movement is relative to the click position. Continuously
-  updates cursor readout values in the signal value column.
+  updates cursor readout values in the signal value column. Cancels
+  streaming mode if active (pauses PJ data streaming).
 
 - Double left click anywhere (default mode): jumps the cursor to the
   clicked time position. Cursor time is clamped to the current view range.
@@ -574,7 +603,8 @@ Saved state includes:
     marker_style, z_order.
   - Cursor time position.
   - View time range (t_min, t_max).
-  - Settings: snap amount, theme (0=Dark, 1=Light).
+  - Settings: snap amount, theme (0=Dark, 1=Light), streaming mode (on/off),
+    stream buffer seconds.
   - Column widths: main splitter (panel|canvas), panel splitter (label|bar),
     label splitter (name|value).
   - For each overlay layer: layer index, display name, file path, time offset.
