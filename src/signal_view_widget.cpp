@@ -1,5 +1,6 @@
 #include "signal_view_widget.h"
 
+#include <QApplication>
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -372,9 +373,14 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(m_stream_buffer_spin,
           QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           [this](double val) { m_canvas->setStreamBufferSeconds(val); });
-  // Sync button state when streaming is cancelled by user interaction
-  connect(m_canvas, &PlotCanvas::streamingModeChanged, m_btn_stream,
-          &QPushButton::setChecked);
+  // Sync button state and PJ streaming pause when streaming changes
+  connect(m_canvas, &PlotCanvas::streamingModeChanged, this,
+          [this](bool enabled) {
+            m_btn_stream->setChecked(enabled);
+            // Pause PJ data streaming when our view stops, unpause when it
+            // starts
+            setPjStreamingPaused(!enabled);
+          });
 
   // Scrollbar
   connect(m_scrollbar, &QScrollBar::valueChanged, this, [this](int value) {
@@ -785,6 +791,18 @@ void SignalViewWidget::setStreamingMode(bool enabled) {
 void SignalViewWidget::setStreamBufferSeconds(double secs) {
   m_stream_buffer_spin->setValue(secs);
   m_canvas->setStreamBufferSeconds(secs);
+}
+
+void SignalViewWidget::setPjStreamingPaused(bool paused) {
+  // Find PlotJuggler's MainWindow streaming pause button and toggle it.
+  for (auto* w : QApplication::topLevelWidgets()) {
+    if (auto* btn = w->findChild<QPushButton*>("buttonStreamingPause")) {
+      if (btn->isEnabled() && btn->isChecked() != paused) {
+        btn->setChecked(paused);
+      }
+      return;
+    }
+  }
 }
 
 void SignalViewWidget::refreshOverlayUI() {

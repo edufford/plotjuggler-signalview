@@ -405,6 +405,9 @@ void PlotCanvas::setStreamingMode(bool enabled) {
   }
   m_streaming = enabled;
   if (enabled) {
+    // If we had a previous session, resume directly into scroll mode
+    // so that new data appears at the right edge immediately.
+    m_stream_resuming = m_stream_t0_set;
     m_stream_t0_set = false;
     m_stream_timer->start();
   } else {
@@ -441,7 +444,14 @@ void PlotCanvas::updateStreamingView() {
 
   // Record t0 on first data arrival
   if (!m_stream_t0_set) {
-    m_stream_t0 = t_max_data;
+    if (m_stream_resuming) {
+      // Resuming after pause: set t0 so we're immediately in scroll mode
+      // (elapsed >= buf), placing existing data at the right edge.
+      m_stream_t0 = t_max_data - m_stream_buffer_secs;
+      m_stream_resuming = false;
+    } else {
+      m_stream_t0 = t_max_data;
+    }
     m_stream_t0_set = true;
   }
 

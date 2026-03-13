@@ -83,6 +83,7 @@ class SignalViewWidget : public QWidget {
   /// remain, then refresh the panel, combo, and views.
   void afterOverlayChange();
 
+  void setPjStreamingPaused(bool paused);
   double snapValue(double val) const;
   void refreshViews();
   void normalizeZOrders();

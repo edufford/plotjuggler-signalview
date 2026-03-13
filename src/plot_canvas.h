@@ -195,8 +195,9 @@ class PlotCanvas : public QWidget {
   // Streaming mode
   bool m_streaming = false;
   double m_stream_buffer_secs = 30.0;
-  double m_stream_t0 = 0.0;      // timestamp of first data point received
-  bool m_stream_t0_set = false;  // true once first data point is observed
+  double m_stream_t0 = 0.0;        // timestamp of first data point received
+  bool m_stream_t0_set = false;    // true once first data point is observed
+  bool m_stream_resuming = false;  // true when re-enabling after a pause
   QTimer* m_stream_timer = nullptr;
   void updateStreamingView();
 
