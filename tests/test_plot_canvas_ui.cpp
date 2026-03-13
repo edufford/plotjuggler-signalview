@@ -415,6 +415,126 @@ TEST_F(PlotCanvasUITest, PrevZoomAfterPanRestoresRange) {
   EXPECT_NEAR(range_spy.first().at(1).toDouble(), 10.0, 1e-9);
 }
 
+// ---- Streaming mode tests ---------------------------------------------------
+
+// setStreamingMode emits streamingModeChanged.
+TEST_F(PlotCanvasUITest, SetStreamingModeEmitsSignal) {
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  m_canvas->setStreamingMode(true);
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_TRUE(spy.first().at(0).toBool());
+  m_canvas->setStreamingMode(false);
+  ASSERT_EQ(spy.count(), 2);
+  EXPECT_FALSE(spy.last().at(0).toBool());
+}
+
+// setStreamingMode(true) twice is a no-op (only one signal emitted).
+TEST_F(PlotCanvasUITest, SetStreamingModeIdempotent) {
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  m_canvas->setStreamingMode(true);
+  m_canvas->setStreamingMode(true);
+  EXPECT_EQ(spy.count(), 1);
+  m_canvas->setStreamingMode(false);
+}
+
+// Right-click pan cancels streaming mode.
+TEST_F(PlotCanvasUITest, PanCancelsStreaming) {
+  m_canvas->setStreamingMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  int y = H / 2;
+  QPoint start(200, y);
+  QPoint end(250, y);
+  QTest::mousePress(m_canvas, Qt::RightButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::RightButton, Qt::NoModifier, end);
+
+  ASSERT_GE(spy.count(), 1);
+  EXPECT_FALSE(spy.last().at(0).toBool());
+  EXPECT_FALSE(m_canvas->streamingMode());
+}
+
+// Rubber-band zoom cancels streaming mode.
+TEST_F(PlotCanvasUITest, ZoomSelectCancelsStreaming) {
+  m_canvas->setStreamingMode(true);
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  int y = H / 2;
+  QPoint start(timeToPixelX(2.0), y);
+  QPoint end(timeToPixelX(8.0), y);
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+
+  ASSERT_GE(spy.count(), 1);
+  EXPECT_FALSE(m_canvas->streamingMode());
+}
+
+// Scroll-wheel zoom cancels streaming mode.
+TEST_F(PlotCanvasUITest, WheelZoomCancelsStreaming) {
+  m_canvas->setStreamingMode(true);
+  m_canvas->setZoomMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  QPoint center(W / 2, H / 2);
+  QWheelEvent event(center, m_canvas->mapToGlobal(center), QPoint(0, 0),
+                    QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
+                    Qt::NoScrollPhase, false);
+  QApplication::sendEvent(m_canvas, &event);
+
+  ASSERT_GE(spy.count(), 1);
+  EXPECT_FALSE(m_canvas->streamingMode());
+}
+
+// Cursor drag cancels streaming mode.
+TEST_F(PlotCanvasUITest, CursorDragCancelsStreaming) {
+  m_canvas->setCursorTime(3.0);
+  m_canvas->setStreamingMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  int y = H / 2;
+  QPoint start(timeToPixelX(3.0), y);
+  QPoint end(timeToPixelX(5.0), y);
+  QTest::mousePress(m_canvas, Qt::LeftButton, Qt::NoModifier, start);
+  QMouseEvent move(QEvent::MouseMove, end, m_canvas->mapToGlobal(end),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(m_canvas, &move);
+  QTest::mouseRelease(m_canvas, Qt::LeftButton, Qt::NoModifier, end);
+
+  ASSERT_GE(spy.count(), 1);
+  EXPECT_FALSE(m_canvas->streamingMode());
+}
+
+// setViewRange cancels streaming mode.
+TEST_F(PlotCanvasUITest, SetViewRangeCancelsStreaming) {
+  m_canvas->setStreamingMode(true);
+  QSignalSpy spy(m_canvas, &PlotCanvas::streamingModeChanged);
+  m_canvas->setViewRange(2.0, 8.0);
+  ASSERT_EQ(spy.count(), 1);
+  EXPECT_FALSE(m_canvas->streamingMode());
+}
+
+// resetStreamState clears internal state so next enable is a fresh start.
+TEST_F(PlotCanvasUITest, ResetStreamStateClearsState) {
+  m_canvas->setStreamingMode(true);
+  m_canvas->setStreamingMode(false);
+  // After reset, streamingMode should stay false and be re-enableable.
+  m_canvas->resetStreamState();
+  EXPECT_FALSE(m_canvas->streamingMode());
+  m_canvas->setStreamingMode(true);
+  EXPECT_TRUE(m_canvas->streamingMode());
+  m_canvas->setStreamingMode(false);
+}
+
+// setStreamBufferSeconds clamps to minimum of 1.0.
+TEST_F(PlotCanvasUITest, StreamBufferSecondsClampsMinimum) {
+  m_canvas->setStreamBufferSeconds(0.5);
+  EXPECT_DOUBLE_EQ(m_canvas->streamBufferSeconds(), 1.0);
+  m_canvas->setStreamBufferSeconds(60.0);
+  EXPECT_DOUBLE_EQ(m_canvas->streamBufferSeconds(), 60.0);
+}
+
 // Right-click still pans even when zoom mode is active.
 TEST_F(PlotCanvasUITest, RightClickPansInZoomMode) {
   m_canvas->setZoomMode(true);
