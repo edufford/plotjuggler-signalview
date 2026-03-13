@@ -821,17 +821,16 @@ void SignalViewWidget::setPjStreamingPaused(bool paused) {
 bool SignalViewWidget::eventFilter(QObject* obj, QEvent* event) {
   if (obj == m_pj_pause_btn && event->type() == QEvent::EnabledChange) {
     if (m_pj_pause_btn->isEnabled()) {
-      // PJ streaming just started — fresh start (not a resume)
-      if (!m_canvas->streamingMode()) {
-        // Clear stale data buffers so the new stream starts clean
-        for (auto* w : QApplication::topLevelWidgets()) {
-          if (auto* action = w->findChild<QAction*>("actionClearBuffer")) {
-            action->trigger();
-            break;
-          }
+      // PJ streaming just started — clear stale data and fresh start
+      for (auto* w : QApplication::topLevelWidgets()) {
+        if (auto* action = w->findChild<QAction*>("actionClearBuffer")) {
+          action->trigger();
+          break;
         }
-        m_canvas->resetStreamState();
-        m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+      }
+      m_canvas->resetStreamState();
+      m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+      if (!m_canvas->streamingMode()) {
         m_canvas->setStreamingMode(true);
       }
     } else {
