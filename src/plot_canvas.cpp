@@ -866,11 +866,12 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
 }
 
 void PlotCanvas::drawCursor(QPainter& painter) {
+  // Hide cursor when it is outside the visible time range
+  if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max) {
+    return;
+  }
   double x = timeToPixelX(m_cursor_time);
   double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  // Clamp to plot edges so cursor remains visible at boundaries
-  x = std::max(x, static_cast<double>(MARGIN_LEFT));
-  x = std::min(x, static_cast<double>(width() - MARGIN_RIGHT));
 
   QColor cursor_color = (m_theme == Theme::Light) ? QColor(220, 50, 50, 200)
                                                   : QColor(255, 255, 100, 200);

@@ -250,9 +250,10 @@ Time axis:
 Cursor:
   - Dark mode: vertical dashed yellow line with a small yellow triangle handle.
   - Light mode: vertical dashed red line with a small red triangle handle.
-  - Drawn outside the plot area clip rect so it remains visible even when
-    positioned at the exact left or right edge of the plot. The cursor x
-    position is clamped to the plot boundaries rather than hidden.
+  - Drawn outside the plot area clip rect so it is not clipped by the
+    signal drawing region. If the cursor time is outside the visible
+    time range (e.g. after panning away), the cursor is hidden entirely
+    and reappears when the view is panned back to include it.
   - In default mode, shows SizeHorCursor when hovering within 5px of the cursor line.
   - In H. Zoom mode, shows a custom magnifying glass cursor.
   - In Time Shift mode, shows a custom sine wave + arrow cursor.
