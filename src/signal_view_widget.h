@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSpinBox>
 #include <QSplitter>
@@ -43,6 +45,14 @@ class SignalViewWidget : public QWidget {
   // colors are already in the correct mode).
   void applyTheme(Theme t);
 
+  bool streamingMode() const;
+  double streamBufferSeconds() const;
+  void setStreamingMode(bool enabled);
+  void setStreamBufferSeconds(double secs);
+
+ protected:
+  bool eventFilter(QObject* obj, QEvent* event) override;
+
  signals:
   void closeRequested();
 
@@ -76,6 +86,7 @@ class SignalViewWidget : public QWidget {
   /// remain, then refresh the panel, combo, and views.
   void afterOverlayChange();
 
+  void setPjStreamingPaused(bool paused);
   double snapValue(double val) const;
   void refreshViews();
   void normalizeZOrders();
@@ -104,6 +115,9 @@ class SignalViewWidget : public QWidget {
   QComboBox* m_shift_layer_combo;
   QScrollBar* m_scrollbar;
   DataSetsPanel* m_data_sets_panel;
+  QPushButton* m_btn_stream;
+  QDoubleSpinBox* m_stream_buffer_spin;
+  QPushButton* m_pj_pause_btn = nullptr;  // PJ's MainWindow streaming pause btn
 
   // Multi-drag state: original positions captured at drag start
   int m_multi_drag_index = -1;

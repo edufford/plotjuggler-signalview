@@ -109,6 +109,11 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
   setAutoFillBackground(true);
 
+  m_stream_timer = new QTimer(this);
+  m_stream_timer->setInterval(33);  // ~30 fps
+  connect(m_stream_timer, &QTimer::timeout, this,
+          &PlotCanvas::updateStreamingView);
+
   QPalette pal = palette();
   pal.setColor(QPalette::Window, QColor(30, 30, 30));
   setPalette(pal);
@@ -135,6 +140,9 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
       emit zoomStackChanged(true);
       m_view_t_min = val;
       m_auto_fit = false;
+      if (m_streaming) {
+        setStreamingMode(false);
+      }
       emit viewRangeChanged(m_view_t_min, m_view_t_max);
       update();
     }
@@ -149,6 +157,9 @@ PlotCanvas::PlotCanvas(QWidget* parent) : QWidget(parent) {
       emit zoomStackChanged(true);
       m_view_t_max = val;
       m_auto_fit = false;
+      if (m_streaming) {
+        setStreamingMode(false);
+      }
       emit viewRangeChanged(m_view_t_min, m_view_t_max);
       update();
     }
@@ -193,6 +204,9 @@ void PlotCanvas::setViewRange(double t_min, double t_max) {
   m_view_t_min = t_min;
   m_view_t_max = t_max;
   m_auto_fit = false;
+  if (m_streaming) {
+    setStreamingMode(false);
+  }
   updateTimeEditTexts();
   update();
 }
@@ -381,6 +395,102 @@ void PlotCanvas::autoFitTimeRange() {
     m_view_t_max = t_max;
   }
   updateTimeEditTexts();
+}
+
+// --- Streaming mode ---
+
+void PlotCanvas::setStreamingMode(bool enabled) {
+  if (m_streaming == enabled) {
+    return;
+  }
+  m_streaming = enabled;
+  if (enabled) {
+    // If resuming after user-interaction pause (t0 was previously set),
+    // jump to scroll mode so new data appears at the right edge.
+    // A fresh PJ start resets t0_set via resetStreamState() first.
+    m_stream_resuming = m_stream_t0_set;
+    m_stream_t0_set = false;
+    m_stream_timer->start();
+  } else {
+    m_stream_timer->stop();
+  }
+  emit streamingModeChanged(enabled);
+}
+
+void PlotCanvas::resetStreamState() {
+  m_stream_t0_set = false;
+  m_stream_resuming = false;
+}
+
+void PlotCanvas::setStreamBufferSeconds(double secs) {
+  m_stream_buffer_secs = std::max(1.0, secs);
+}
+
+void PlotCanvas::updateStreamingView() {
+  if (!m_streaming || !m_overlay_mgr || m_signals.empty()) {
+    return;
+  }
+
+  // Find the latest data timestamp across all signals
+  double t_max_data = std::numeric_limits<double>::lowest();
+  for (const auto& sig : m_signals) {
+    auto resolved = m_overlay_mgr->resolveSignal(sig.name);
+    if (!resolved || resolved->series->size() == 0) {
+      continue;
+    }
+    auto range = resolved->series->rangeX();
+    if (range) {
+      t_max_data = std::max(t_max_data, range->max + resolved->time_offset);
+    }
+  }
+
+  if (t_max_data == std::numeric_limits<double>::lowest()) {
+    return;  // no data yet
+  }
+
+  // Record t0 on first data arrival
+  if (!m_stream_t0_set) {
+    if (m_stream_resuming) {
+      // Resuming after user-interaction pause.
+      // Only jump to scroll mode if the buffer was already full when paused;
+      // otherwise continue the fill phase with the original t0.
+      double elapsed = t_max_data - m_stream_t0;
+      if (elapsed > m_stream_buffer_secs) {
+        m_stream_t0 = t_max_data - m_stream_buffer_secs;
+      }
+      // else: keep m_stream_t0 from the original session (still filling)
+      m_stream_resuming = false;
+    } else {
+      // Fresh start: data begins at right edge, fills leftward.
+      m_stream_t0 = t_max_data;
+    }
+    m_stream_t0_set = true;
+  }
+
+  double elapsed = t_max_data - m_stream_t0;
+  double buf = m_stream_buffer_secs;
+
+  if (elapsed <= buf) {
+    // Phase 1: data hasn't filled the buffer yet.
+    // Right edge = t0 + buf, left edge = t0.
+    // So t0 starts at right and moves left as data arrives.
+    m_view_t_min = m_stream_t0;
+    m_view_t_max = m_stream_t0 + buf;
+  } else {
+    // Phase 2: buffer is full — scroll with latest data.
+    m_view_t_min = t_max_data - buf;
+    m_view_t_max = t_max_data;
+  }
+
+  m_auto_fit = false;
+
+  // Keep cursor at the latest data point so signal values track live data
+  m_cursor_time = t_max_data;
+
+  updateTimeEditTexts();
+  emit viewRangeChanged(m_view_t_min, m_view_t_max);
+  emit cursorMoved(m_cursor_time);
+  update();
 }
 
 // --- Drawing ---
@@ -756,11 +866,12 @@ QPainterPath PlotCanvas::buildSignalPath(const SignalEntry& sig,
 }
 
 void PlotCanvas::drawCursor(QPainter& painter) {
-  double x = timeToPixelX(m_cursor_time);
-  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
-  if (x < MARGIN_LEFT || x > width() - MARGIN_RIGHT) {
+  // Hide cursor when it is outside the visible time range
+  if (m_cursor_time < m_view_t_min || m_cursor_time > m_view_t_max) {
     return;
   }
+  double x = timeToPixelX(m_cursor_time);
+  double plot_h = height() - MARGIN_TOP - MARGIN_BOTTOM;
 
   QColor cursor_color = (m_theme == Theme::Light) ? QColor(220, 50, 50, 200)
                                                   : QColor(255, 255, 100, 200);
@@ -811,7 +922,6 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   painter.setClipRect(QRectF(MARGIN_LEFT, MARGIN_TOP, plot_w, plot_h));
   drawGrid(painter);
   drawSignals(painter);
-  drawCursor(painter);
 
   // Zoom rubber band overlay
   if (m_drag_state == DragState::ZoomSelect) {
@@ -836,6 +946,8 @@ void PlotCanvas::paintEvent(QPaintEvent* /*event*/) {
   }
 
   painter.restore();
+
+  drawCursor(painter);
 
   drawTimeAxis(painter);
 
@@ -965,6 +1077,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       update();
       return;
     case DragState::CursorDrag: {
+      if (m_streaming) {
+        setStreamingMode(false);
+      }
       double plot_w = width() - MARGIN_LEFT - MARGIN_RIGHT;
       if (plot_w > 0) {
         double dx = event->pos().x() - m_cursor_drag_start_x;
@@ -991,6 +1106,9 @@ void PlotCanvas::mouseMoveEvent(QMouseEvent* event) {
       m_view_t_min = m_pan_t_min_start + dt;
       m_view_t_max = m_pan_t_max_start + dt;
       m_auto_fit = false;
+      if (m_streaming) {
+        setStreamingMode(false);
+      }
       updateTimeEditTexts();
       emit viewRangeChanged(m_view_t_min, m_view_t_max);
       update();
@@ -1032,6 +1150,9 @@ void PlotCanvas::mouseReleaseEvent(QMouseEvent* event) {
         m_view_t_min = new_min;
         m_view_t_max = new_max;
         m_auto_fit = false;
+        if (m_streaming) {
+          setStreamingMode(false);
+        }
         updateTimeEditTexts();
         emit viewRangeChanged(m_view_t_min, m_view_t_max);
         emit zoomStackChanged(true);
@@ -1071,6 +1192,9 @@ void PlotCanvas::wheelEvent(QWheelEvent* event) {
     m_view_t_min = new_min;
     m_view_t_max = new_max;
     m_auto_fit = false;
+    if (m_streaming) {
+      setStreamingMode(false);
+    }
     updateTimeEditTexts();
     emit viewRangeChanged(m_view_t_min, m_view_t_max);
     emit zoomStackChanged(true);

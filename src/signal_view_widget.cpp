@@ -1,5 +1,6 @@
 #include "signal_view_widget.h"
 
+#include <QApplication>
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -19,6 +20,7 @@
 #include <QSplitter>
 #include <QStringList>
 #include <QTableWidget>
+#include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -148,6 +150,29 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   toolbar->addWidget(btn_reset);
   toolbar->addWidget(btn_reset_cursor);
   toolbar->addSeparator();
+
+  // Streaming mode toggle + buffer time
+  m_btn_stream = new QPushButton("Stream", this);
+  m_btn_stream->setCheckable(true);
+  m_btn_stream->setToolTip(
+      "Toggle streaming mode: auto-scroll time axis to follow live data");
+  m_btn_stream->setStyleSheet(
+      "QPushButton:checked { background: #ffdd00; color: #000; }");
+  toolbar->addWidget(m_btn_stream);
+
+  auto* buf_label = new QLabel("Buf:", this);
+  buf_label->setStyleSheet("color: #000; font-size: 9px; padding: 0 2px;");
+  toolbar->addWidget(buf_label);
+  m_stream_buffer_spin = new QDoubleSpinBox(this);
+  m_stream_buffer_spin->setRange(1.0, 3600.0);
+  m_stream_buffer_spin->setValue(30.0);
+  m_stream_buffer_spin->setSuffix(" s");
+  m_stream_buffer_spin->setDecimals(1);
+  m_stream_buffer_spin->setFixedWidth(80);
+  m_stream_buffer_spin->setToolTip("Stream buffer time window (seconds)");
+  toolbar->addWidget(m_stream_buffer_spin);
+  toolbar->addSeparator();
+
   toolbar->addWidget(snap_label);
   toolbar->addWidget(m_snap_combo);
   toolbar->addSeparator();
@@ -341,6 +366,23 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
   connect(m_y_axis_panel, &YAxisPanel::verticalScrollRequested, this,
           &SignalViewWidget::onVerticalScroll);
 
+  // Streaming mode
+  connect(m_btn_stream, &QPushButton::toggled, this, [this](bool checked) {
+    m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+    m_canvas->setStreamingMode(checked);
+  });
+  connect(m_stream_buffer_spin,
+          QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+          [this](double val) { m_canvas->setStreamBufferSeconds(val); });
+  // Sync button state and PJ streaming pause when streaming changes
+  connect(m_canvas, &PlotCanvas::streamingModeChanged, this,
+          [this](bool enabled) {
+            m_btn_stream->setChecked(enabled);
+            // Pause PJ data streaming when our view stops, unpause when it
+            // starts
+            setPjStreamingPaused(!enabled);
+          });
+
   // Scrollbar
   connect(m_scrollbar, &QScrollBar::valueChanged, this, [this](int value) {
     m_scroll_offset = value / 1000.0;
@@ -359,6 +401,11 @@ SignalViewWidget::SignalViewWidget(PJ::PlotDataMapRef* data, QWidget* parent)
           [this]() { m_y_axis_panel->selectAll(); });
 
   updateScrollBar();
+
+  // Deferred: find PJ's streaming pause button and install event filter
+  // so we can auto-enable streaming when PJ starts a data streamer.
+  // Uses a single-shot timer because MainWindow may not be fully set up yet.
+  QTimer::singleShot(0, this, [this]() { setPjStreamingPaused(false); });
 }
 
 void SignalViewWidget::onAddSignal(double band_center_norm) {
@@ -733,6 +780,68 @@ void SignalViewWidget::applyTheme(Theme t) {
   m_theme = t;
   m_canvas->setTheme(t);
   m_y_axis_panel->setTheme(t);
+}
+
+bool SignalViewWidget::streamingMode() const {
+  return m_canvas->streamingMode();
+}
+
+double SignalViewWidget::streamBufferSeconds() const {
+  return m_stream_buffer_spin->value();
+}
+
+void SignalViewWidget::setStreamingMode(bool enabled) {
+  m_btn_stream->setChecked(enabled);
+}
+
+void SignalViewWidget::setStreamBufferSeconds(double secs) {
+  m_stream_buffer_spin->setValue(secs);
+  m_canvas->setStreamBufferSeconds(secs);
+}
+
+void SignalViewWidget::setPjStreamingPaused(bool paused) {
+  // Find PlotJuggler's MainWindow streaming pause button and toggle it.
+  // Cache the pointer and install an event filter so we can detect when
+  // PJ starts streaming (button becomes enabled).
+  if (!m_pj_pause_btn) {
+    for (auto* w : QApplication::topLevelWidgets()) {
+      if (auto* btn = w->findChild<QPushButton*>("buttonStreamingPause")) {
+        m_pj_pause_btn = btn;
+        btn->installEventFilter(this);
+        break;
+      }
+    }
+  }
+  if (m_pj_pause_btn && m_pj_pause_btn->isEnabled() &&
+      m_pj_pause_btn->isChecked() != paused) {
+    m_pj_pause_btn->setChecked(paused);
+  }
+}
+
+bool SignalViewWidget::eventFilter(QObject* obj, QEvent* event) {
+  if (obj == m_pj_pause_btn && event->type() == QEvent::EnabledChange) {
+    if (m_pj_pause_btn->isEnabled()) {
+      // PJ streaming just started — clear stale data and fresh start
+      for (auto* w : QApplication::topLevelWidgets()) {
+        if (auto* action = w->findChild<QAction*>("actionClearBuffer")) {
+          action->trigger();
+          break;
+        }
+      }
+      m_canvas->resetStreamState();
+      m_canvas->setStreamBufferSeconds(m_stream_buffer_spin->value());
+      if (!m_canvas->streamingMode()) {
+        m_canvas->setStreamingMode(true);
+      }
+    } else {
+      // PJ streaming stopped — disable our streaming mode and clear state
+      if (m_canvas->streamingMode()) {
+        m_canvas->setStreamingMode(false);
+        m_canvas->resetStreamState();
+      }
+    }
+  }
+  return QWidget::eventFilter(obj, event);
 }
 
 void SignalViewWidget::refreshOverlayUI() {
