@@ -2,9 +2,9 @@ name: CI (Linux)
 
 on:
   push:
-    branches: [dev_ai, main]
+    branches: [dev_ai, 'v*']
   pull_request:
-    branches: [dev_ai, main]
+    branches: [dev_ai, 'v*']
 
 # Required by dorny/test-reporter to publish test results
 permissions:
