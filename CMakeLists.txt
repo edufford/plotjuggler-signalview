@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(plotjuggler-signalview LANGUAGES CXX)
+project(plotjuggler-signalview VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,6 +59,7 @@ target_link_libraries(SignalViewPlugin PRIVATE
 
 target_compile_definitions(SignalViewPlugin PRIVATE
     QT_PLUGIN
+    PLUGIN_VERSION="${PROJECT_VERSION}"
     $<$<CXX_COMPILER_ID:MSVC>:_USE_MATH_DEFINES>
 )
 
