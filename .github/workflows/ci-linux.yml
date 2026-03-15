@@ -18,7 +18,7 @@ jobs:
 
     env:
       PJ_INSTALL_DIR: ${{ github.workspace }}/plotjuggler-install
-      PJ_VERSION: 3.15.0
+      PJ_VERSION: 3.16.0
 
     steps:
       - uses: actions/checkout@v4
