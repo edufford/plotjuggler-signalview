@@ -146,4 +146,7 @@ add_executable(test_autoscale
 )
 target_include_directories(test_autoscale PRIVATE ${TEST_INCLUDE_DIRS})
 target_link_libraries(test_autoscale PRIVATE ${UI_TEST_LINK_LIBS})
+target_compile_definitions(test_autoscale PRIVATE
+    PLUGIN_VERSION="${PROJECT_VERSION}"
+)
 add_test(NAME AutoScale COMMAND test_autoscale)
