@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 env:
-  PJ_VERSION: 3.15.0
+  PJ_VERSION: 3.16.0
 
 jobs:
   build-linux:
