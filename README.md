@@ -7,6 +7,9 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 
 ![Signal View screenshot](images/plotjuggler-signalviewer-sample.jpg)
 
+Companion plugins:
+- [plotjuggler-zenoh](https://github.com/edufford/plotjuggler-zenoh) — DataStreamer plugin for live data over [Zenoh](https://zenoh.io/)
+
 ## Features
 
 - **Step-wise signal traces** with per-pixel downsampling for smooth rendering at any zoom level
@@ -23,7 +26,39 @@ An oscilloscope-style signal viewer plugin for [PlotJuggler](https://github.com/
 - **Plot cursor navigation**: double-click to jump the cursor, drag within 5 px to slide it, or use left/right arrow keys for single-pixel steps
 - **Dark/Light theme**: toggle between dark (default) and light mode; signal colors are converted via an invertible HSL lightness mirror so switching back always restores the original colors exactly; theme is saved and restored with the layout
 
-## Requirements
+## Usage
+
+1. Click **Add Signal** to add signals to the view
+2. Double-click a signal name, value, or bar to edit properties (color, line style, Y range, etc.)
+3. Right-click a signal name, value, or bar to auto-scale, change style, group, or remove (applies to all selected signals)
+4. Click **Overlay** to load a CSV file for comparison; right-click the data-sets footer to rename, remove, or clear all overlays
+5. Toggle **Time Shift** and drag on the canvas to align data layers
+6. Toggle **H. Zoom** and drag to zoom into a time range, or scroll the wheel to zoom centered on the mouse; right-click to pan
+7. Click **Prev Zoom** to step back through previous zoom ranges one at a time
+8. Toggle **Stream** for live data: auto-scrolls with incoming data; pan/zoom/cursor drag pauses the stream; click **Stream** again to resume
+9. Click **Dark/Light** to switch themes
+
+## Installing from Releases
+
+Pre-built plugin binaries are available on the [Releases](https://github.com/edufford/plotjuggler-signalview/releases) page. Each release is built against a specific PlotJuggler version (noted in the filename and release notes).
+
+1. Download the plugin file for your OS:
+   - **Linux:** `libSignalViewPlugin-<version>-pj<pj_version>.so`
+   - **Windows:** `SignalViewPlugin-<version>-pj<pj_version>.dll`
+
+2. Copy the file into PlotJuggler's plugins directory:
+
+   | OS | Plugins directory |
+   |----|-------------------|
+   | Linux (source install) | `<plotjuggler-install>/lib/plotjuggler/plugins/` |
+   | Linux (apt/ROS) | `/opt/ros/<distro>/lib/plotjuggler/plugins/` or `/usr/lib/plotjuggler/plugins/` |
+   | Windows | `<plotjuggler-install>\lib\plotjuggler\plugins\` |
+
+3. Restart PlotJuggler — **Signal View** will appear under **Tools**.
+
+## Building from Source
+
+### Requirements
 
 - PlotJuggler 3.x (built and installed from source)
 - Qt 5
@@ -42,9 +77,9 @@ sudo apt install qtbase5-dev cmake
 - Qt 5.15 via [aqtinstall](https://github.com/miurahr/aqtinstall): `pip install aqtinstall && aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O C:\Qt`
 - PlotJuggler must be [built from source](https://github.com/facontidavide/PlotJuggler) and installed via `cmake --install` to produce the install tree
 
-## Building
+### Building
 
-### Linux
+#### Linux
 
 If `plotjuggler` is on your PATH, the build script auto-detects the install prefix:
 
@@ -58,7 +93,7 @@ Otherwise, set `PJ_INSTALL_DIR` manually:
 PJ_INSTALL_DIR=/path/to/plotjuggler-install ./build.sh
 ```
 
-### Windows
+#### Windows
 
 If both `qmake` and `plotjuggler` are on your PATH, the build script auto-detects both:
 
@@ -82,9 +117,9 @@ build.bat vs2022
 
 Both generators require the **v142 (VS 2019) C++ toolchain** to be installed, as Qt 5.15 was built against it.
 
-## Running
+### Running
 
-### Linux
+#### Linux
 
 ```bash
 ./run.sh                        # launch PlotJuggler with the plugin
@@ -92,7 +127,7 @@ Both generators require the **v142 (VS 2019) C++ toolchain** to be installed, as
 ./run.sh -l layout.xml          # restore a saved layout
 ```
 
-### Windows
+#### Windows
 
 ```bat
 run.bat                         # launch PlotJuggler with the plugin
@@ -104,21 +139,9 @@ Any additional arguments are passed through to PlotJuggler.
 
 Then go to **Tools > Signal View** to open the plugin.
 
-## Usage
+### Testing
 
-1. Click **Add Signal** to add signals to the view
-2. Double-click a signal name, value, or bar to edit properties (color, line style, Y range, etc.)
-3. Right-click a signal name, value, or bar to auto-scale, change style, group, or remove (applies to all selected signals)
-4. Click **Overlay** to load a CSV file for comparison; right-click the data-sets footer to rename, remove, or clear all overlays
-5. Toggle **Time Shift** and drag on the canvas to align data layers
-6. Toggle **H. Zoom** and drag to zoom into a time range, or scroll the wheel to zoom centered on the mouse; right-click to pan
-7. Click **Prev Zoom** to step back through previous zoom ranges one at a time
-8. Toggle **Stream** for live data: auto-scrolls with incoming data; pan/zoom/cursor drag pauses the stream; click **Stream** again to resume
-9. Click **Dark/Light** to switch themes
-
-## Testing
-
-### Linux
+#### Linux
 
 Run the unit tests with:
 
@@ -134,7 +157,7 @@ To output JUnit XML results (used by CI for test reporting):
 JUNIT_OUTPUT=test-results.xml ./test.sh
 ```
 
-### Windows
+#### Windows
 
 ```bat
 test.bat
